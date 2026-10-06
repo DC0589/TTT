@@ -1,4 +1,6 @@
 import json
+import random
+import time
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -29,10 +31,20 @@ def generate_json(parts):
     )
 
     try:
-        with urlopen(request, timeout=20) as response:
-            payload = json.loads(response.read().decode())
-    except HTTPError as error:
-        raise GeminiAPIError(f"The AI service returned HTTP {error.code}.") from None
+        for attempt in range(3):
+            try:
+                with urlopen(request, timeout=20) as response:
+                    payload = json.loads(response.read().decode())
+                break
+            except HTTPError as error:
+                if error.code == 503 and attempt < 2:
+                    time.sleep(2 ** attempt + random.uniform(0, 0.25))
+                    continue
+                if error.code == 503:
+                    raise GeminiAPIError(
+                        "The AI service is temporarily unavailable. Please try again shortly."
+                    ) from None
+                raise GeminiAPIError(f"The AI service returned HTTP {error.code}.") from None
     except (URLError, TimeoutError, json.JSONDecodeError):
         raise GeminiAPIError("The AI service could not be reached. Please try again.") from None
 

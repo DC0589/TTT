@@ -2,7 +2,9 @@ from datetime import date, timedelta
 import base64
 import json
 import re
-from unittest.mock import patch
+from io import BytesIO
+from unittest.mock import MagicMock, patch
+from urllib.error import HTTPError
 
 from django.contrib.auth.hashers import check_password
 from django.core import mail
@@ -17,6 +19,7 @@ from .models import (
     Group, GroupMembership, Interview, InterviewRound, InterviewStatus,
     LearningCourse, StudentRegistrationRequest, User,
 )
+from .ai_interview import GeminiAPIError, generate_json
 
 
 class Base(TestCase):
@@ -254,6 +257,45 @@ class MockInterviewTests(Base):
         self.client.force_login(self.admin)
         response = self.client.get(reverse("student_mock_interview"))
         self.assertEqual(response.status_code, 403)
+
+    @override_settings(GEMINI_API_KEY="test-key", GEMINI_MODEL="gemini-test")
+    @patch("tracker.ai_interview.urlopen")
+    def test_gemini_503_is_retried(self, mock_urlopen):
+        response = MagicMock()
+        response.__enter__.return_value = response
+        response.__exit__.return_value = False
+        response.read.return_value = json.dumps({
+            "candidates": [{"content": {"parts": [{"text": '{"question": "Tell me about your experience."}'}]}}]
+        }).encode()
+        mock_urlopen.side_effect = [
+            HTTPError("https://example.test", 503, "Unavailable", {}, BytesIO()),
+            response,
+        ]
+
+        with patch("tracker.ai_interview.time.sleep") as mock_sleep:
+            result = generate_json([{"text": "Ask a question."}])
+
+        self.assertEqual(result["question"], "Tell me about your experience.")
+        self.assertEqual(mock_urlopen.call_count, 2)
+        self.assertGreaterEqual(mock_sleep.call_args.args[0], 1)
+        self.assertLess(mock_sleep.call_args.args[0], 1.25)
+
+    @override_settings(GEMINI_API_KEY="test-key", GEMINI_MODEL="gemini-test")
+    @patch("tracker.ai_interview.urlopen")
+    def test_gemini_persistent_503_returns_retry_message(self, mock_urlopen):
+        mock_urlopen.side_effect = [
+            HTTPError("https://example.test", 503, "Unavailable", {}, BytesIO())
+            for _ in range(3)
+        ]
+
+        with patch("tracker.ai_interview.time.sleep"):
+            with self.assertRaisesMessage(
+                GeminiAPIError,
+                "The AI service is temporarily unavailable. Please try again shortly.",
+            ):
+                generate_json([{"text": "Ask a question."}])
+
+        self.assertEqual(mock_urlopen.call_count, 3)
 
     @override_settings(GEMINI_API_KEY="test-key", GEMINI_MODEL="gemini-test")
     @patch("tracker.ai_interview.urlopen")
