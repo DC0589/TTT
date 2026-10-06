@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}My interviews{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">YOUR OPPORTUNITIES</p><h1>My interviews</h1><p>Keep every opportunity, round and result in one place.</p></div>
+  <a class="button button-primary" href="{% url 'student_interview_add' %}"><span class="button-plus" aria-hidden="true">+</span> Add interview</a>
+</section>
+<section class="directory-toolbar">
+  <div class="directory-toolbar-meta">
+    <span><strong>{{ interviews|length }}</strong> interview{{ interviews|length|pluralize }}</span>
+    <nav class="view-switch" aria-label="Interview display format">
+      <a href="?view=cards" class="{% if view_mode == 'cards' %}is-selected{% endif %}"{% if view_mode == "cards" %} aria-current="page"{% endif %}>Cards</a>
+      <a href="?view=table" class="{% if view_mode == 'table' %}is-selected{% endif %}"{% if view_mode == "table" %} aria-current="page"{% endif %}>Table</a>
+      <a href="?view=list" class="{% if view_mode == 'list' %}is-selected{% endif %}"{% if view_mode == "list" %} aria-current="page"{% endif %}>List</a>
+    </nav>
+  </div>
+</section>
+{% if interviews %}
+  {% if view_mode == "table" %}
+  {% include "tracker/_interview_table.html" with interviews=interviews link=True %}
+  {% elif view_mode == "list" %}
+  <section class="directory-rows" aria-label="My interviews">
+    {% for interview in interviews %}
+    <article class="directory-row-card interview-directory-row">
+      <span class="interview-company-mark interview-company-mark-small" aria-hidden="true">{{ interview.company_name|slice:":1"|upper }}</span>
+      <span class="directory-row-copy"><strong><a href="{% url 'student_interview_detail' interview.pk %}">{{ interview.company_name }}</a></strong><small>{{ interview.role }} · {{ interview.group.name }} · {{ interview.date_of_interview|date:"d M Y" }}</small></span>
+      <span class="directory-row-count"><strong>{{ interview.progress }}</strong><small>Rounds cleared</small></span>
+      <span class="status-badge {{ interview.badge }}">{{ interview.final_label }}</span>
+      <a class="button button-quiet" href="{% url 'student_interview_edit' interview.pk %}">Edit details</a>
+    </article>
+    {% endfor %}
+  </section>
+  {% else %}
+  <section class="interview-directory-cards" aria-label="My interviews">
+    {% for interview in interviews %}
+    <article class="panel interview-directory-card">
+      <div class="interview-card-top">
+        <span class="interview-company-mark interview-company-mark-small" aria-hidden="true">{{ interview.company_name|slice:":1"|upper }}</span>
+        <span class="status-badge {{ interview.badge }}">{{ interview.final_label }}</span>
+      </div>
+      <p class="eyebrow">{{ interview.date_of_interview|date:"d M Y" }}</p>
+      <h2><a href="{% url 'student_interview_detail' interview.pk %}">{{ interview.company_name }}</a></h2>
+      <p class="interview-card-role">{{ interview.role }}</p>
+      <div class="interview-card-meta"><span>{{ interview.group.name }}</span><span>{{ interview.progress }} rounds cleared</span></div>
+      <div class="interview-card-actions">
+        <a class="button button-quiet" href="{% url 'student_interview_detail' interview.pk %}">View interview</a>
+        <a class="button button-primary" href="{% url 'student_interview_edit' interview.pk %}">Edit details</a>
+      </div>
+    </article>
+    {% endfor %}
+  </section>
+  {% endif %}
+{% else %}
+<div class="directory-empty-state">
+  <span class="empty-icon">✦</span><h2>Your interview list is ready.</h2>
+  <p>Add your first opportunity to keep its rounds and outcome organized.</p>
+  <a class="button button-primary" href="{% url 'student_interview_add' %}">Add your first interview</a>
+</div>
+{% endif %}
+{% endblock %}

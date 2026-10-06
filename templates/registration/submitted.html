@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Registration submitted{% endblock %}
+{% block content %}
+<div class="auth-card">
+  <span class="auth-card-icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 7l8 6 8-6"/><path d="m8 14 2.2 2.2L16 10.5"/></svg>
+  </span>
+  {% if email_verified %}
+  <p class="eyebrow">EMAIL VERIFIED</p>
+  <h2>Your request is with the administrator.</h2>
+  <p class="auth-card-description">Your email is confirmed. An administrator must approve your request before your student account and dashboard are created.</p>
+  {% else %}
+  <p class="eyebrow">REQUEST SUBMITTED</p>
+  <h2>Check your inbox for your code.</h2>
+  <p class="auth-card-description">Enter the 6-digit verification code from your email within 10 minutes. After you verify, an administrator must approve your request before your student account and dashboard are created.</p>
+  {% endif %}
+  <p class="auth-switch"><a href="{% url 'login' %}">Return to log in</a></p>
+</div>
+{% endblock %}

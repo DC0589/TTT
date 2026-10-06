@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}AI Mock Interview{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">PRACTICE SESSION</p><h1>AI Mock Interview</h1><p>Answer five role-specific questions and get feedback as you go.</p></div>
+</section>
+<div class="mock-interview" data-mock-interview data-ai-url="{{ ai_url }}">
+  <p class="mock-privacy-note"><strong>Privacy:</strong> Camera and screen previews stay in your browser. After each answer, one still image from each and the transcript you enter are sent to Google Gemini for feedback. The app does not record or save video, images, or answers. Do not show private information on your screen.</p>
+  <section class="panel mock-setup" data-interview-setup>
+    <div class="panel-heading"><div><p class="eyebrow">GET READY</p><h2>Set up your session</h2><p>Choose a role, then allow camera and screen sharing when prompted.</p></div></div>
+    <form class="stack-form" data-interview-start method="post">{% csrf_token %}
+      <div class="form-field"><label for="mock-role">Role to practise</label><input class="form-control" id="mock-role" name="role" maxlength="120" placeholder="For example, Data Analyst" required></div>
+      <label class="mock-consent"><input type="checkbox" name="consent" required><span>I agree to send my answer transcript and occasional camera and screen snapshots to Google Gemini for feedback.</span></label>
+      <button class="button button-primary" type="submit">Start interview</button>
+    </form>
+    <p class="mock-status" data-interview-status role="status" aria-live="polite"></p>
+  </section>
+  <section class="mock-session" data-interview-session hidden>
+    <div class="mock-session-main">
+      <div class="mock-capture-grid" data-capture-grid>
+        <article class="mock-capture-panel"><div class="mock-capture-heading"><h2>Camera</h2><span class="mock-live-indicator">Live preview</span></div><video data-camera-preview autoplay muted playsinline></video></article>
+        <article class="mock-capture-panel"><div class="mock-capture-heading"><h2>Shared screen</h2><span class="mock-live-indicator">Live preview</span></div><video data-screen-preview autoplay muted playsinline></video></article>
+      </div>
+      <article class="panel mock-question-panel" data-question-panel>
+        <div class="mock-question-meta"><p class="eyebrow">QUESTION <span data-question-number>1</span> OF 5</p><span data-question-state>Preparing your question</span></div>
+        <h2 data-interview-question aria-live="polite">Your first question will appear here.</h2>
+        <form class="stack-form" data-answer-form method="post">{% csrf_token %}
+          <div class="form-field"><label for="mock-answer">Your answer transcript</label><textarea class="form-control" id="mock-answer" name="answer" maxlength="4000" rows="5" placeholder="Type your spoken answer, or use your device's dictation." required></textarea><p class="field-help">The AI evaluates your answer text and the camera/screen setup shown in the snapshots.</p></div>
+          <div class="mock-session-actions"><button class="button button-primary" type="submit" data-answer-submit disabled>Send answer for feedback</button><button class="button button-quiet" type="button" data-end-session>End session</button></div>
+        </form>
+        <div class="mock-session-finished" data-session-finished hidden><strong>Session complete</strong><p>Your feedback is shown below. The app did not save your answers or snapshots.</p><button class="button button-quiet" type="button" data-restart-session>Start another session</button></div>
+        <p class="mock-status" data-session-status role="status" aria-live="polite"></p>
+      </article>
+    </div>
+    <aside class="mock-feedback-panel" aria-live="polite">
+      <div class="section-heading"><div><p class="eyebrow">COACHING NOTES</p><h2>Feedback</h2></div></div>
+      <div class="mock-feedback-list" data-feedback-list><p class="mock-feedback-empty">Feedback for each answer will appear here.</p></div>
+    </aside>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "emails/base.html" %}
+{% block email_content %}
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:3px 0 7px;">
+  <tr>
+    <td align="center" bgcolor="#2f69cb" style="border-radius:8px;">
+      <a href="{{ action_url }}" style="display:inline-block;padding:12px 19px;font-size:13px;line-height:18px;font-weight:700;color:#ffffff;text-decoration:none;">{{ action_label }}</a>
+    </td>
+  </tr>
+</table>
+<p style="margin:16px 0 0;font-size:12px;line-height:19px;color:#7b8799;">If the button doesn’t work, copy and paste this address into your browser:<br><a href="{{ action_url }}" style="color:#2f69cb;word-break:break-all;">{{ action_url }}</a></p>
+{% endblock %}

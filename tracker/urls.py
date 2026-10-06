@@ -1,0 +1,51 @@
+from django.contrib.auth.views import LogoutView
+from django.urls import path
+
+from . import views as v
+
+urlpatterns = [
+    path("", v.home, name="home"),
+    path("register/", v.register, name="register"),
+    path("register/submitted/", v.registration_submitted, name="registration_submitted"),
+    path("register/verify/<int:pk>/", v.verify_registration, name="verify_registration"),
+    path("login/", v.RoleLoginView.as_view(), name="login"),
+    path("logout/", LogoutView.as_view(), name="logout"),
+
+    path("admin/dashboard/", v.admin_dashboard, name="admin_dashboard"),
+    path("admin/students/add/", v.admin_student_add, name="admin_student_add"),
+    path("admin/interviews/", v.admin_interviews, name="admin_interviews"),
+    path("admin/courses/", v.admin_courses, name="admin_courses"),
+    path("admin/courses/new/", v.admin_course_add, name="admin_course_add"),
+    path("admin/courses/<int:pk>/edit/", v.admin_course_edit, name="admin_course_edit"),
+    path("admin/courses/<int:pk>/preview/", v.admin_course_preview, name="admin_course_preview"),
+    path("admin/reports/", v.admin_reports, name="admin_reports"),
+    path("admin/registrations/", v.admin_registrations, name="admin_registrations"),
+    path("admin/registrations/<int:pk>/approve/", v.registration_approve, name="registration_approve"),
+    path("admin/registrations/<int:pk>/reject/", v.registration_reject, name="registration_reject"),
+    path("admin/students/", v.admin_students, name="admin_students"),
+    path("admin/students/<int:pk>/", v.admin_student_detail, name="admin_student_detail"),
+    path("admin/students/<int:pk>/delete/", v.student_delete, name="student_delete"),
+    path("admin/groups/", v.admin_groups, name="admin_groups"),
+    path("admin/groups/new/", v.admin_group_add, name="admin_group_add"),
+    path("admin/groups/<int:pk>/edit/", v.admin_group_edit, name="admin_group_edit"),
+    path("admin/groups/<int:pk>/", v.admin_group_detail, name="admin_group_detail"),
+    path("admin/groups/<int:pk>/members/add/", v.admin_group_member_add, name="admin_group_member_add"),
+    path("admin/groups/<int:pk>/delete/", v.group_delete, name="group_delete"),
+    path("admin/groups/<int:pk>/members/<int:student_id>/remove/", v.member_remove, name="member_remove"),
+
+    path("student/dashboard/", v.student_dashboard, name="student_dashboard"),
+    path("student/mock-interview/", v.student_mock_interview, name="student_mock_interview"),
+    path("student/mock-interview/ai/", v.student_mock_interview_ai, name="student_mock_interview_ai"),
+    path("student/courses/", v.student_courses, name="student_courses"),
+    path("student/interview-questions/", v.student_interview_questions, name="student_interview_questions"),
+    path("student/interviews/", v.student_interviews, name="student_interviews"),
+    path("student/interviews/new/", v.student_interview_add, name="student_interview_add"),
+    path("student/interviews/<int:pk>/", v.student_interview_detail, name="student_interview_detail"),
+    path("student/interviews/<int:pk>/edit/", v.student_interview_edit, name="student_interview_edit"),
+    path("student/interviews/<int:pk>/progress/", v.student_interview_progress, name="student_interview_progress"),
+    path("student/interviews/<int:pk>/status/", v.interview_status, name="interview_status"),
+    path("student/interviews/<int:pk>/delete/", v.interview_delete, name="interview_delete"),
+    path("student/interviews/<int:pk>/rounds/add/", v.round_add, name="round_add"),
+    path("student/rounds/<int:pk>/update/", v.round_update, name="round_update"),
+    path("admin/interviews/<int:pk>/", v.admin_interview_detail, name="admin_interview_detail"),
+]

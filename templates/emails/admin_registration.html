@@ -1,0 +1,20 @@
+{% extends "emails/base.html" %}
+{% block email_content %}
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:3px 0 23px;background-color:#f7f8fb;border:1px solid #e7ebf2;border-radius:10px;">
+  <tr>
+    <td style="padding:15px 17px;">
+      <div style="font-size:10px;line-height:15px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#8290a5;">STUDENT DETAILS</div>
+      <div style="padding-top:8px;font-size:15px;line-height:21px;font-weight:700;color:#263a58;">{{ student_name }}</div>
+      <div style="padding-top:3px;font-size:13px;line-height:20px;color:#647189;">{{ student_email }}</div>
+    </td>
+  </tr>
+</table>
+<table role="presentation" cellspacing="0" cellpadding="0" border="0">
+  <tr>
+    <td align="center" bgcolor="#2f69cb" style="border-radius:8px;">
+      <a href="{{ action_url }}" style="display:inline-block;padding:12px 19px;font-size:13px;line-height:18px;font-weight:700;color:#ffffff;text-decoration:none;">{{ action_label }}</a>
+    </td>
+  </tr>
+</table>
+<p style="margin:16px 0 0;font-size:12px;line-height:19px;color:#7b8799;">Please review this request in the admin dashboard. The account is created only after approval.</p>
+{% endblock %}

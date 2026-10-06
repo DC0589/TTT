@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Create account{% endblock %}
+{% block content %}
+<div class="auth-card">
+  <span class="auth-card-icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20v-1.5a7 7 0 0 1 14 0V20zM19 8v6M16 11h6"/></svg>
+  </span>
+  <p class="eyebrow">START WITH A PLAN</p>
+  <h2>Create your account.</h2>
+  <p class="auth-card-description">A little organization can make a big difference.</p>
+  <form method="post" class="auth-form">{% csrf_token %}{% include "tracker/_form.html" %}
+    <button class="button button-primary button-wide" type="submit">Create account <span aria-hidden="true">→</span></button>
+  </form>
+  <p class="auth-switch">Already have an account? <a href="{% url 'login' %}">Log in</a></p>
+</div>
+{% endblock %}

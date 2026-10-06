@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block title %}Students{% endblock %}
+{% block content %}
+<style>
+/* ===== Student directory (self-contained, scoped to .dir) ===== */
+.dir{--d-ink:#171b24;--d-soft:#4d566b;--d-mute:#8991a3;--d-line:#e6e9f0;--d-bg:#fafbfd;--d-blue:#2563eb;--d-blue-d:#1d4ed8;--d-blue-l:#eff6ff;
+  --d-font:"DM Sans","Segoe UI",system-ui,sans-serif;--d-disp:"Manrope","DM Sans",system-ui,sans-serif;font-family:var(--d-font);color:var(--d-ink)}
+.dir *{box-sizing:border-box}
+.dir a{color:inherit;text-decoration:none}
+.dir svg{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.dir .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+
+/* Header */
+.dir-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:24px}
+.dir-head h1{margin:0 0 6px;font:700 28px/1.2 var(--d-disp);letter-spacing:-.9px}
+.dir-head p{margin:0;color:var(--d-mute);font-size:14px}
+.dir-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:38px;padding:0 16px;border:1px solid var(--d-line);border-radius:9px;background:#fff;color:var(--d-ink);font:600 13px var(--d-font);cursor:pointer;transition:background .15s,border-color .15s}
+.dir-btn:hover{background:#f3f6fd;border-color:#cfd8ec}
+.dir-btn-primary{background:var(--d-blue);border-color:var(--d-blue);color:#fff!important}
+.dir-btn-primary:hover{background:var(--d-blue-d);border-color:var(--d-blue-d)}
+.dir a:focus-visible,.dir button:focus-visible,.dir input:focus-visible{outline:3px solid rgba(37,99,235,.3);outline-offset:2px}
+
+/* Toolbar */
+.dir-toolbar{margin-bottom:18px;background:#fff;border:1px solid var(--d-line);border-radius:12px;overflow:hidden;box-shadow:0 1px 2px rgba(20,27,45,.04)}
+.dir-search{display:flex;align-items:center;gap:10px;padding:10px 12px 10px 16px;color:var(--d-mute)}
+.dir-search input[type=search]{flex:1;min-width:0;height:38px;border:0;outline:0;background:transparent;color:var(--d-ink);font:400 14px var(--d-font)}
+.dir-search input[type=search]::placeholder{color:#a6adbb}
+.dir-clear{font-size:12px;font-weight:600;color:var(--d-mute)}
+.dir-clear:hover{color:var(--d-blue)}
+.dir-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px 10px 16px;background:var(--d-bg);border-top:1px solid var(--d-line);font-size:13px;color:var(--d-mute)}
+.dir-meta strong{color:var(--d-ink)}
+.dir-views{display:flex;gap:2px;padding:3px;background:#fff;border:1px solid var(--d-line);border-radius:9px}
+.dir-views a{display:inline-flex;align-items:center;gap:6px;min-height:28px;padding:0 11px;border-radius:6px;color:#6b7386;font-size:12px;font-weight:600}
+.dir-views a:hover{color:var(--d-ink)}
+.dir-views a.on{background:var(--d-blue-l);color:var(--d-blue-d)}
+
+/* Avatars & pills */
+.dir-avatar{display:grid;flex:none;width:42px;height:42px;place-items:center;border-radius:50%;font:700 16px var(--d-disp)}
+.dir-avatar.sm{width:34px;height:34px;font-size:13px}
+.t-a{background:#dbeafe;color:#1d4ed8}.t-b{background:#dcfce7;color:#15803d}.t-c{background:#fef3c7;color:#b45309}
+.dir-pills{display:flex;flex-wrap:wrap;gap:6px}
+.dir-pill{padding:3px 9px;border-radius:999px;background:var(--d-blue-l);color:#1e40af;font-size:11px;font-weight:600}
+.dir-pill.none{background:#f3f4f8;color:#9aa1b0;font-weight:500}
+.dir-status{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#2f7d5f}
+.dir-status::before{content:"";width:7px;height:7px;border-radius:50%;background:#34b27b}
+.dir-status.off{color:#a3535f}.dir-status.off::before{background:#d46a79}
+.dir-id{display:grid;gap:2px;min-width:0}
+.dir-id strong{overflow:hidden;font:700 15px var(--d-disp);text-overflow:ellipsis;white-space:nowrap}
+.dir-id small{overflow:hidden;color:var(--d-mute);font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+
+/* Rate meter */
+.rate{display:flex;align-items:center;gap:10px;min-width:120px}
+.rate-track{flex:1;height:6px;overflow:hidden;border-radius:6px;background:#eef1f6}
+.rate-track i{display:block;height:100%;border-radius:inherit;background:var(--d-blue)}
+.rate b{min-width:34px;text-align:right;font-size:12px;font-weight:600;color:var(--d-soft);font-variant-numeric:tabular-nums}
+.rate-none{color:#a1a8b5;font-size:12px}
+
+/* Cards */
+.dir-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.dir-card{display:flex;flex-direction:column;gap:14px;min-width:0;padding:20px;background:#fff;border:1px solid var(--d-line);border-radius:12px;box-shadow:0 1px 2px rgba(20,27,45,.04);transition:box-shadow .18s,border-color .18s}
+.dir-card:hover{border-color:#c9d8f5;box-shadow:0 8px 24px rgba(20,27,45,.07)}
+.dir-card-top{display:flex;align-items:center;justify-content:space-between}
+.dir-metrics{display:grid;grid-template-columns:repeat(3,1fr);padding:12px 0;background:var(--d-bg);border-radius:10px;text-align:center}
+.dir-metrics span{display:grid;gap:2px;border-left:1px solid var(--d-line)}
+.dir-metrics span:first-child{border-left:0}
+.dir-metrics strong{font:700 18px var(--d-disp)}
+.dir-metrics small{color:var(--d-mute);font-size:11px}
+.dir-link{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:12px;border-top:1px solid #f0f1f5;color:var(--d-blue);font-size:13px;font-weight:600}
+.dir-link:hover{color:var(--d-blue-d)}
+
+/* Table */
+.dir-table-wrap{overflow:auto;background:#fff;border:1px solid var(--d-line);border-radius:12px;box-shadow:0 1px 2px rgba(20,27,45,.04)}
+.dir-table{width:100%;min-width:860px;border-collapse:collapse;text-align:left;font-size:13px}
+.dir-table th{padding:12px 16px;background:var(--d-bg);border-bottom:1px solid var(--d-line);color:#6b7386;font-size:12px;font-weight:600;white-space:nowrap}
+.dir-table td{padding:14px 16px;border-bottom:1px solid #f0f1f5;vertical-align:middle;color:var(--d-soft)}
+.dir-table tbody tr:last-child td{border-bottom:0}
+.dir-table tbody tr:hover{background:#f7f9ff}
+.dir-who{display:inline-flex;align-items:center;gap:11px}
+.dir-who .dir-id strong{font-size:13px}
+.dir-num{font-weight:600;color:var(--d-ink);font-variant-numeric:tabular-nums}
+.dir-go{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;color:#64748b}
+.dir-go:hover{background:var(--d-blue-l);color:var(--d-blue)}
+
+/* List */
+.dir-list{display:grid;gap:10px}
+.dir-row{display:flex;align-items:center;gap:16px;padding:12px 16px;background:#fff;border:1px solid var(--d-line);border-radius:10px;transition:box-shadow .18s,border-color .18s}
+.dir-row:hover{border-color:#c9d8f5;box-shadow:0 4px 14px rgba(20,27,45,.06)}
+.dir-row .dir-id{flex:1;min-width:140px}
+.dir-row .dir-pills{flex:1}
+.dir-row-stats{display:flex;gap:20px}
+.dir-row-stats span{display:grid;gap:1px;text-align:center}
+.dir-row-stats strong{font-size:14px}
+.dir-row-stats small{color:var(--d-mute);font-size:11px}
+
+/* Pagination & empty */
+.dir-pager{display:flex;align-items:center;justify-content:space-between;margin-top:18px;padding:12px 16px;background:#fff;border:1px solid var(--d-line);border-radius:10px;font-size:13px;color:var(--d-mute)}
+.dir-pager a{color:var(--d-blue-d);font-weight:600}
+.dir-pager a:hover{text-decoration:underline}
+.dir-pager strong{color:var(--d-ink)}
+.dir-pager .off{color:#bec3cc}
+.dir-empty{display:grid;justify-items:center;gap:8px;padding:64px 24px;background:#fff;border:1px dashed #d4d9e5;border-radius:12px;text-align:center}
+.dir-empty-icon{display:grid;place-items:center;width:44px;height:44px;border-radius:12px;background:var(--d-blue-l);color:var(--d-blue)}
+.dir-empty-icon svg{width:22px;height:22px}
+.dir-empty h2{margin:4px 0 0;font:700 17px var(--d-disp)}
+.dir-empty p{max-width:340px;margin:0 0 8px;color:var(--d-mute);font-size:13px}
+
+@media(max-width:1100px){.dir-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){
+  .dir-head{align-items:flex-start;flex-direction:column}
+  .dir-grid{grid-template-columns:1fr}
+  .dir-meta{flex-direction:column;align-items:flex-start}
+  .dir-views{width:100%}.dir-views a{flex:1;justify-content:center}
+  .dir-row{flex-wrap:wrap}.dir-row .dir-pills{flex-basis:100%;order:3}
+  .dir-row-stats{margin-left:auto}
+}
+</style>
+
+<div class="dir">
+  <header class="dir-head">
+    <div>
+      <h1>Students</h1>
+      <p>Search your students, track interview progress, and see who needs support.</p>
+    </div>
+    <div class="dir-head-actions"><a class="dir-btn" href="{% url 'admin_dashboard' %}">← Dashboard</a><a class="dir-btn dir-btn-primary" href="{% url 'admin_student_add' %}">+ Add student</a></div>
+  </header>
+
+  <section class="dir-toolbar" aria-label="Student directory controls">
+    <form method="get" class="dir-search">
+      <input type="hidden" name="view" value="{{ view_mode }}">
+      <label class="sr" for="student-search">Search students</label>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/></svg>
+      <input id="student-search" type="search" name="q" value="{{ search }}" placeholder="Search by name, email or batch">
+      {% if search %}<a class="dir-clear" href="{% url 'admin_students' %}?view={{ view_mode }}">Clear</a>{% endif %}
+      <button class="dir-btn dir-btn-primary" type="submit">Search</button>
+    </form>
+    <div class="dir-meta">
+      <span>{% if search %}<strong>{{ total_students }}</strong> result{{ total_students|pluralize }} for “{{ search }}”{% else %}<strong>{{ total_students }}</strong> student{{ total_students|pluralize }}{% endif %}</span>
+      <nav class="dir-views" aria-label="Student display format">
+        <a class="{% if view_mode == 'cards' %}on{% endif %}" href="?view=cards{% if search %}&amp;q={{ search|urlencode }}{% endif %}"{% if view_mode == 'cards' %} aria-current="page"{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>Cards</a>
+        <a class="{% if view_mode == 'table' %}on{% endif %}" href="?view=table{% if search %}&amp;q={{ search|urlencode }}{% endif %}"{% if view_mode == 'table' %} aria-current="page"{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 10h16M4 15h16M4 20h16M9 5v15M16 5v15"/></svg>Table</a>
+        <a class="{% if view_mode == 'list' %}on{% endif %}" href="?view=list{% if search %}&amp;q={{ search|urlencode }}{% endif %}"{% if view_mode == 'list' %} aria-current="page"{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="6" r="1"/><path d="M9 6h11M4 12h16M4 18h16"/></svg>List</a>
+      </nav>
+    </div>
+  </section>
+
+{% if students %}
+  {% if view_mode == "table" %}
+  <div class="dir-table-wrap">
+    <table class="dir-table">
+      <thead><tr><th>Student</th><th>Batches</th><th>Interviews</th><th>Selected</th><th>Selection rate</th><th>Upcoming</th><th><span class="sr">Open profile</span></th></tr></thead>
+      <tbody>
+        {% for student in students %}
+        <tr>
+          <td><a class="dir-who" href="{% url 'admin_student_detail' student.pk %}"><span class="dir-avatar sm {% cycle 't-a' 't-b' 't-c' %}">{{ student.username|slice:":1"|upper }}</span><span class="dir-id"><strong>{{ student.username }}</strong><small>{{ student.email|default:"No email" }}</small></span></a></td>
+          <td><div class="dir-pills">{% for membership in student.admin_memberships %}<span class="dir-pill">{{ membership.group.name }}</span>{% empty %}<span class="dir-pill none">No batches</span>{% endfor %}</div></td>
+          <td><span class="dir-num">{{ student.interview_count }}</span></td>
+          <td><span class="dir-num">{{ student.selected_count }}</span></td>
+          <td>{% if student.interview_count %}<div class="rate"><span class="rate-track"><i style="width:{% widthratio student.selected_count student.interview_count 100 %}%"></i></span><b>{% widthratio student.selected_count student.interview_count 100 %}%</b></div>{% else %}<span class="rate-none">No interviews</span>{% endif %}</td>
+          <td>{{ student.upcoming_count }} scheduled</td>
+          <td><a class="dir-go" href="{% url 'admin_student_detail' student.pk %}" aria-label="View {{ student.username }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% elif view_mode == "list" %}
+  <section class="dir-list" aria-label="Students">
+    {% for student in students %}
+    <article class="dir-row">
+      <span class="dir-avatar {% cycle 't-a' 't-b' 't-c' %}">{{ student.username|slice:":1"|upper }}</span>
+      <div class="dir-id"><strong>{{ student.username }}</strong><small>{{ student.email|default:"No email added" }}</small></div>
+      <div class="dir-pills">{% for membership in student.admin_memberships %}<span class="dir-pill">{{ membership.group.name }}</span>{% empty %}<span class="dir-pill none">No batches</span>{% endfor %}</div>
+      <div class="dir-row-stats"><span><strong>{{ student.interview_count }}</strong><small>Interviews</small></span><span><strong>{{ student.selected_count }}</strong><small>Selected</small></span><span><strong>{{ student.upcoming_count }}</strong><small>Upcoming</small></span></div>
+      <a class="dir-btn" href="{% url 'admin_student_detail' student.pk %}">View profile</a>
+    </article>
+    {% endfor %}
+  </section>
+
+  {% else %}
+  <section class="dir-grid" aria-label="Students">
+    {% for student in students %}
+    <article class="dir-card">
+      <div class="dir-card-top">
+        <span class="dir-avatar {% cycle 't-a' 't-b' 't-c' %}">{{ student.username|slice:":1"|upper }}</span>
+        <span class="dir-status{% if not student.is_active %} off{% endif %}">{% if student.is_active %}Active{% else %}Inactive{% endif %}</span>
+      </div>
+      <div class="dir-id"><strong>{{ student.username }}</strong><small>{{ student.email|default:"No email added" }}</small></div>
+      <div class="dir-pills">{% for membership in student.admin_memberships %}<span class="dir-pill">{{ membership.group.name }}</span>{% empty %}<span class="dir-pill none">No batches yet</span>{% endfor %}</div>
+      <div class="dir-metrics">
+        <span><strong>{{ student.interview_count }}</strong><small>Interviews</small></span>
+        <span><strong>{{ student.selected_count }}</strong><small>Selected</small></span>
+        <span><strong>{{ student.upcoming_count }}</strong><small>Upcoming</small></span>
+      </div>
+      {% if student.interview_count %}<div class="rate" title="Selection rate"><span class="rate-track"><i style="width:{% widthratio student.selected_count student.interview_count 100 %}%"></i></span><b>{% widthratio student.selected_count student.interview_count 100 %}%</b></div>{% else %}<div class="rate"><span class="rate-none">No interviews yet</span></div>{% endif %}
+      <a class="dir-link" href="{% url 'admin_student_detail' student.pk %}">View profile <span aria-hidden="true">→</span></a>
+    </article>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  {% if page_obj.has_other_pages %}
+  <nav class="dir-pager" aria-label="Student pages">
+    {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&amp;view={{ view_mode }}{% if search %}&amp;q={{ search|urlencode }}{% endif %}">← Previous</a>{% else %}<span class="off">← Previous</span>{% endif %}
+    <span>Page <strong>{{ page_obj.number }}</strong> of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&amp;view={{ view_mode }}{% if search %}&amp;q={{ search|urlencode }}{% endif %}">Next →</a>{% else %}<span class="off">Next →</span>{% endif %}
+  </nav>
+  {% endif %}
+
+{% else %}
+  <div class="dir-empty">
+    <span class="dir-empty-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.4 3.3-5.5 6.5-5.5s5.9 2.1 6.5 5.5M17 11.5a3 3 0 1 0 0-6M18 14.7c1.9.6 3.2 2.3 3.5 5.3"/></svg></span>
+    {% if search %}
+    <h2>No students match “{{ search }}”</h2><p>Check the spelling, or search by email or batch name instead.</p>
+    <a class="dir-btn dir-btn-primary" href="{% url 'admin_students' %}?view={{ view_mode }}">Clear search</a>
+    {% else %}
+    <h2>No students yet</h2><p>Add a student account, or add students to one of your batches.</p>
+    <a class="dir-btn dir-btn-primary" href="{% url 'admin_student_add' %}">Add a student</a>
+    {% endif %}
+  </div>
+{% endif %}
+</div>
+{% endblock %}

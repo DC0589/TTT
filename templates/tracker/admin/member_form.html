@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Add a student to {{ group.name }}{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="{% url 'admin_groups' %}">Batches</a><span aria-hidden="true">/</span><a href="{% url 'admin_group_detail' group.pk %}">{{ group.name }}</a><span aria-hidden="true">/</span><span>Add student</span></div>
+<section class="page-heading"><div><p class="eyebrow">BUILD YOUR BATCH</p><h1>Add a student</h1><p>Choose an existing student account to join {{ group.name }}.</p></div></section>
+<section class="panel standalone-form-panel">
+  <form method="post" class="stack-form">{% csrf_token %}{% include "tracker/_form.html" %}
+    <div class="form-page-actions"><button class="button button-primary" type="submit">Add to batch</button><a class="button button-quiet" href="{% url 'admin_group_detail' group.pk %}">Cancel</a></div>
+  </form>
+</section>
+{% endblock %}

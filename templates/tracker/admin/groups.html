@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Batches{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">YOUR COMMUNITY</p><h1>Batches</h1><p>Bring students together and keep their progress moving.</p></div>
+  <a class="button button-primary" href="{% url 'admin_group_add' %}"><span class="button-plus" aria-hidden="true">+</span> Create batch</a>
+</section>
+<section class="directory-toolbar">
+  <div class="directory-toolbar-meta">
+    <span><strong>{{ groups|length }}</strong> batch{{ groups|length|pluralize:"es" }}</span>
+    <nav class="view-switch" aria-label="Batch display format">
+      <a href="?view=cards" class="{% if view_mode == 'cards' %}is-selected{% endif %}"{% if view_mode == "cards" %} aria-current="page"{% endif %}>Cards</a>
+      <a href="?view=table" class="{% if view_mode == 'table' %}is-selected{% endif %}"{% if view_mode == "table" %} aria-current="page"{% endif %}>Table</a>
+      <a href="?view=list" class="{% if view_mode == 'list' %}is-selected{% endif %}"{% if view_mode == "list" %} aria-current="page"{% endif %}>List</a>
+    </nav>
+  </div>
+</section>
+{% if groups %}
+  {% if view_mode == "table" %}
+  <div class="table-wrap">
+    <table class="data-table directory-data-table">
+      <thead><tr><th>Batch</th><th>Description</th><th>Students</th><th>Interviews</th><th></th></tr></thead>
+      <tbody>{% for group in groups %}
+      <tr>
+        <td class="company-cell"><a href="{% url 'admin_group_detail' group.pk %}">{{ group.name }}</a></td>
+        <td>{{ group.description|default:"No description added" }}</td>
+        <td>{{ group.member_count }}</td><td>{{ group.interview_count }}</td>
+        <td><a class="button button-quiet" href="{% url 'admin_group_detail' group.pk %}">View batch</a></td>
+      </tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  {% elif view_mode == "list" %}
+  <section class="directory-rows" aria-label="Batches">
+    {% for group in groups %}
+    <article class="directory-row-card">
+      <span class="group-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5v-1.2a5.5 5.5 0 0 1 11 0v1.2zM16 5.2a3.2 3.2 0 0 1 0 6.2M17 14a4.7 4.7 0 0 1 3.5 4.5"/></svg></span>
+      <span class="directory-row-copy"><strong>{{ group.name }}</strong><small>{{ group.description|default:"A place to learn, prepare and grow together." }}</small></span>
+      <span class="directory-row-count"><strong>{{ group.member_count }}</strong><small>Students</small></span>
+      <span class="directory-row-count"><strong>{{ group.interview_count }}</strong><small>Interviews</small></span>
+      <a class="button button-quiet" href="{% url 'admin_group_detail' group.pk %}">View batch</a>
+    </article>
+    {% endfor %}
+  </section>
+  {% else %}
+  <section class="directory-cards" aria-label="Batches">
+    {% for group in groups %}
+    <a href="{% url 'admin_group_detail' group.pk %}" class="group-card">
+      <span class="group-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5v-1.2a5.5 5.5 0 0 1 11 0v1.2zM16 5.2a3.2 3.2 0 0 1 0 6.2M17 14a4.7 4.7 0 0 1 3.5 4.5"/></svg></span>
+      <span class="group-card-arrow" aria-hidden="true">↗</span>
+      <span class="group-card-name">{{ group.name }}</span>
+      <span class="group-card-description">{{ group.description|default:"A place to learn, prepare and grow together." }}</span>
+      <span class="group-card-stats"><span><strong>{{ group.member_count }}</strong><small>Students</small></span><span><strong>{{ group.interview_count }}</strong><small>Interviews</small></span></span>
+    </a>
+    {% endfor %}
+  </section>
+  {% endif %}
+{% else %}
+<div class="directory-empty-state">
+  <span class="empty-icon">✦</span><h2>Your first batch starts here.</h2>
+  <p>Create a batch to organize students and follow their interview journeys.</p>
+  <a class="button button-primary" href="{% url 'admin_group_add' %}">Create your first batch</a>
+</div>
+{% endif %}
+{% endblock %}

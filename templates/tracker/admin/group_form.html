@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="{% url 'admin_groups' %}">Batches</a>{% if group %}<span aria-hidden="true">/</span><a href="{% url 'admin_group_detail' group.pk %}">{{ group.name }}</a>{% endif %}<span aria-hidden="true">/</span><span>{{ page_title }}</span></div>
+<section class="page-heading"><div><p class="eyebrow">BATCH MANAGEMENT</p><h1>{{ page_title }}</h1><p>Keep a clear name and purpose for this learning batch.</p></div></section>
+<section class="panel standalone-form-panel">
+  <form method="post" class="stack-form">{% csrf_token %}{% include "tracker/_form.html" %}
+    <div class="form-page-actions"><button class="button button-primary" type="submit">{{ submit_label }}</button><a class="button button-quiet" href="{% if group %}{% url 'admin_group_detail' group.pk %}{% else %}{% url 'admin_groups' %}{% endif %}">Cancel</a></div>
+  </form>
+</section>
+{% endblock %}

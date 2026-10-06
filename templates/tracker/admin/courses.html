@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Courses &amp; questions{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">LEARNING CONTENT</p><h1>Courses &amp; questions</h1><p>Update the learning roadmaps and interview practice content students can see.</p></div>
+  <a class="button button-primary" href="{% url 'admin_course_add' %}"><span class="button-plus" aria-hidden="true">+</span> Add course</a>
+</section>
+<section class="curriculum-grid admin-course-grid">
+  {% for course in courses %}
+  <article class="panel curriculum-card admin-course-card">
+    <p class="eyebrow">COURSE {{ forloop.counter|stringformat:"02d" }}</p>
+    <h2>{{ course.name }}</h2>
+    <p class="curriculum-summary">{{ course.summary }}</p>
+    <p class="course-content-meta">{{ course.roadmap.splitlines|length }} roadmap steps <span aria-hidden="true">·</span> {{ course.interview_questions.splitlines|length }} sample questions</p>
+    <div class="course-card-actions">
+      <a class="button button-primary" href="{% url 'admin_course_edit' course.pk %}">Edit content</a>
+      <a class="button button-quiet" href="{% url 'admin_course_preview' course.pk %}">Preview</a>
+    </div>
+  </article>
+  {% empty %}
+  <div class="panel curriculum-empty"><strong>No courses yet</strong><p>Create the first course to share a roadmap and practice questions.</p></div>
+  {% endfor %}
+</section>
+{% endblock %}

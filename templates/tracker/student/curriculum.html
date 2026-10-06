@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block content %}
+<section class="page-heading curriculum-page-heading">
+  <div><p class="eyebrow">{{ page_eyebrow }}</p><h1>{{ page_title }}</h1><p>{% if active_tab == "courses" %}A practical learning path, from core concepts to hands-on projects.{% else %}Use these prompts to rehearse clear, confident technical answers.{% endif %}</p></div>
+</section>
+{% if active_tab == "courses" %}
+<section class="learning-course-list" aria-label="Course details and suggested roadmaps">
+  {% for course in courses %}
+  <article class="learning-course-card">
+    <header class="learning-course-header">
+      <span class="learning-course-number">{{ forloop.counter|stringformat:"02d" }}</span>
+      <div class="learning-course-heading">
+        <p class="eyebrow">LEARNING PATH</p>
+        <h2>{{ course.name }}</h2>
+        <p>{{ course.summary }}</p>
+      </div>
+      <div class="learning-course-facts">
+        <span><small>LEVEL</small><strong>{{ course.level }}</strong></span>
+        <span><small>ESTIMATED TIME</small><strong>{{ course.duration|default:"Self paced" }}</strong></span>
+      </div>
+    </header>
+    <div class="learning-course-body">
+      <section class="learning-course-section">
+        <div class="learning-section-title"><span class="learning-section-icon">01</span><div><p class="eyebrow">YOUR LEARNING PATH</p><h3>Suggested roadmap</h3></div></div>
+        <ol class="learning-roadmap">
+          {% for step in course.roadmap.splitlines %}<li><span class="roadmap-step-number">{{ forloop.counter|stringformat:"02d" }}</span><span>{{ step }}</span></li>{% endfor %}
+        </ol>
+      </section>
+      <div class="learning-course-side">
+        <section class="learning-info-block">
+          <p class="eyebrow">WHAT YOU'LL LEARN</p>
+          <ul class="learning-outcomes">
+            {% for outcome in course.learning_outcomes.splitlines %}<li><span aria-hidden="true">✓</span>{{ outcome }}</li>{% endfor %}
+          </ul>
+        </section>
+        <section class="learning-info-block learning-prerequisites">
+          <p class="eyebrow">BEFORE YOU START</p>
+          <p>{{ course.prerequisites|default:"No previous experience required." }}</p>
+        </section>
+        <section class="learning-info-block">
+          <p class="eyebrow">TOOLS &amp; TECHNOLOGY</p>
+          <div class="learning-tool-list">
+            {% for tool in course.tools.splitlines %}<span>{{ tool }}</span>{% endfor %}
+          </div>
+        </section>
+      </div>
+    </div>
+  </article>
+  {% empty %}
+  <div class="directory-empty-state"><span class="empty-icon">✦</span><h2>Course roadmap coming soon</h2><p>Your administrator will add learning content here.</p></div>
+  {% endfor %}
+</section>
+{% else %}
+<section class="question-course-list" aria-label="Sample interview questions by course">
+  {% for course in courses %}
+  <article class="question-course-card">
+    <header class="question-course-header">
+      <span class="question-course-mark" aria-hidden="true">?</span>
+      <div><p class="eyebrow">COURSE {{ forloop.counter|stringformat:"02d" }} · {{ course.level }}</p><h2>{{ course.name }}</h2><p>{{ course.summary }}</p></div>
+      <span class="question-total">{{ course.interview_questions.splitlines|length }} prompts</span>
+    </header>
+    <ol class="question-prompt-list">
+      {% for question in course.interview_questions.splitlines %}<li><span class="question-prompt-number">{{ forloop.counter|stringformat:"02d" }}</span><p>{{ question }}</p></li>{% endfor %}
+    </ol>
+  </article>
+  {% empty %}
+  <div class="directory-empty-state"><span class="empty-icon">✦</span><h2>Questions coming soon</h2><p>Your administrator will add interview practice questions here.</p></div>
+  {% endfor %}
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Log in{% endblock %}
+{% block content %}
+<div class="auth-card">
+  <span class="auth-card-icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24"><path d="M12 3.5 19 7v5.1c0 4.2-2.9 7.2-7 8.4-4.1-1.2-7-4.2-7-8.4V7z"/><path d="m9 12 2 2 4-4"/></svg>
+  </span>
+  <p class="eyebrow">WELCOME BACK</p>
+  <h2>Good to see you.</h2>
+  <p class="auth-card-description">Log in to pick up where your career journey left off.</p>
+  {% if form.errors %}<div class="form-errors" role="alert">Your username or password wasn't recognized. Please try again.</div>{% endif %}
+  <form method="post" class="auth-form">{% csrf_token %}{% include "tracker/_form.html" %}
+    <input type="hidden" name="next" value="{{ next }}">
+    <button class="button button-primary button-wide" type="submit">Log in <span aria-hidden="true">→</span></button>
+  </form>
+  <p class="auth-switch">New to Tweak Talent Technologies? <a href="{% url 'register' %}">Create a student account</a></p>
+</div>
+{% endblock %}

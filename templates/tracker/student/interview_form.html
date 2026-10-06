@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="{% url 'student_interviews' %}">My interviews</a>{% if iv %}<span aria-hidden="true">/</span><a href="{% url 'student_interview_detail' iv.pk %}">{{ iv.company_name }}</a>{% endif %}<span aria-hidden="true">/</span><span>{{ page_title }}</span></div>
+<section class="page-heading">
+  <div><p class="eyebrow">YOUR OPPORTUNITY</p><h1>{{ page_title }}</h1><p>Add the role, timeline and recruiter information for this opportunity.</p></div>
+</section>
+<section class="panel standalone-form-panel interview-form-panel">
+  <form method="post" class="stack-form">{% csrf_token %}{% include "tracker/_form.html" %}
+    <div class="form-page-actions"><button class="button button-primary" type="submit">{{ submit_label }}</button><a class="button button-quiet" href="{% if iv %}{% url 'student_interview_detail' iv.pk %}{% else %}{% url 'student_interviews' %}{% endif %}">Cancel</a></div>
+  </form>
+</section>
+{% endblock %}

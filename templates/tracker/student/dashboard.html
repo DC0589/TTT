@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Overview{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">YOUR INTERVIEW JOURNEY</p><h1>Welcome back, {{ user.username }}.</h1><p>Every conversation is progress. Here’s your journey so far.</p></div>
+  <a class="button button-primary" href="{% url 'student_interviews' %}"><span class="button-plus" aria-hidden="true">+</span> Add interview</a>
+</section>
+<section class="stat-grid stat-grid-three" aria-label="Your interview statistics">
+  <article class="stat-card"><span class="stat-icon stat-icon-1" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3.5v3M16 3.5v3M4 9.5h16M8 13h3M8 16.5h6"/></svg></span><div><p class="stat-label">Total interviews</p><p class="stat-value">{{ total }}</p></div><span class="stat-caption">opportunities on your list</span></article>
+  <article class="stat-card"><span class="stat-icon stat-icon-2" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/></svg></span><div><p class="stat-label">In progress</p><p class="stat-value">{{ in_progress }}</p></div><span class="stat-caption">still unfolding</span></article>
+  <article class="stat-card"><span class="stat-icon stat-icon-3" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12 4.2 4.2L19 6.5"/></svg></span><div><p class="stat-label">Selected</p><p class="stat-value">{{ selected }}</p></div><span class="stat-caption">great outcomes</span></article>
+</section>
+<section class="content-section upcoming-section">
+  <div class="section-heading"><div><p class="eyebrow">YOUR NEXT STEPS</p><h2>Upcoming interviews</h2></div><span class="section-meta">Interview dates and round progress</span></div>
+  <div class="panel deadline-panel">
+    <div class="deadline-list">
+      {% for interview in upcoming_interviews %}
+      <a class="deadline-row" href="{% url 'student_interview_detail' interview.pk %}">
+        <span class="deadline-date"><strong>{{ interview.date_of_interview|date:"d" }}</strong><small>{{ interview.date_of_interview|date:"M" }}</small></span>
+        <span class="deadline-copy"><strong>{{ interview.company_name }} · {{ interview.role }}</strong><small>{{ interview.group.name }} · {{ interview.progress }} rounds cleared</small></span>
+        <span class="status-badge {{ interview.badge }}">{{ interview.final_label }}</span>
+      </a>
+      {% empty %}
+      <div class="inline-empty"><span class="inline-empty-icon">◎</span><span>No upcoming interview dates. Add an interview to keep your next step visible.</span></div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+<section class="content-section groups-section">
+  <div class="section-heading"><div><p class="eyebrow">YOUR COMMUNITY</p><h2>My batches</h2></div></div>
+  <div class="my-groups">
+    {% for g in groups %}<span class="group-chip"><span class="mini-dot"></span>{{ g.name }}</span>
+    {% empty %}<div class="inline-empty"><span class="inline-empty-icon">◎</span><span>You’re not in a batch yet. Ask your administrator to add you when you’re ready.</span></div>{% endfor %}
+  </div>
+</section>
+<section class="content-section">
+  <div class="section-heading"><div><p class="eyebrow">KEEP THE MOMENTUM</p><h2>Latest interviews</h2></div><a class="text-link" href="{% url 'student_interviews' %}">View all interviews <span aria-hidden="true">→</span></a></div>
+  {% include "tracker/_interview_table.html" with link=True %}
+</section>
+{% endblock %}

@@ -1,0 +1,29 @@
+<div class="table-wrap">
+  <table class="data-table">
+    <thead><tr>
+      {% if show_student %}<th scope="col">Student</th>{% endif %}
+      {% if show_group %}<th scope="col">Batch</th>{% endif %}
+      <th scope="col">Company</th><th scope="col">Job role</th><th scope="col">Job link</th><th scope="col">Date</th><th scope="col">Rounds</th><th scope="col">Result</th>
+      {% if link %}<th scope="col">Actions</th>{% endif %}
+    </tr></thead>
+    <tbody>
+      {% for iv in interviews %}
+      <tr>
+        {% if show_student %}<td><span class="table-student"><span class="avatar avatar-tiny">{{ iv.student.username|slice:":1"|upper }}</span><a href="{% url 'admin_student_detail' iv.student.pk %}">{{ iv.student.username }}</a></span></td>{% endif %}
+        {% if show_group %}<td>{{ iv.group.name }}</td>{% endif %}
+        <td class="company-cell">{% if link %}<a href="{% url 'student_interview_detail' iv.pk %}">{{ iv.company_name }} <span aria-hidden="true">↗</span></a>{% elif admin_link %}<a href="{% url 'admin_interview_detail' iv.pk %}">{{ iv.company_name }} <span aria-hidden="true">↗</span></a>{% else %}{{ iv.company_name }}{% endif %}</td>
+        <td>{{ iv.role }}</td>
+        <td>{% if iv.job_posting_url %}<a class="job-role-link" href="{{ iv.job_posting_url }}" target="_blank" rel="noopener noreferrer">View job <span aria-hidden="true">↗</span></a>{% elif link %}<a class="job-role-link" href="{% url 'student_interview_edit' iv.pk %}">Add job link</a>{% elif admin_link %}<a class="job-role-link" href="{% url 'admin_interview_detail' iv.pk %}">Not provided</a>{% else %}<span class="job-link-missing">Not provided</span>{% endif %}</td>
+        <td class="date-cell">{{ iv.date_of_interview|date:"d M Y" }}</td>
+        <td><span class="round-count">{{ iv.progress }}</span></td>
+        <td><span class="status-badge {{ iv.badge }}">{{ iv.final_label }}</span></td>
+        {% if link %}<td><a class="button button-quiet table-action" href="{% url 'student_interview_edit' iv.pk %}">Edit</a></td>{% endif %}
+      </tr>
+      {% empty %}
+      <tr><td colspan="{% if link %}{% if show_student and show_group %}9{% elif show_student or show_group %}8{% else %}7{% endif %}{% elif show_student and show_group %}8{% elif show_student or show_group %}7{% else %}6{% endif %}">
+        <div class="table-empty"><span class="empty-icon">✦</span><strong>No interviews to show yet.</strong><span>Your next opportunity will appear here.</span></div>
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

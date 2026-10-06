@@ -1,0 +1,12 @@
+{% extends "emails/base.html" %}
+{% block email_content %}
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:2px 0 20px;background-color:#f3f7ff;border:1px solid #dce7fb;border-radius:12px;">
+  <tr>
+    <td align="center" style="padding:19px 16px 17px;">
+      <div style="font-size:10px;line-height:15px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#60718e;">YOUR VERIFICATION CODE</div>
+      <div style="padding-top:8px;font-family:Arial,Helvetica,sans-serif;font-size:34px;line-height:42px;font-weight:700;letter-spacing:9px;color:#1f57ae;">{{ code }}</div>
+    </td>
+  </tr>
+</table>
+<p style="margin:0;font-size:13px;line-height:21px;color:#68758a;">Enter this code on the registration page within <strong style="color:#31445f;">{{ expiry_minutes }} minutes</strong>. You have up to <strong style="color:#31445f;">{{ attempt_limit }} attempts</strong>. Once your email is verified, an administrator will review your account request.</p>
+{% endblock %}

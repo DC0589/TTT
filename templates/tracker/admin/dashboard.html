@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Overview{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">ADMIN OVERVIEW</p><h1>Good things are in motion.</h1><p>Here’s what’s happening across your interview community.</p></div>
+  <div class="page-heading-actions">
+    <a class="button button-quiet" href="{% url 'admin_groups' %}">Manage batches</a>
+    <a class="button button-primary" href="{% url 'admin_student_add' %}"><span class="button-plus" aria-hidden="true">+</span> Add student</a>
+  </div>
+</section>
+{% if pending_registrations %}
+<a class="approval-notice" href="{% url 'admin_registrations' %}">
+  <span class="approval-notice-icon" aria-hidden="true">!</span>
+  <span><strong>{{ pending_registrations }} verified registration{{ pending_registrations|pluralize }} awaiting review</strong><small>Review the requests before student accounts are created.</small></span>
+  <span class="approval-notice-arrow" aria-hidden="true">→</span>
+</a>
+{% endif %}
+<section class="stat-grid stat-grid-four" aria-label="Community statistics">
+  {% for label, n in stats.items %}
+  <article class="stat-card">
+    <span class="stat-icon stat-icon-{{ forloop.counter }}" aria-hidden="true">
+      {% if label == 'students' %}<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20v-1.4a5.5 5.5 0 0 1 11 0V20zM16 5.2a3.2 3.2 0 0 1 0 6.2M17 14a4.7 4.7 0 0 1 3.5 4.5"/></svg>
+      {% elif label == 'groups' %}<svg viewBox="0 0 24 24"><path d="M4 6.5h16M4 12h16M4 17.5h10"/><circle cx="18" cy="17.5" r="2.5"/></svg>
+      {% elif label == 'interviews' %}<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3.5v3M16 3.5v3M4 9.5h16M8 13h3M8 16.5h6"/></svg>
+      {% else %}<svg viewBox="0 0 24 24"><path d="m5 12 4.2 4.2L19 6.5"/></svg>{% endif %}
+    </span>
+    <div><p class="stat-label">{{ label }}</p><p class="stat-value">{{ n }}</p></div>
+    <span class="stat-caption">{% if label == 'selected' %}successful outcomes{% elif label == 'interviews' %}tracked interviews{% elif label == 'groups' %}learning batches{% else %}in your community{% endif %}</span>
+  </article>
+  {% endfor %}
+</section>
+<section class="insights-grid" aria-label="Interview analytics and upcoming deadlines">
+  <article class="panel insight-panel">
+    <div class="section-heading">
+      <div><p class="eyebrow">OUTCOMES</p><h2>Interview performance</h2></div>
+      <span class="insight-rate">{{ selection_rate }}%<small>selection rate</small></span>
+    </div>
+    <div class="outcome-list">
+      {% for item in outcome_chart %}
+      <div class="outcome-row">
+        <div class="outcome-copy"><span>{{ item.label }}</span><strong>{{ item.count }}</strong></div>
+        <div class="outcome-track" role="img" aria-label="{{ item.label }}: {{ item.percent }} percent">
+          <span class="outcome-bar outcome-bar-{{ forloop.counter }}" style="width: {{ item.percent }}%"></span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="insight-footnote">Based on {{ stats.interviews }} interviews across your batches.</p>
+  </article>
+  <article class="panel insight-panel">
+    <div class="section-heading"><div><p class="eyebrow">UP NEXT</p><h2>Upcoming interviews</h2></div><span class="section-meta">Dates to keep in view</span></div>
+    <div class="deadline-list">
+      {% for interview in upcoming_interviews %}
+      <div class="deadline-row">
+        <span class="deadline-date"><strong>{{ interview.date_of_interview|date:"d" }}</strong><small>{{ interview.date_of_interview|date:"M" }}</small></span>
+        <span class="deadline-copy"><strong>{{ interview.company_name }}</strong><small>{{ interview.student.username }} · {{ interview.role }}</small></span>
+        <span class="round-count">{{ interview.progress }}</span>
+      </div>
+      {% empty %}
+      <div class="inline-empty"><span class="inline-empty-icon">◎</span><span>No upcoming interview dates yet.</span></div>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+<section class="content-section admin-recent-interviews">
+  <div class="section-heading"><div><p class="eyebrow">LATEST ACTIVITY</p><h2>Recent interviews</h2></div><a class="text-link" href="{% url 'admin_interviews' %}">View all interviews <span aria-hidden="true">→</span></a></div>
+  {% include "tracker/_interview_table.html" with show_student=True admin_link=True %}
+</section>
+<section class="admin-management">
+  <div class="section-heading"><div><p class="eyebrow">COMMUNITY</p><h2>Students</h2></div><div class="section-heading-actions"><a class="button button-quiet" href="{% url 'admin_students' %}">View all</a><a class="button button-primary" href="{% url 'admin_student_add' %}">Add student</a></div></div>
+  <section class="panel student-panel">
+      <div class="panel-heading"><div><h3>Your students</h3><p>Students who can track interviews in your batches.</p></div></div>
+      <div class="student-list">
+        {% for s in students %}
+        <div class="student-row">
+          <span class="avatar avatar-small">{{ s.username|slice:":1"|upper }}</span>
+          <span class="student-copy"><strong><a href="{% url 'admin_student_detail' s.pk %}">{{ s.username }}</a></strong><small>{{ s.email|default:"No email added" }}</small></span>
+          <a class="text-button student-view-link" href="{% url 'admin_student_detail' s.pk %}">View</a>
+        </div>
+        {% empty %}<div class="empty-state empty-compact"><span class="empty-icon">✦</span><p>No students yet. Add your first student to get started.</p></div>{% endfor %}
+      </div>
+  </section>
+</section>
+{% endblock %}

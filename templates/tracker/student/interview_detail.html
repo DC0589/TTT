@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}{{ iv.company_name }}{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="{% url 'student_interviews' %}">My interviews</a><span aria-hidden="true">/</span><span>{{ iv.company_name }}</span></div>
+<section class="interview-hero">
+  <div class="interview-company-mark" aria-hidden="true">{{ iv.company_name|slice:":1"|upper }}</div>
+  <div class="interview-hero-copy"><p class="eyebrow">INTERVIEW DETAILS</p><h1>{{ iv.company_name }}</h1><p>{{ iv.role }} <span class="meta-divider">·</span> {{ iv.date_of_interview|date:"d M Y" }} <span class="meta-divider">·</span> {{ iv.group.name }}</p></div>
+  <div class="interview-hero-actions"><span id="final-result-badge" class="status-badge {{ iv.badge }}">{{ iv.final_label }}</span>
+    {% if edit_mode %}
+    <a class="button button-quiet" href="{% url 'student_interview_detail' iv.pk %}">Back to details</a>
+    {% else %}
+    <a class="button button-quiet" href="{% url 'student_interview_edit' iv.pk %}">Edit details</a>
+    <a class="button button-primary" href="{% url 'student_interview_progress' iv.pk %}">Manage rounds &amp; result</a>
+    {% endif %}
+    <form method="post" action="{% url 'interview_delete' iv.pk %}" data-confirm="Delete this interview and all its rounds? This cannot be undone.">{% csrf_token %}
+      <button class="button button-danger-outline" type="submit">Delete interview</button>
+    </form>
+  </div>
+</section>
+<section class="panel hr-contact-panel">
+  <div class="panel-heading"><span class="panel-icon" aria-hidden="true">↗</span><div><p class="eyebrow">YOUR POINT OF CONTACT</p><h2>HR contact details</h2><p>Recruiter information for this opportunity.</p></div></div>
+  <div class="hr-contact-grid">
+    <div><span class="hr-detail-label">HR name</span><strong>{{ iv.hr_name|default:"Not provided" }}</strong></div>
+    <div><span class="hr-detail-label">Contact number</span>{% if iv.hr_contact_number %}<a href="tel:{{ iv.hr_contact_number }}">{{ iv.hr_contact_number }}</a>{% else %}<strong>Not provided</strong>{% endif %}</div>
+    <div><span class="hr-detail-label">Email address</span>{% if iv.hr_email %}<a href="mailto:{{ iv.hr_email }}">{{ iv.hr_email }}</a>{% else %}<strong>Not provided</strong>{% endif %}</div>
+    <div><span class="hr-detail-label">Job posting</span>{% if iv.job_posting_url %}<a href="{{ iv.job_posting_url }}" target="_blank" rel="noopener noreferrer">Open job posting ↗</a>{% else %}<strong>Not provided</strong>{% endif %}</div>
+  </div>
+</section>
+<div class="interview-detail-grid{% if not editable %} interview-detail-readonly{% endif %}">
+  <section class="panel rounds-panel">
+    <div class="section-heading section-heading-panel"><div><p class="eyebrow">YOUR PROGRESS</p><h2>Interview rounds</h2></div><span class="round-progress">{{ iv.progress }}</span></div>
+    <ul id="rounds" class="round-list">
+      {% for r in iv.rounds.all %}{% include "tracker/student/_round_row.html" %}{% endfor %}
+    </ul>
+    {% if editable %}
+    <div id="rounds-empty" class="empty-state rounds-empty{% if iv.rounds.exists %} is-hidden{% endif %}"><span class="empty-icon">↗</span><strong>Every journey starts somewhere.</strong><p>Add your first round below to start tracking progress.</p></div>
+    <form id="round-form" method="post" action="{% url 'round_add' iv.pk %}" class="round-form">{% csrf_token %}
+      {% if edit_mode %}<input type="hidden" name="edit_mode" value="1">{% endif %}
+      <label class="visually-hidden" for="round-description">Round description</label>
+      <input id="round-description" name="description" maxlength="255" required placeholder="e.g. Technical interview" class="form-control">
+      <button class="button button-primary" type="submit"><span class="button-plus" aria-hidden="true">+</span> Add round</button>
+      <p id="round-error" class="form-feedback is-hidden" role="alert"></p>
+    </form>
+    <p id="round-status-error" class="form-feedback is-hidden" role="alert"></p>
+    {% endif %}
+  </section>
+  {% if editable %}
+  <section class="panel final-result-panel">
+    <span class="result-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.5 19 7v5.1c0 4.2-2.9 7.2-7 8.4-4.1-1.2-7-4.2-7-8.4V7z"/><path d="m9 12 2 2 4-4"/></svg></span>
+    <p class="eyebrow">THE OUTCOME</p><h2>Final result</h2>
+    <p class="panel-description">Once every round is cleared or rejected, you can record the final outcome here.</p>
+    <form method="post" action="{% url 'interview_status' iv.pk %}" class="stack-form">{% csrf_token %}
+      {% if edit_mode %}<input type="hidden" name="edit_mode" value="1">{% endif %}
+      {% with form=status_form %}{% include "tracker/_form.html" %}{% endwith %}
+      <button class="button button-primary button-wide" type="submit">Save result <span aria-hidden="true">→</span></button>
+    </form>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+{% if editable %}
+<script>
+(() => {
+  const form = document.getElementById('round-form');
+  const csrf = form.querySelector('[name=csrfmiddlewaretoken]').value;
+  const resultBadge = document.getElementById('final-result-badge');
+  const error = document.getElementById('round-error');
+  const statusError = document.getElementById('round-status-error');
+  const showError = (element, message) => {
+    element.textContent = message;
+    element.classList.remove('is-hidden');
+  };
+  const updateResultBadge = (label, status) => {
+    resultBadge.textContent = label;
+    resultBadge.className = `status-badge status-${status}`;
+  };
+  const readableError = data => {
+    if (data && data.error) return data.error;
+    const errors = data && data.errors;
+    if (errors) {
+      const field = errors.description || errors.status;
+      if (field && field.length) return field[0].message;
+    }
+    return 'Something went wrong. Please try again.';
+  };
+
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    error.classList.add('is-hidden');
+    try {
+      const response = await fetch(form.action, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrf},
+        body: new FormData(form)
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        showError(error, readableError(data));
+        return;
+      }
+      document.getElementById('rounds').insertAdjacentHTML('beforeend', data.html);
+      document.getElementById('rounds-empty').classList.add('is-hidden');
+      document.getElementById('round-description').value = '';
+      updateResultBadge('In progress', 'in-progress');
+      const finalStatus = document.querySelector('[name=final_status]');
+      if (finalStatus) finalStatus.value = '';
+    } catch {
+      showError(error, 'We couldn’t save this round. Check your connection and try again.');
+    }
+  });
+
+  document.getElementById('rounds').addEventListener('change', async event => {
+    const select = event.target;
+    if (!select.classList.contains('round-status')) return;
+    statusError.classList.add('is-hidden');
+    select.disabled = true;
+    try {
+      const body = new FormData();
+      body.append('status', select.value);
+      {% if edit_mode %}body.append('edit_mode', '1');{% endif %}
+      const response = await fetch(select.dataset.url, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrf},
+        body
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        showError(statusError, readableError(data));
+        select.value = select.dataset.previousValue;
+        return;
+      }
+      select.dataset.previousValue = select.value;
+      const row = select.closest('[data-round]');
+      const badge = row.querySelector('.status-badge');
+      badge.textContent = select.options[select.selectedIndex].text;
+      badge.className = `status-badge status-${data.status}`;
+      updateResultBadge(data.final_label, data.final_status);
+      if (data.final_status === 'in-progress') {
+        const finalStatus = document.querySelector('[name=final_status]');
+        if (finalStatus) finalStatus.value = '';
+      }
+    } catch {
+      showError(statusError, 'We couldn’t update this round. Refresh the page and try again.');
+      select.value = select.dataset.previousValue;
+    } finally {
+      select.disabled = false;
+    }
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="{% url 'admin_courses' %}">Courses &amp; questions</a><span aria-hidden="true">/</span><span>{{ page_title }}</span></div>
+<section class="page-heading">
+  <div><p class="eyebrow">COURSE CONTENT</p><h1>{{ page_title }}</h1><p>Complete the overview, learning details, roadmap, and sample questions. Use one item per line in list fields.</p></div>
+  {% if course %}<a class="button button-quiet" href="{% url 'admin_course_preview' course.pk %}">Preview course</a>{% endif %}
+</section>
+<section class="panel course-editor-panel">
+  <form method="post" class="stack-form">{% csrf_token %}{% include "tracker/_form.html" %}
+    <div class="course-card-actions">
+      <button class="button button-primary" type="submit">{{ submit_label }}</button>
+      {% if course %}<a class="button button-quiet" href="{% url 'admin_course_preview' course.pk %}">Preview</a>{% endif %}
+    </div>
+  </form>
+</section>
+{% endblock %}

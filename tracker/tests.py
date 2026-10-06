@@ -1,0 +1,849 @@
+from datetime import date, timedelta
+import base64
+import json
+import re
+from unittest.mock import patch
+
+from django.contrib.auth.hashers import check_password
+from django.core import mail
+from django.core.management import call_command
+from django.core.management.base import CommandError
+from django.db import IntegrityError, transaction
+from django.test import TestCase, override_settings
+from django.urls import reverse
+from django.utils import timezone
+
+from .models import (
+    Group, GroupMembership, Interview, InterviewRound, InterviewStatus,
+    LearningCourse, StudentRegistrationRequest, User,
+)
+
+
+class Base(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.admin = User.objects.create_user("admin", password="pw12345!", is_admin=True)
+        cls.alice = User.objects.create_user("alice", password="pw12345!", is_student=True)
+        cls.bob = User.objects.create_user("bob", password="pw12345!", is_student=True)
+        cls.group = Group.objects.create(name="Batch A", admin=cls.admin)
+        for s in (cls.alice, cls.bob):
+            GroupMembership.objects.create(group=cls.group, student=s)
+        cls.iv = Interview.objects.create(student=cls.alice, group=cls.group, company_name="Acme",
+                                          role="Dev", date_of_interview=date.today())
+
+
+class ModelTests(Base):
+    def test_default_status_and_badge(self):
+        self.assertEqual(self.iv.final_status, "in-progress")
+        InterviewStatus.objects.create(interview=self.iv, final_status="selected")
+        self.iv.refresh_from_db()
+        self.assertEqual(self.iv.final_label, "Selected")
+
+    def test_duplicate_membership_rejected(self):
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            GroupMembership.objects.create(group=self.group, student=self.alice)
+
+    def test_progress(self):
+        InterviewRound.objects.create(interview=self.iv, round_number=1, description="x", status="cleared")
+        InterviewRound.objects.create(interview=self.iv, round_number=2, description="y")
+        self.assertEqual(self.iv.progress, "1/2 cleared")
+
+    def test_superuser_is_admin(self):
+        self.assertTrue(User.objects.create_superuser("root", password="x").is_admin)
+
+
+class AuthTests(Base):
+    def test_login_redirects_by_role(self):
+        r = self.client.post(reverse("login"), {"username": "admin", "password": "pw12345!"})
+        self.assertRedirects(r, reverse("admin_dashboard"))
+        self.client.logout()
+        r = self.client.post(reverse("login"), {"username": "alice", "password": "pw12345!"})
+        self.assertRedirects(r, reverse("student_dashboard"))
+
+    def test_external_registration_requires_verification_and_admin_approval(self):
+        self.admin.email = "admin@example.com"
+        self.admin.save(update_fields=["email"])
+        r = self.client.post(reverse("register"), {
+            "username": "dave", "email": "d@example.com",
+            "password1": "S7rong-pass-99", "password2": "S7rong-pass-99"})
+        registration = StudentRegistrationRequest.objects.get(username="dave")
+        self.assertRedirects(r, reverse("verify_registration", args=[registration.pk]))
+        self.assertFalse(User.objects.filter(username="dave").exists())
+        self.assertEqual(registration.status, StudentRegistrationRequest.AWAITING_VERIFICATION)
+        self.assertTrue(check_password("S7rong-pass-99", registration.password_hash))
+
+        code = re.search(
+            r"(?m)^Your email verification code is: (\d{6})$",
+            mail.outbox[0].body,
+        )
+        self.assertIsNotNone(code)
+        self.assertEqual(len(mail.outbox[0].alternatives), 1)
+        self.assertEqual(mail.outbox[0].alternatives[0][1], "text/html")
+        self.assertIn(code.group(1), mail.outbox[0].alternatives[0][0])
+        self.assertIn("Tweak Talent", mail.outbox[0].alternatives[0][0])
+        self.assertIn("Hello dave,", mail.outbox[0].body)
+        verify_path = reverse("verify_registration", args=[registration.pk])
+        verify_page = self.client.get(verify_path)
+        self.assertEqual(verify_page.status_code, 200)
+        self.assertContains(verify_page, 'name="code"')
+        verify_response = self.client.post(verify_path, {"code": code.group(1)})
+        self.assertRedirects(
+            verify_response,
+            f"{reverse('registration_submitted')}?verified=1",
+        )
+        registration.refresh_from_db()
+        self.assertEqual(registration.status, StudentRegistrationRequest.AWAITING_APPROVAL)
+        self.assertFalse(User.objects.filter(username="dave").exists())
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertIn("admin@example.com", mail.outbox[1].to)
+        self.assertIn("Review signup request", mail.outbox[1].alternatives[0][0])
+        replay = self.client.post(verify_path, {"code": code.group(1)})
+        self.assertRedirects(replay, reverse("login"))
+        self.assertEqual(len(mail.outbox), 2)
+
+        self.client.force_login(self.admin)
+        approve_url = reverse("registration_approve", args=[registration.pk])
+        response = self.client.post(approve_url)
+        self.assertRedirects(response, reverse("admin_registrations"))
+        self.assertEqual(len(mail.outbox), 3)
+        self.assertIn("Hello dave,", mail.outbox[2].body)
+        self.assertIn("Your student account is approved", mail.outbox[2].alternatives[0][0])
+        student = User.objects.get(username="dave")
+        self.assertTrue(student.is_student)
+        self.assertEqual(student.created_by, self.admin)
+        self.assertTrue(check_password("S7rong-pass-99", student.password))
+        registration.refresh_from_db()
+        self.assertEqual(registration.status, StudentRegistrationRequest.APPROVED)
+        self.assertEqual(registration.password_hash, "")
+        self.assertTrue(student.check_password("S7rong-pass-99"))
+
+
+    def test_rejection_notification_includes_branded_html_email(self):
+        registration = StudentRegistrationRequest.objects.create(
+            username="rejected-student",
+            email="rejected@example.com",
+            password_hash="unused",
+            verification_code_hash="",
+            verification_expires_at=timezone.now(),
+            status=StudentRegistrationRequest.AWAITING_APPROVAL,
+            verified_at=timezone.now(),
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse("registration_reject", args=[registration.pk])
+        )
+
+        self.assertRedirects(response, reverse("admin_registrations"))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["rejected@example.com"])
+        self.assertIn("Hello rejected-student,", mail.outbox[0].body)
+        self.assertIn(
+            "unable to approve the account",
+            mail.outbox[0].alternatives[0][0],
+        )
+
+    def test_unverified_request_cannot_be_approved(self):
+        self.client.post(reverse("register"), {
+            "username": "eve", "email": "eve@example.com",
+            "password1": "S7rong-pass-99", "password2": "S7rong-pass-99"})
+        registration = StudentRegistrationRequest.objects.get(username="eve")
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse("registration_approve", args=[registration.pk]))
+
+        self.assertRedirects(response, reverse("admin_registrations"))
+        self.assertFalse(User.objects.filter(username="eve").exists())
+        registration.refresh_from_db()
+        self.assertEqual(registration.status, StudentRegistrationRequest.AWAITING_VERIFICATION)
+
+    def test_registration_otp_rejects_incorrect_codes_and_locks_after_five_attempts(self):
+        self.client.post(reverse("register"), {
+            "username": "otp-student",
+            "email": "otp@example.com",
+            "password1": "S7rong-pass-99",
+            "password2": "S7rong-pass-99",
+        })
+        registration = StudentRegistrationRequest.objects.get(username="otp-student")
+        verify_url = reverse("verify_registration", args=[registration.pk])
+        code_match = re.search(
+            r"(?m)^Your email verification code is: (\d{6})$",
+            mail.outbox[-1].body,
+        )
+        self.assertIsNotNone(code_match)
+        wrong_code = "000000" if code_match.group(1) != "000000" else "000001"
+
+        for attempt in range(4):
+            response = self.client.post(verify_url, {"code": wrong_code})
+            self.assertEqual(response.status_code, 200, attempt)
+            registration.refresh_from_db()
+            self.assertEqual(registration.verification_attempts, attempt + 1)
+
+        response = self.client.post(verify_url, {"code": wrong_code})
+        self.assertRedirects(response, reverse("register"))
+        registration.refresh_from_db()
+        self.assertEqual(registration.status, StudentRegistrationRequest.EXPIRED)
+        self.assertEqual(registration.password_hash, "")
+        self.assertEqual(registration.verification_code_hash, "")
+
+    def test_admin_created_student_does_not_need_email_verification(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse("admin_student_add"), {
+            "username": "direct-student",
+            "email": "direct@example.com",
+            "password1": "T7rong-pass-99",
+            "password2": "T7rong-pass-99",
+        })
+
+        student = User.objects.get(username="direct-student")
+        self.assertRedirects(
+            response, reverse("admin_student_detail", args=[student.pk]))
+        self.assertTrue(student.is_student)
+        self.assertEqual(student.created_by, self.admin)
+        self.assertFalse(StudentRegistrationRequest.objects.filter(
+            username="direct-student").exists())
+
+    def test_expired_registration_can_be_retried(self):
+        self.client.post(reverse("register"), {
+            "username": "expired-student",
+            "email": "expired@example.com",
+            "password1": "T7rong-pass-99",
+            "password2": "T7rong-pass-99",
+        })
+        registration = StudentRegistrationRequest.objects.get(username="expired-student")
+        registration.verification_expires_at = timezone.now() - timedelta(minutes=1)
+        registration.save(update_fields=["verification_expires_at"])
+
+        response = self.client.post(reverse("register"), {
+            "username": "expired-student",
+            "email": "expired@example.com",
+            "password1": "T7rong-pass-99",
+            "password2": "T7rong-pass-99",
+        })
+
+        retried = StudentRegistrationRequest.objects.get(
+            username="expired-student",
+            status=StudentRegistrationRequest.AWAITING_VERIFICATION,
+        )
+        self.assertRedirects(
+            response, reverse("verify_registration", args=[retried.pk])
+        )
+        registration.refresh_from_db()
+        self.assertEqual(registration.status, StudentRegistrationRequest.EXPIRED)
+        self.assertEqual(registration.password_hash, "")
+        self.assertEqual(registration.verification_code_hash, "")
+        self.assertEqual(
+            StudentRegistrationRequest.objects.filter(username="expired-student").count(),
+            2,
+        )
+
+    def test_anonymous_redirected(self):
+        r = self.client.get(reverse("student_dashboard"))
+        self.assertEqual(r.status_code, 302)
+
+
+class MockInterviewTests(Base):
+    def test_student_can_open_mock_interview(self):
+        self.client.force_login(self.alice)
+        response = self.client.get(reverse("student_mock_interview"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "AI Mock Interview")
+
+    def test_admin_cannot_open_student_mock_interview(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("student_mock_interview"))
+        self.assertEqual(response.status_code, 403)
+
+    @override_settings(GEMINI_API_KEY="test-key", GEMINI_MODEL="gemini-test")
+    @patch("tracker.ai_interview.urlopen")
+    def test_feedback_sends_transcript_and_frames_to_gemini(self, mock_urlopen):
+        self.client.force_login(self.alice)
+        response_body = {
+            "candidates": [{"content": {"parts": [{"text": json.dumps({
+                "score": 4,
+                "answer_feedback": "Clear answer.",
+                "camera_feedback": "Good framing.",
+                "screen_feedback": "Readable screen.",
+                "next_question": "What would you improve next?",
+            })}]}}]
+        }
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return json.dumps(response_body).encode()
+
+        mock_urlopen.return_value = FakeResponse()
+        jpeg = "data:image/jpeg;base64," + base64.b64encode(b"\xff\xd8\xfftest").decode()
+        response = self.client.post(reverse("student_mock_interview_ai"), {
+            "action": "feedback",
+            "consent": True,
+            "role": "Data analyst",
+            "question_number": 1,
+            "question": "How do you validate data?",
+            "answer": "I check ranges and missing values.",
+            "frames": {"camera": jpeg, "screen": jpeg},
+        }, content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["score"], 4)
+        request = mock_urlopen.call_args.args[0]
+        payload = json.loads(request.data)
+        self.assertEqual(request.get_header("X-goog-api-key"), "test-key")
+        self.assertIn("I check ranges and missing values.", payload["contents"][0]["parts"][0]["text"])
+        self.assertEqual(sum("inlineData" in part for part in payload["contents"][0]["parts"]), 2)
+
+    def test_mock_interview_api_rejects_missing_consent(self):
+        self.client.force_login(self.alice)
+        response = self.client.post(reverse("student_mock_interview_ai"), {
+            "action": "question", "role": "Developer", "question_number": 1,
+        }, content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+
+class EmailCommandTests(TestCase):
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
+        EMAIL_HOST="",
+        EMAIL_HOST_USER="",
+        EMAIL_HOST_PASSWORD="",
+        DEFAULT_FROM_EMAIL="",
+    )
+    def test_email_command_reports_missing_smtp_configuration(self):
+        with self.assertRaisesMessage(CommandError, "EMAIL_HOST"):
+            call_command("test_email", to="student@example.com")
+
+
+class PermissionTests(Base):
+    def test_student_cannot_open_admin_pages(self):
+        self.client.force_login(self.alice)
+        for name in ("admin_dashboard", "admin_groups", "admin_students"):
+            self.assertEqual(self.client.get(reverse(name)).status_code, 403)
+        self.assertEqual(self.client.get(reverse("admin_group_detail", args=[self.group.pk])).status_code, 403)
+        self.assertEqual(self.client.get(
+            reverse("admin_student_detail", args=[self.alice.pk])).status_code, 403)
+
+    def test_admin_cannot_open_student_pages(self):
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(reverse("student_dashboard")).status_code, 403)
+
+    def test_student_cannot_see_others_interview(self):
+        self.client.force_login(self.bob)
+        url = reverse("student_interview_detail", args=[self.iv.pk])
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.assertEqual(self.client.post(reverse("round_add", args=[self.iv.pk]),
+                                          {"description": "hack"}).status_code, 404)
+        self.assertEqual(self.client.post(reverse("interview_delete", args=[self.iv.pk])).status_code, 404)
+
+    def test_other_admin_cannot_open_group(self):
+        other = User.objects.create_user("admin2", password="pw12345!", is_admin=True)
+        self.client.force_login(other)
+        self.assertEqual(self.client.get(reverse("admin_group_detail", args=[self.group.pk])).status_code, 404)
+
+
+class ViewTests(Base):
+    def test_main_pages_render_for_each_role(self):
+        self.client.force_login(self.admin)
+        for name, args in (
+            ("admin_dashboard", ()),
+            ("admin_interviews", ()),
+            ("admin_groups", ()),
+            ("admin_group_add", ()),
+            ("admin_students", ()),
+            ("admin_student_add", ()),
+            ("admin_registrations", ()),
+            ("admin_courses", ()),
+            ("admin_reports", ()),
+            ("admin_group_detail", (self.group.pk,)),
+            ("admin_student_detail", (self.alice.pk,)),
+        ):
+            response = self.client.get(reverse(name, args=args))
+            self.assertEqual(response.status_code, 200, name)
+            self.assertContains(response, "Tweak Talent")
+            self.assertContains(response, "/static/css/app.css")
+            self.assertNotContains(response, "cdn.tailwindcss.com")
+
+        self.client.force_login(self.alice)
+        for name, args in (
+            ("student_dashboard", ()),
+            ("student_courses", ()),
+            ("student_interview_questions", ()),
+            ("student_interviews", ()),
+            ("student_interview_add", ()),
+            ("student_interview_detail", (self.iv.pk,)),
+        ):
+            response = self.client.get(reverse(name, args=args))
+            self.assertEqual(response.status_code, 200, name)
+            self.assertContains(response, "Tweak Talent")
+
+    def test_student_directory_is_scoped_to_admin_groups(self):
+        unassigned = User.objects.create_user("unassigned", is_student=True)
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse("admin_students"))
+
+        self.assertContains(response, "alice")
+        self.assertContains(response, "bob")
+        self.assertNotContains(response, "unassigned")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            self.client.get(reverse("admin_student_detail", args=[unassigned.pk])).status_code,
+            404,
+        )
+
+    def test_students_created_by_admin_are_in_directory(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse("admin_student_add"), {
+            "username": "created-student",
+            "email": "created@example.com",
+            "password1": "T7rong-pass-99",
+            "password2": "T7rong-pass-99",
+        })
+
+        student = User.objects.get(username="created-student")
+        self.assertEqual(student.created_by, self.admin)
+        self.assertRedirects(
+            response, reverse("admin_student_detail", args=[student.pk]))
+        self.assertEqual(self.client.get(reverse("admin_students")).status_code, 200)
+        self.assertEqual(
+            self.client.get(reverse("admin_student_detail", args=[student.pk])).status_code,
+            200,
+        )
+
+    def test_student_directory_supports_search_and_three_views(self):
+        self.client.force_login(self.admin)
+        for mode in ("cards", "table", "list"):
+            response = self.client.get(reverse("admin_students"), {"view": mode})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["view_mode"], mode)
+            self.assertContains(response, "alice")
+            self.assertContains(response, "Batch A")
+
+        response = self.client.get(
+            reverse("admin_students"), {"view": "table", "q": "alice"}
+        )
+        self.assertContains(response, "alice")
+        self.assertNotContains(response, "bob")
+
+    def test_registration_queue_renders_verified_applications_and_decision_actions(self):
+        registration = StudentRegistrationRequest.objects.create(
+            username="pending-student",
+            email="pending@example.com",
+            password_hash="hashed-password",
+            verification_code_hash="a" * 64,
+            verification_expires_at=timezone.now() + timedelta(minutes=10),
+            status=StudentRegistrationRequest.AWAITING_APPROVAL,
+            verified_at=timezone.now(),
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse("admin_registrations"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["pending_count"], 1)
+        self.assertContains(response, "Registration review")
+        self.assertContains(response, registration.email)
+        self.assertContains(response, "Approve")
+        self.assertContains(response, "Decline")
+        self.assertContains(response, "data-confirm=")
+
+    def test_other_admin_cannot_view_student_details(self):
+        other = User.objects.create_user("admin2", is_admin=True)
+        self.client.force_login(other)
+        self.assertEqual(
+            self.client.get(reverse("admin_student_detail", args=[self.alice.pk])).status_code,
+            404,
+        )
+
+    def test_admin_creates_group_and_adds_member(self):
+        self.client.force_login(self.admin)
+        r = self.client.post(reverse("admin_group_add"), {"name": "Batch B", "description": ""})
+        g = Group.objects.get(name="Batch B")
+        self.assertRedirects(r, reverse("admin_group_detail", args=[g.pk]))
+        self.client.post(
+            reverse("admin_group_member_add", args=[g.pk]),
+            {"student": self.alice.pk},
+        )
+        self.assertTrue(g.memberships.filter(student=self.alice).exists())
+
+    def test_student_adds_interview_only_for_own_group(self):
+        outsider_group = Group.objects.create(name="Other", admin=self.admin)
+        self.client.force_login(self.alice)
+        data = {"company_name": "Globex", "role": "QA", "date_of_interview": "2026-01-10"}
+        r = self.client.post(
+            reverse("student_interview_add"),
+            {**data, "group": outsider_group.pk},
+        )
+        self.assertEqual(r.status_code, 200)  # form error, nothing created
+        self.assertFalse(Interview.objects.filter(company_name="Globex").exists())
+        self.client.post(
+            reverse("student_interview_add"),
+            {**data, "group": self.group.pk},
+        )
+        self.assertTrue(Interview.objects.filter(company_name="Globex", student=self.alice).exists())
+
+    def test_student_saves_hr_contact_details(self):
+        self.client.force_login(self.alice)
+        response = self.client.post(reverse("student_interview_add"), {
+            "group": self.group.pk,
+            "company_name": "Globex",
+            "role": "QA",
+            "job_posting_url": "https://example.com/jobs/qa",
+            "date_of_interview": "2026-01-10",
+            "hr_name": "Jordan Lee",
+            "hr_contact_number": "+1 555 0123",
+            "hr_email": "jordan@example.com",
+        })
+
+        interview = Interview.objects.get(company_name="Globex")
+        self.assertRedirects(
+            response, reverse("student_interview_detail", args=[interview.pk]))
+        self.assertEqual(interview.hr_name, "Jordan Lee")
+        self.assertEqual(interview.hr_contact_number, "+1 555 0123")
+        self.assertEqual(interview.hr_email, "jordan@example.com")
+        self.assertEqual(interview.job_posting_url, "https://example.com/jobs/qa")
+        self.assertContains(
+            self.client.get(reverse("student_interview_detail", args=[interview.pk])),
+            "jordan@example.com",
+        )
+
+    def test_interview_table_links_company_and_role_posting_for_both_dashboards(self):
+        self.iv.job_posting_url = "https://example.com/jobs/dev"
+        self.iv.save(update_fields=["job_posting_url"])
+
+        self.client.force_login(self.alice)
+        student_response = self.client.get(
+            reverse("student_interviews"), {"view": "table"})
+        self.assertContains(
+            student_response,
+            reverse("student_interview_detail", args=[self.iv.pk]),
+        )
+        self.assertContains(
+            student_response,
+            reverse("student_interview_edit", args=[self.iv.pk]),
+        )
+        self.assertContains(student_response, 'href="https://example.com/jobs/dev"')
+        student_dashboard_response = self.client.get(reverse("student_dashboard"))
+        self.assertContains(
+            student_dashboard_response, 'href="https://example.com/jobs/dev"')
+
+        self.client.force_login(self.admin)
+        admin_response = self.client.get(
+            reverse("admin_interviews"), {"view": "table"})
+        self.assertContains(
+            admin_response,
+            reverse("admin_interview_detail", args=[self.iv.pk]),
+        )
+        self.assertContains(admin_response, 'href="https://example.com/jobs/dev"')
+        detail_response = self.client.get(
+            reverse("admin_interview_detail", args=[self.iv.pk]))
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertContains(detail_response, "Interview rounds")
+
+    def test_missing_job_link_is_visible_and_actionable(self):
+        self.client.force_login(self.alice)
+        student_response = self.client.get(reverse("student_dashboard"))
+        self.assertContains(student_response, "Add job link")
+        self.assertContains(
+            student_response, reverse("student_interview_edit", args=[self.iv.pk]))
+
+        self.client.force_login(self.admin)
+        admin_response = self.client.get(reverse("admin_dashboard"))
+        self.assertContains(admin_response, "Not provided")
+        self.assertContains(
+            admin_response, reverse("admin_interview_detail", args=[self.iv.pk]))
+
+    def test_student_course_and_question_pages_show_seeded_content(self):
+        self.client.force_login(self.alice)
+
+        course_response = self.client.get(reverse("student_courses"))
+        self.assertEqual(course_response.status_code, 200)
+        self.assertContains(course_response, "Python")
+        self.assertContains(course_response, "Suggested roadmap")
+        self.assertContains(course_response, "Set up Python and learn basic syntax")
+        self.assertContains(course_response, "SQL (PostgreSQL)")
+        self.assertEqual(LearningCourse.objects.count(), 7)
+
+        questions_response = self.client.get(reverse("student_interview_questions"))
+        self.assertEqual(questions_response.status_code, 200)
+        self.assertContains(questions_response, "PRACTICE FOR YOUR NEXT STEP")
+        self.assertContains(questions_response, "What is the difference between a list and a tuple?")
+        self.assertContains(questions_response, "How do migrations keep a database schema in sync with models?")
+
+    def test_admin_can_edit_and_preview_learning_content(self):
+        course = LearningCourse.objects.get(name="Python")
+        self.client.force_login(self.admin)
+        manager = self.client.get(reverse("admin_courses"))
+        self.assertContains(manager, reverse("admin_course_edit", args=[course.pk]))
+        self.assertContains(manager, reverse("admin_course_preview", args=[course.pk]))
+
+        response = self.client.post(
+            reverse("admin_course_edit", args=[course.pk]),
+            {
+                "name": course.name,
+                "summary": "Updated Python summary",
+                "level": course.level,
+                "duration": course.duration,
+                "prerequisites": course.prerequisites,
+                "learning_outcomes": course.learning_outcomes,
+                "tools": course.tools,
+                "roadmap": "New roadmap step",
+                "interview_questions": "New sample question",
+                "sort_order": course.sort_order,
+            },
+        )
+
+        self.assertRedirects(response, reverse("admin_course_edit", args=[course.pk]))
+        course.refresh_from_db()
+        self.assertEqual(course.summary, "Updated Python summary")
+        preview = self.client.get(reverse("admin_course_preview", args=[course.pk]))
+        self.assertEqual(preview.status_code, 200)
+        self.assertContains(preview, "New roadmap step")
+        self.assertContains(preview, "New sample question")
+
+    def test_admin_reports_show_outcomes_and_are_group_scoped(self):
+        self.iv.job_posting_url = "https://example.com/acme"
+        self.iv.hr_name = "Jordan Recruiter"
+        self.iv.hr_email = "jordan@example.com"
+        self.iv.save(update_fields=["job_posting_url", "hr_name", "hr_email"])
+        InterviewStatus.objects.create(
+            interview=self.iv, final_status=InterviewStatus.SELECTED)
+        not_selected = Interview.objects.create(
+            student=self.bob,
+            group=self.group,
+            company_name="Globex",
+            role="Analyst",
+            job_posting_url="https://example.com/globex",
+            date_of_interview=date.today(),
+            hr_name="Taylor HR",
+            hr_contact_number="555-0100",
+            hr_email="taylor@example.com",
+        )
+        InterviewStatus.objects.create(
+            interview=not_selected,
+            final_status=InterviewStatus.NOT_SELECTED,
+        )
+        other_admin = User.objects.create_user("report-admin", is_admin=True)
+        other_group = Group.objects.create(name="Other group", admin=other_admin)
+        GroupMembership.objects.create(group=other_group, student=self.bob)
+        outside_interview = Interview.objects.create(
+            student=self.bob,
+            group=other_group,
+            company_name="Private Co",
+            role="Engineer",
+            date_of_interview=date.today(),
+        )
+        InterviewStatus.objects.create(
+            interview=outside_interview,
+            final_status=InterviewStatus.SELECTED,
+        )
+
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("admin_reports"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Selected")
+        self.assertContains(response, "Not selected")
+        self.assertContains(response, "Jordan Recruiter")
+        self.assertContains(response, "https://example.com/acme")
+        self.assertContains(response, "https://example.com/globex")
+        self.assertNotContains(response, "Private Co")
+
+    def test_only_admin_can_manage_courses_and_view_reports(self):
+        course = LearningCourse.objects.get(name="Python")
+        self.client.force_login(self.alice)
+        self.assertEqual(self.client.get(reverse("admin_courses")).status_code, 403)
+        self.assertEqual(
+            self.client.get(reverse("admin_course_preview", args=[course.pk])).status_code,
+            403,
+        )
+        self.assertEqual(self.client.get(reverse("admin_reports")).status_code, 403)
+
+    def test_final_result_updates_rounds_and_redirects_to_interview_list(self):
+        first = InterviewRound.objects.create(
+            interview=self.iv, round_number=1, description="Screening",
+            status=InterviewRound.REJECTED,
+        )
+        last = InterviewRound.objects.create(
+            interview=self.iv, round_number=2, description="Final",
+            status=InterviewRound.CLEARED,
+        )
+        self.client.force_login(self.alice)
+        url = reverse("interview_status", args=[self.iv.pk])
+
+        selected_response = self.client.post(url, {"final_status": "selected"})
+
+        self.assertRedirects(selected_response, reverse("student_interviews"))
+        first.refresh_from_db()
+        last.refresh_from_db()
+        self.assertEqual(first.status, InterviewRound.CLEARED)
+        self.assertEqual(last.status, InterviewRound.CLEARED)
+
+        rejected_response = self.client.post(url, {
+            "final_status": "not-selected",
+            "edit_mode": "1",
+        })
+
+        self.assertRedirects(rejected_response, reverse("student_interviews"))
+        first.refresh_from_db()
+        last.refresh_from_db()
+        self.assertEqual(first.status, InterviewRound.CLEARED)
+        self.assertEqual(last.status, InterviewRound.REJECTED)
+
+    def test_finalized_interview_requires_edit_mode_for_round_changes(self):
+        rnd = InterviewRound.objects.create(
+            interview=self.iv, round_number=1, description="Technical",
+            status=InterviewRound.CLEARED,
+        )
+        InterviewStatus.objects.create(
+            interview=self.iv, final_status=InterviewStatus.SELECTED)
+        self.client.force_login(self.alice)
+
+        detail_response = self.client.get(
+            reverse("student_interview_detail", args=[self.iv.pk]))
+        self.assertNotContains(detail_response, "Add round")
+        self.assertNotContains(detail_response, "Save result")
+        self.assertNotContains(detail_response, 'class="form-control round-status"')
+        self.assertContains(
+            detail_response,
+            reverse("student_interview_edit", args=[self.iv.pk]),
+        )
+        edit_response = self.client.get(
+            reverse("student_interview_edit", args=[self.iv.pk]))
+        self.assertNotContains(edit_response, "Add round")
+        self.assertNotContains(edit_response, "Save result")
+        progress_response = self.client.get(
+            reverse("student_interview_progress", args=[self.iv.pk]))
+        self.assertContains(progress_response, "Add round")
+        self.assertContains(progress_response, "Save result")
+
+        update_response = self.client.post(
+            reverse("round_update", args=[rnd.pk]),
+            {"status": "pending", "edit_mode": "1"},
+        )
+        self.assertEqual(update_response.status_code, 200)
+        self.assertFalse(InterviewStatus.objects.filter(interview=self.iv).exists())
+
+    def test_admin_interview_detail_is_scoped_to_admin_groups(self):
+        other_admin = User.objects.create_user("another-admin", is_admin=True)
+        self.client.force_login(other_admin)
+        response = self.client.get(
+            reverse("admin_interview_detail", args=[self.iv.pk]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_removing_student_from_group_preserves_interview_history(self):
+        InterviewRound.objects.create(
+            interview=self.iv, round_number=1, description="Technical")
+        InterviewStatus.objects.create(interview=self.iv, final_status="selected")
+        another_group = Group.objects.create(name="Batch B", admin=self.admin)
+        GroupMembership.objects.create(group=another_group, student=self.alice)
+        other_interview = Interview.objects.create(
+            student=self.alice,
+            group=another_group,
+            company_name="Other company",
+            role="Engineer",
+            date_of_interview=date.today(),
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse("member_remove", args=[self.group.pk, self.alice.pk]))
+
+        self.assertRedirects(response, reverse("admin_group_detail", args=[self.group.pk]))
+        self.assertFalse(GroupMembership.objects.filter(
+            group=self.group, student=self.alice).exists())
+        self.assertTrue(Interview.objects.filter(pk=self.iv.pk).exists())
+        self.assertTrue(InterviewRound.objects.filter(interview_id=self.iv.pk).exists())
+        self.assertTrue(InterviewStatus.objects.filter(interview_id=self.iv.pk).exists())
+        self.assertTrue(Interview.objects.filter(pk=other_interview.pk).exists())
+        self.assertTrue(GroupMembership.objects.filter(
+            group=another_group, student=self.alice).exists())
+
+        new_group = Group.objects.create(name="Batch C", admin=self.admin)
+        add_response = self.client.post(
+            reverse("admin_group_member_add", args=[new_group.pk]),
+            {"student": self.alice.pk},
+        )
+        self.assertRedirects(add_response, reverse("admin_group_detail", args=[new_group.pk]))
+        self.assertTrue(GroupMembership.objects.filter(
+            group=new_group, student=self.alice).exists())
+        self.client.force_login(self.admin)
+        group_response = self.client.get(reverse("admin_group_detail", args=[new_group.pk]))
+        self.assertContains(group_response, "Acme")
+        self.assertContains(group_response, self.group.name)
+        same_group_response = self.client.post(
+            reverse("admin_group_member_add", args=[self.group.pk]),
+            {"student": self.alice.pk},
+        )
+        self.assertRedirects(
+            same_group_response,
+            reverse("admin_group_detail", args=[self.group.pk]),
+        )
+        self.assertContains(
+            self.client.get(reverse("admin_group_detail", args=[self.group.pk])),
+            "Acme",
+        )
+
+        self.client.force_login(self.alice)
+        response = self.client.get(reverse("student_interviews"))
+        self.assertContains(response, "Acme")
+        self.assertContains(response, "Other company")
+
+    def test_deleting_membership_directly_preserves_interviews(self):
+        membership = GroupMembership.objects.get(group=self.group, student=self.alice)
+
+        membership.delete()
+
+        self.assertTrue(Interview.objects.filter(pk=self.iv.pk).exists())
+
+    def test_ajax_add_rounds_and_validation(self):
+        self.client.force_login(self.alice)
+        url = reverse("round_add", args=[self.iv.pk])
+        response = self.client.post(url, {"description": "Coding test"})
+        self.assertEqual(response.status_code, 201)
+        self.assertIn('class="form-control round-status"', response.json()["html"])
+        self.client.post(url, {"description": "HR"})
+        self.assertEqual(list(self.iv.rounds.values_list("round_number", flat=True)), [1, 2])
+        self.assertEqual(self.client.post(url, {"description": "  "}).status_code, 400)
+
+    def test_csrf_enforced_on_ajax(self):
+        from django.test import Client
+        c = Client(enforce_csrf_checks=True)
+        c.force_login(self.alice)
+        self.assertEqual(c.post(reverse("round_add", args=[self.iv.pk]), {"description": "x"}).status_code, 403)
+
+    def test_final_status_requires_completed_rounds(self):
+        self.client.force_login(self.alice)
+        url = reverse("interview_status", args=[self.iv.pk])
+        self.client.post(url, {"final_status": "selected"})
+        self.assertFalse(InterviewStatus.objects.filter(interview=self.iv).exists())  # no rounds
+        rnd = InterviewRound.objects.create(interview=self.iv, round_number=1, description="x")
+        self.client.post(url, {"final_status": "selected"})
+        self.assertFalse(InterviewStatus.objects.filter(interview=self.iv).exists())  # pending round
+        self.client.post(reverse("round_update", args=[rnd.pk]), {"status": "cleared"})
+        self.client.post(url, {"final_status": "selected"})
+        self.assertEqual(InterviewStatus.objects.get(interview=self.iv).final_status, "selected")
+
+    def test_pending_round_reopens_finalized_interview(self):
+        self.client.force_login(self.alice)
+        rnd = InterviewRound.objects.create(
+            interview=self.iv, round_number=1, description="Technical", status="cleared")
+        InterviewStatus.objects.create(interview=self.iv, final_status="selected")
+
+        response = self.client.post(
+            reverse("round_update", args=[rnd.pk]), {"status": "pending"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertJSONEqual(response.content, {
+            "status": "pending",
+            "badge": "status-pending",
+            "final_status": "in-progress",
+            "final_label": "In progress",
+        })
+        self.assertFalse(InterviewStatus.objects.filter(interview=self.iv).exists())

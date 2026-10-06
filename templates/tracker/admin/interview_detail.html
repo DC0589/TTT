@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ iv.company_name }}{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="{% url 'admin_dashboard' %}">Dashboard</a><span aria-hidden="true">/</span><a href="{% url 'admin_student_detail' iv.student.pk %}">{{ iv.student.username }}</a><span aria-hidden="true">/</span><span>{{ iv.company_name }}</span></div>
+<section class="interview-hero">
+  <div class="interview-company-mark" aria-hidden="true">{{ iv.company_name|slice:":1"|upper }}</div>
+  <div class="interview-hero-copy"><p class="eyebrow">INTERVIEW DETAILS</p><h1>{{ iv.company_name }}</h1><p>{{ iv.role }} <span class="meta-divider">·</span> {{ iv.date_of_interview|date:"d M Y" }} <span class="meta-divider">·</span> {{ iv.group.name }}</p></div>
+  <div class="interview-hero-actions"><span class="status-badge {{ iv.badge }}">{{ iv.final_label }}</span></div>
+</section>
+<section class="panel admin-interview-summary">
+  <div><span class="hr-detail-label">Student</span><strong><a href="{% url 'admin_student_detail' iv.student.pk %}">{{ iv.student.username }}</a></strong></div>
+  <div><span class="hr-detail-label">Job role</span>{% if iv.job_posting_url %}<a href="{{ iv.job_posting_url }}" target="_blank" rel="noopener noreferrer">{{ iv.role }} <span aria-hidden="true">↗</span></a>{% else %}<strong>{{ iv.role }}</strong>{% endif %}</div>
+  <div><span class="hr-detail-label">HR name</span><strong>{{ iv.hr_name|default:"Not provided" }}</strong></div>
+  <div><span class="hr-detail-label">Contact number</span>{% if iv.hr_contact_number %}<a href="tel:{{ iv.hr_contact_number }}">{{ iv.hr_contact_number }}</a>{% else %}<strong>Not provided</strong>{% endif %}</div>
+  <div><span class="hr-detail-label">Email address</span>{% if iv.hr_email %}<a href="mailto:{{ iv.hr_email }}">{{ iv.hr_email }}</a>{% else %}<strong>Not provided</strong>{% endif %}</div>
+</section>
+<section class="panel admin-rounds-panel">
+  <div class="section-heading section-heading-panel"><div><p class="eyebrow">PROGRESS</p><h2>Interview rounds</h2></div><span class="round-progress">{{ iv.progress }}</span></div>
+  <ul class="round-list">
+    {% for r in iv.rounds.all %}
+    <li class="round-row">
+      <span class="round-index">{{ r.round_number|stringformat:"02d" }}</span>
+      <span class="round-copy"><strong>{{ r.description }}</strong><small>Interview round {{ r.round_number }}</small></span>
+      <span class="status-badge {{ r.badge }}">{{ r.get_status_display }}</span>
+    </li>
+    {% empty %}
+    <li class="inline-empty"><span class="inline-empty-icon">◎</span><span>No rounds have been added yet.</span></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

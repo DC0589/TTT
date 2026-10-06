@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Verify email{% endblock %}
+{% block content %}
+<div class="auth-card">
+  <span class="auth-card-icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 7l8 6 8-6"/><path d="m8 14 2.2 2.2L16 10.5"/></svg>
+  </span>
+  <p class="eyebrow">EMAIL CONFIRMATION</p>
+  <h2>Enter your verification code.</h2>
+  <p class="auth-card-description">We sent a 6-digit code to <strong>{{ registration.email }}</strong>. Enter it below within 10 minutes. You have up to 5 attempts.</p>
+  {% if email_backend_console %}<p class="email-mode-note">Development email mode is active. The code is printed in the server console and is not delivered to your inbox.</p>{% endif %}
+  <form method="post" class="auth-form">{% csrf_token %}
+    {% include "tracker/_form.html" with form=form %}
+    <button class="button button-primary button-wide" type="submit">Verify email <span aria-hidden="true">→</span></button>
+  </form>
+  <p class="auth-switch">Not your email? <a href="{% url 'register' %}">Start again</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Preview {{ course.name }}{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="{% url 'admin_courses' %}">Courses &amp; questions</a><span aria-hidden="true">/</span><span>Preview</span></div>
+<section class="page-heading curriculum-page-heading">
+  <div><p class="eyebrow">STUDENT VIEW PREVIEW</p><h1>{{ course.name }}</h1><p>Preview how the full course details, roadmap and tools appear to students.</p></div>
+  <a class="button button-primary" href="{% url 'admin_course_edit' course.pk %}">Edit content</a>
+</section>
+<article class="learning-course-card preview-learning-course">
+  <header class="learning-course-header">
+    <span class="learning-course-number">01</span>
+    <div class="learning-course-heading">
+      <p class="eyebrow">LEARNING PATH</p>
+      <h2>{{ course.name }}</h2>
+      <p>{{ course.summary }}</p>
+    </div>
+    <div class="learning-course-facts">
+      <span><small>LEVEL</small><strong>{{ course.level }}</strong></span>
+      <span><small>ESTIMATED TIME</small><strong>{{ course.duration|default:"Self paced" }}</strong></span>
+    </div>
+  </header>
+  <div class="learning-course-body">
+    <section class="learning-course-section">
+      <div class="learning-section-title"><span class="learning-section-icon">01</span><div><p class="eyebrow">YOUR LEARNING PATH</p><h3>Suggested roadmap</h3></div></div>
+      <ol class="learning-roadmap">{% for step in course.roadmap.splitlines %}<li><span class="roadmap-step-number">{{ forloop.counter|stringformat:"02d" }}</span><span>{{ step }}</span></li>{% endfor %}</ol>
+    </section>
+    <div class="learning-course-side">
+      <section class="learning-info-block">
+        <p class="eyebrow">WHAT YOU'LL LEARN</p>
+        <ul class="learning-outcomes">{% for outcome in course.learning_outcomes.splitlines %}<li><span aria-hidden="true">✓</span>{{ outcome }}</li>{% endfor %}</ul>
+      </section>
+      <section class="learning-info-block learning-prerequisites">
+        <p class="eyebrow">BEFORE YOU START</p><p>{{ course.prerequisites|default:"No previous experience required." }}</p>
+      </section>
+      <section class="learning-info-block">
+        <p class="eyebrow">TOOLS &amp; TECHNOLOGY</p>
+        <div class="learning-tool-list">{% for tool in course.tools.splitlines %}<span>{{ tool }}</span>{% endfor %}</div>
+      </section>
+    </div>
+  </div>
+</article>
+<section class="question-course-card preview-question-card">
+  <header class="question-course-header">
+    <span class="question-course-mark" aria-hidden="true">?</span>
+    <div><p class="eyebrow">INTERVIEW PRACTICE</p><h2>{{ course.name }} questions</h2><p>Sample prompts students can use to practice.</p></div>
+    <span class="question-total">{{ course.interview_questions.splitlines|length }} prompts</span>
+  </header>
+  <ol class="question-prompt-list">{% for question in course.interview_questions.splitlines %}<li><span class="question-prompt-number">{{ forloop.counter|stringformat:"02d" }}</span><p>{{ question }}</p></li>{% endfor %}</ol>
+</section>
+{% endblock %}

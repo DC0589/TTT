@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Interview reports{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">OUTCOME REPORTS</p><h1>Interview reports</h1><p>Final outcomes, HR contact details and job postings for interviews in your batches.</p></div>
+</section>
+{% for outcome, label, rows in reports %}
+<section class="content-section report-section">
+  <div class="section-heading"><div><p class="eyebrow">{{ label|upper }} OUTCOMES</p><h2>{{ label }}</h2></div><span class="section-meta">{{ rows|length }} interview{{ rows|length|pluralize }}</span></div>
+  <div class="table-wrap">
+    <table class="data-table report-table">
+      <thead><tr><th>Student</th><th>Company</th><th>Job role</th><th>Job link</th><th>HR contact</th><th>Phone</th><th>Email</th></tr></thead>
+      <tbody>
+      {% for interview in rows %}
+      <tr>
+        <td><a href="{% url 'admin_student_detail' interview.student.pk %}">{{ interview.student.username }}</a></td>
+        <td class="company-cell"><a href="{% url 'admin_interview_detail' interview.pk %}">{{ interview.company_name }}</a></td>
+        <td>{{ interview.role }}</td>
+        <td>{% if interview.job_posting_url %}<a class="job-role-link" href="{{ interview.job_posting_url }}" target="_blank" rel="noopener noreferrer">View job ↗</a>{% else %}<span class="job-link-missing">Not provided</span>{% endif %}</td>
+        <td>{{ interview.hr_name|default:"Not provided" }}</td>
+        <td>{% if interview.hr_contact_number %}<a href="tel:{{ interview.hr_contact_number }}">{{ interview.hr_contact_number }}</a>{% else %}Not provided{% endif %}</td>
+        <td>{% if interview.hr_email %}<a href="mailto:{{ interview.hr_email }}">{{ interview.hr_email }}</a>{% else %}Not provided{% endif %}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7"><div class="table-empty"><strong>No {{ label|lower }} interviews yet.</strong><span>Finalized outcomes in your batches will appear here.</span></div></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endfor %}
+{% endblock %}
