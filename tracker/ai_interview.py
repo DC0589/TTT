@@ -20,7 +20,7 @@ def generate_json(parts):
         raise GeminiAPIError("AI interview feedback is not configured.")
 
     models = list(dict.fromkeys((
-        settings.GEMINI_MODEL,
+        settings.GEMINI_PRIMARY_MODEL,
         settings.GEMINI_FALLBACK_MODEL,
     )))
     payload = None

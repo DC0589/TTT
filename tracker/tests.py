@@ -259,7 +259,12 @@ class MockInterviewTests(Base):
         response = self.client.get(reverse("student_mock_interview"))
         self.assertEqual(response.status_code, 403)
 
-    @override_settings(GEMINI_API_KEY="test-key", GEMINI_MODEL="gemini-test")
+    @override_settings(
+        GEMINI_API_KEY="test-key",
+        GEMINI_MODEL="gemini-test",
+        GEMINI_PRIMARY_MODEL="gemini-test",
+        GEMINI_FALLBACK_MODEL="gemini-lite-test",
+    )
     @patch("tracker.ai_interview.urlopen")
     def test_gemini_503_is_retried(self, mock_urlopen):
         response = MagicMock()
@@ -281,7 +286,12 @@ class MockInterviewTests(Base):
         self.assertGreaterEqual(mock_sleep.call_args.args[0], 0.25)
         self.assertLess(mock_sleep.call_args.args[0], 0.5)
 
-    @override_settings(GEMINI_API_KEY="test-key", GEMINI_MODEL="gemini-test")
+    @override_settings(
+        GEMINI_API_KEY="test-key",
+        GEMINI_MODEL="gemini-test",
+        GEMINI_PRIMARY_MODEL="gemini-test",
+        GEMINI_FALLBACK_MODEL="gemini-lite-test",
+    )
     @patch("tracker.ai_interview.urlopen")
     def test_gemini_persistent_503_returns_retry_message(self, mock_urlopen):
         mock_urlopen.side_effect = [
@@ -301,6 +311,7 @@ class MockInterviewTests(Base):
     @override_settings(
         GEMINI_API_KEY="test-key",
         GEMINI_MODEL="gemini-test",
+        GEMINI_PRIMARY_MODEL="gemini-test",
         GEMINI_FALLBACK_MODEL="gemini-lite-test",
     )
     @patch("tracker.ai_interview.urlopen")
@@ -325,7 +336,12 @@ class MockInterviewTests(Base):
         self.assertIn("models/gemini-test:generateContent", mock_urlopen.call_args_list[0].args[0].full_url)
         self.assertIn("models/gemini-lite-test:generateContent", mock_urlopen.call_args_list[-1].args[0].full_url)
 
-    @override_settings(GEMINI_API_KEY="test-key", GEMINI_MODEL="gemini-test")
+    @override_settings(
+        GEMINI_API_KEY="test-key",
+        GEMINI_MODEL="gemini-test",
+        GEMINI_PRIMARY_MODEL="gemini-test",
+        GEMINI_FALLBACK_MODEL="gemini-lite-test",
+    )
     @patch("tracker.ai_interview.urlopen")
     def test_gemini_connection_error_is_retried(self, mock_urlopen):
         response = MagicMock()
@@ -344,7 +360,12 @@ class MockInterviewTests(Base):
         self.assertGreaterEqual(mock_sleep.call_args.args[0], 0.25)
         self.assertLess(mock_sleep.call_args.args[0], 0.5)
 
-    @override_settings(GEMINI_API_KEY="test-key", GEMINI_MODEL="gemini-test")
+    @override_settings(
+        GEMINI_API_KEY="test-key",
+        GEMINI_MODEL="gemini-test",
+        GEMINI_PRIMARY_MODEL="gemini-test",
+        GEMINI_FALLBACK_MODEL="gemini-lite-test",
+    )
     @patch("tracker.ai_interview.urlopen")
     def test_audio_feedback_is_sent_and_rating_is_saved(self, mock_urlopen):
         self.client.force_login(self.alice)
