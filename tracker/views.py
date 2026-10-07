@@ -781,7 +781,7 @@ def student_mock_interview_ai(request):
             expected_answers = data.get("expected_answers", 0)
             if type(expected_answers) is not int or not 0 <= expected_answers <= MOCK_QUESTION_COUNT:
                 return JsonResponse({"error": "Invalid answer count."}, status=400)
-            session.expected_answers = expected_answers
+            session.expected_answers = max(session.expected_answers, expected_answers)
             if session.completed_at is None:
                 session.completed_at = timezone.now()
             session.save(update_fields=["expected_answers", "completed_at"])

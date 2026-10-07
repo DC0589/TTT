@@ -468,6 +468,17 @@ class MockInterviewTests(Base):
         self.assertFalse(response.json()["ready"])
         self.assertEqual(response.json()["pending_count"], 2)
 
+        finish_response = self.client.post(reverse("student_mock_interview_ai"), {
+            "action": "finish",
+            "consent": True,
+            "session_id": session.pk,
+            "expected_answers": 1,
+        }, content_type="application/json")
+
+        self.assertEqual(finish_response.status_code, 200)
+        session.refresh_from_db()
+        self.assertEqual(session.expected_answers, 2)
+
     def test_student_cannot_submit_audio_to_another_students_session(self):
         session = MockInterviewSession.objects.create(
             student=self.bob, role="Private role"
