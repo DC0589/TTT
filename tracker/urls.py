@@ -19,6 +19,7 @@ urlpatterns = [
     path("admin/courses/<int:pk>/edit/", v.admin_course_edit, name="admin_course_edit"),
     path("admin/courses/<int:pk>/preview/", v.admin_course_preview, name="admin_course_preview"),
     path("admin/reports/", v.admin_reports, name="admin_reports"),
+    path("admin/mock-reviews/", v.admin_mock_interviews, name="admin_mock_interviews"),
     path("admin/registrations/", v.admin_registrations, name="admin_registrations"),
     path("admin/registrations/<int:pk>/approve/", v.registration_approve, name="registration_approve"),
     path("admin/registrations/<int:pk>/reject/", v.registration_reject, name="registration_reject"),

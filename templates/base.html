@@ -38,7 +38,7 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5M4 19h16M8 16v-4M12 16V7M16 16v-6"/></svg>
         <span>Reports</span>
       </a>
-      <a class="nav-link" href="{% url 'admin_reports' %}#mock-interviews">
+      <a class="nav-link{% if request.resolver_match.url_name == 'admin_mock_interviews' %} is-active{% endif %}" href="{% url 'admin_mock_interviews' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/></svg>
         <span>Mock reviews</span>
       </a>

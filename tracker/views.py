@@ -25,6 +25,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from .forms import (
@@ -402,12 +403,6 @@ def admin_reports(request):
         .select_related("student", "group", "status")
         .order_by("status__final_status", "company_name", "student__username")
     )
-    mock_interviews = MockInterviewSession.objects.filter(
-        student__is_student=True,
-    ).filter(
-        Q(student__created_by=request.user)
-        | Q(student__memberships__group__admin=request.user)
-    ).select_related("student").prefetch_related("scores").distinct()[:100]
     return render(request, "tracker/admin/reports.html", {
         "reports": [
             (
@@ -421,7 +416,73 @@ def admin_reports(request):
                 interviews.filter(status__final_status=InterviewStatus.NOT_SELECTED),
             ),
         ],
-        "mock_interviews": mock_interviews,
+    })
+
+
+@admin_required
+@require_GET
+def admin_mock_interviews(request):
+    groups = request.user.groups_created.order_by("name")
+    batch_value = request.GET.get("batch", "")
+    selected_group = groups.filter(pk=int(batch_value)).first() if batch_value.isdigit() else None
+
+    students = User.objects.filter(is_student=True).filter(
+        Q(created_by=request.user) | Q(memberships__group__admin=request.user)
+    )
+    if selected_group:
+        students = students.filter(memberships__group=selected_group)
+    students = students.distinct().order_by("username")
+    student_value = request.GET.get("student", "")
+    selected_student = students.filter(pk=int(student_value)).first() if student_value.isdigit() else None
+
+    sessions = MockInterviewSession.objects.filter(
+        student__is_student=True,
+    ).filter(
+        Q(student__created_by=request.user)
+        | Q(student__memberships__group__admin=request.user)
+    ).select_related("student").prefetch_related("scores").distinct()
+    if selected_group:
+        sessions = sessions.filter(student__memberships__group=selected_group)
+    if selected_student:
+        sessions = sessions.filter(student=selected_student)
+
+    topics = list(sessions.order_by().values_list("role", flat=True).distinct().order_by("role"))
+    selected_topic = request.GET.get("topic", "")
+    if selected_topic in topics:
+        sessions = sessions.filter(role=selected_topic)
+    else:
+        selected_topic = ""
+
+    from_date_value = request.GET.get("from_date", "")
+    to_date_value = request.GET.get("to_date", "")
+    from_date = parse_date(from_date_value)
+    to_date = parse_date(to_date_value)
+    if from_date:
+        sessions = sessions.filter(created_at__date__gte=from_date)
+    if to_date:
+        sessions = sessions.filter(created_at__date__lte=to_date)
+
+    paginator = Paginator(sessions.order_by("-created_at"), 25)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    def page_url(page_number):
+        query = request.GET.copy()
+        query["page"] = page_number
+        return f"?{query.urlencode()}"
+
+    return render(request, "tracker/admin/mock_interviews.html", {
+        "batches": groups,
+        "students": students,
+        "topics": topics,
+        "selected_batch": selected_group,
+        "selected_student": selected_student,
+        "selected_topic": selected_topic,
+        "from_date": from_date_value,
+        "to_date": to_date_value,
+        "page_obj": page_obj,
+        "previous_page_url": page_url(page_obj.previous_page_number()) if page_obj.has_previous() else None,
+        "next_page_url": page_url(page_obj.next_page_number()) if page_obj.has_next() else None,
+        "result_count": paginator.count,
     })
 
 

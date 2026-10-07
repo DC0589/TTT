@@ -553,7 +553,10 @@ class EmailCommandTests(TestCase):
 class PermissionTests(Base):
     def test_student_cannot_open_admin_pages(self):
         self.client.force_login(self.alice)
-        for name in ("admin_dashboard", "admin_groups", "admin_students"):
+        for name in (
+            "admin_dashboard", "admin_groups", "admin_students",
+            "admin_mock_interviews",
+        ):
             self.assertEqual(self.client.get(reverse(name)).status_code, 403)
         self.assertEqual(self.client.get(reverse("admin_group_detail", args=[self.group.pk])).status_code, 403)
         self.assertEqual(self.client.get(
@@ -578,9 +581,20 @@ class PermissionTests(Base):
 
 
 class ViewTests(Base):
-    def test_admin_mock_feedback_report_is_scoped_to_managed_students(self):
-        owned_session = MockInterviewSession.objects.create(
-            student=self.alice, role="Data analyst", rating="4.00"
+    def test_admin_mock_reviews_filter_batch_student_topic_and_date(self):
+        recent_python = MockInterviewSession.objects.create(
+            student=self.alice, role="Python", rating="4.00"
+        )
+        older_python = MockInterviewSession.objects.create(
+            student=self.alice, role="Python", rating="3.00"
+        )
+        older_python.created_at = timezone.now() - timedelta(days=40)
+        older_python.save(update_fields=["created_at"])
+        MockInterviewSession.objects.create(
+            student=self.alice, role="Django", rating="5.00"
+        )
+        MockInterviewSession.objects.create(
+            student=self.bob, role="Python", rating="2.00"
         )
         other_admin = User.objects.create_user(
             "other-admin", password="pw12345!", is_admin=True
@@ -593,16 +607,72 @@ class ViewTests(Base):
         MockInterviewSession.objects.create(
             student=other_student, role="Private role", rating="2.00"
         )
-        request = RequestFactory().get(reverse("admin_reports"))
+        today = timezone.localdate()
+        request = RequestFactory().get(reverse("admin_mock_interviews"), {
+            "batch": self.group.pk,
+            "student": self.alice.pk,
+            "topic": "Python",
+            "from_date": (today - timedelta(days=2)).isoformat(),
+            "to_date": today.isoformat(),
+        })
         request.user = self.admin
 
         with patch("tracker.views.render") as mock_render:
-            from .views import admin_reports
+            from .views import admin_mock_interviews
 
-            admin_reports(request)
+            admin_mock_interviews(request)
 
-        sessions = list(mock_render.call_args.args[2]["mock_interviews"])
+        sessions = list(mock_render.call_args.args[2]["page_obj"].object_list)
+        self.assertEqual(sessions, [recent_python])
+
+    def test_admin_mock_reviews_scope_unfiltered_sessions(self):
+        owned_session = MockInterviewSession.objects.create(
+            student=self.alice, role="Python"
+        )
+        other_admin = User.objects.create_user(
+            "reviews-admin", password="pw12345!", is_admin=True
+        )
+        other_group = Group.objects.create(name="Reviews private batch", admin=other_admin)
+        other_student = User.objects.create_user(
+            "reviews-private", password="pw12345!", is_student=True
+        )
+        GroupMembership.objects.create(group=other_group, student=other_student)
+        MockInterviewSession.objects.create(student=other_student, role="Private topic")
+        request = RequestFactory().get(reverse("admin_mock_interviews"), {
+            "batch": "invalid",
+            "student": "invalid",
+        })
+        request.user = self.admin
+
+        with patch("tracker.views.render") as mock_render:
+            from .views import admin_mock_interviews
+
+            admin_mock_interviews(request)
+
+        sessions = list(mock_render.call_args.args[2]["page_obj"].object_list)
         self.assertEqual(sessions, [owned_session])
+
+    def test_admin_mock_reviews_paginate_sessions(self):
+        for _ in range(27):
+            MockInterviewSession.objects.create(student=self.alice, role="Python")
+        request = RequestFactory().get(reverse("admin_mock_interviews"), {
+            "batch": self.group.pk,
+            "student": self.alice.pk,
+            "topic": "Python",
+            "page": 2,
+        })
+        request.user = self.admin
+
+        with patch("tracker.views.render") as mock_render:
+            from .views import admin_mock_interviews
+
+            admin_mock_interviews(request)
+
+        context = mock_render.call_args.args[2]
+        self.assertEqual(context["result_count"], 27)
+        self.assertEqual(len(context["page_obj"].object_list), 2)
+        self.assertTrue(context["previous_page_url"])
+        self.assertIsNone(context["next_page_url"])
 
     def test_main_pages_render_for_each_role(self):
         self.client.force_login(self.admin)
