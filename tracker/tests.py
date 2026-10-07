@@ -4,7 +4,7 @@ import json
 import re
 from io import BytesIO
 from unittest.mock import MagicMock, patch
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 
 from django.contrib.auth.hashers import check_password
 from django.core import mail
@@ -297,6 +297,25 @@ class MockInterviewTests(Base):
                 generate_json([{"text": "Ask a question."}])
 
         self.assertEqual(mock_urlopen.call_count, 2)
+
+    @override_settings(GEMINI_API_KEY="test-key", GEMINI_MODEL="gemini-test")
+    @patch("tracker.ai_interview.urlopen")
+    def test_gemini_connection_error_is_retried(self, mock_urlopen):
+        response = MagicMock()
+        response.__enter__.return_value = response
+        response.__exit__.return_value = False
+        response.read.return_value = json.dumps({
+            "candidates": [{"content": {"parts": [{"text": '{"question":"Tell me about your experience."}'}]}}]
+        }).encode()
+        mock_urlopen.side_effect = [URLError("connection reset"), response]
+
+        with patch("tracker.ai_interview.time.sleep") as mock_sleep:
+            result = generate_json([{"text": "Ask a question."}])
+
+        self.assertEqual(result["question"], "Tell me about your experience.")
+        self.assertEqual(mock_urlopen.call_count, 2)
+        self.assertGreaterEqual(mock_sleep.call_args.args[0], 0.25)
+        self.assertLess(mock_sleep.call_args.args[0], 0.5)
 
     @override_settings(GEMINI_API_KEY="test-key", GEMINI_MODEL="gemini-test")
     @patch("tracker.ai_interview.urlopen")
