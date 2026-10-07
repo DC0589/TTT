@@ -17,7 +17,8 @@ from django.utils import timezone
 
 from .models import (
     Group, GroupMembership, Interview, InterviewRound, InterviewStatus,
-    LearningCourse, StudentRegistrationRequest, User,
+    LearningCourse, MockInterviewScore, MockInterviewSession,
+    StudentRegistrationRequest, User,
 )
 from .ai_interview import GeminiAPIError, generate_json
 
@@ -299,11 +300,15 @@ class MockInterviewTests(Base):
 
     @override_settings(GEMINI_API_KEY="test-key", GEMINI_MODEL="gemini-test")
     @patch("tracker.ai_interview.urlopen")
-    def test_feedback_sends_transcript_and_frames_to_gemini(self, mock_urlopen):
+    def test_audio_feedback_is_sent_and_rating_is_saved(self, mock_urlopen):
         self.client.force_login(self.alice)
+        session = MockInterviewSession.objects.create(
+            student=self.alice, role="Data analyst"
+        )
         response_body = {
             "candidates": [{"content": {"parts": [{"text": json.dumps({
                 "score": 4,
+                "answer_transcript": "I check ranges and missing values.",
                 "answer_feedback": "Clear answer.",
                 "camera_feedback": "Good framing.",
                 "screen_feedback": "Readable screen.",
@@ -323,23 +328,79 @@ class MockInterviewTests(Base):
 
         mock_urlopen.return_value = FakeResponse()
         jpeg = "data:image/jpeg;base64," + base64.b64encode(b"\xff\xd8\xfftest").decode()
+        audio = "data:audio/webm;codecs=opus;base64," + base64.b64encode(b"webm-audio").decode()
         response = self.client.post(reverse("student_mock_interview_ai"), {
             "action": "feedback",
             "consent": True,
             "role": "Data analyst",
+            "session_id": session.pk,
             "question_number": 1,
             "question": "How do you validate data?",
-            "answer": "I check ranges and missing values.",
+            "audio": audio,
             "frames": {"camera": jpeg, "screen": jpeg},
         }, content_type="application/json")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["score"], 4)
+        self.assertEqual(response.json()["answer_transcript"], "I check ranges and missing values.")
+        self.assertEqual(response.json()["session_rating"], 4.0)
+        session.refresh_from_db()
+        self.assertEqual(str(session.rating), "4.00")
+        self.assertEqual(session.scores.get().score, 4)
         request = mock_urlopen.call_args.args[0]
         payload = json.loads(request.data)
         self.assertEqual(request.get_header("X-goog-api-key"), "test-key")
-        self.assertIn("I check ranges and missing values.", payload["contents"][0]["parts"][0]["text"])
-        self.assertEqual(sum("inlineData" in part for part in payload["contents"][0]["parts"]), 2)
+        parts = payload["contents"][0]["parts"]
+        self.assertEqual(parts[1]["inlineData"]["mimeType"], "audio/webm")
+        self.assertEqual(parts[1]["inlineData"]["data"], audio.split(",", 1)[1])
+        self.assertEqual(sum("inlineData" in part for part in parts), 3)
+
+    def test_student_cannot_submit_audio_to_another_students_session(self):
+        session = MockInterviewSession.objects.create(
+            student=self.bob, role="Private role"
+        )
+        self.client.force_login(self.alice)
+
+        response = self.client.post(reverse("student_mock_interview_ai"), {
+            "action": "feedback",
+            "consent": True,
+            "role": "Developer",
+            "session_id": session.pk,
+            "question_number": 1,
+        }, content_type="application/json")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(MockInterviewScore.objects.count(), 0)
+
+    @override_settings(GEMINI_API_KEY="test-key", GEMINI_MODEL="gemini-test")
+    @patch("tracker.ai_interview.urlopen")
+    def test_first_question_creates_a_student_owned_session(self, mock_urlopen):
+        self.client.force_login(self.alice)
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return json.dumps({
+                    "candidates": [{"content": {"parts": [{"text": '{"question":"Tell me about yourself."}'}]}}]
+                }).encode()
+
+        mock_urlopen.return_value = FakeResponse()
+        response = self.client.post(reverse("student_mock_interview_ai"), {
+            "action": "question",
+            "consent": True,
+            "role": "Data analyst",
+            "question_number": 1,
+        }, content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
+        session = MockInterviewSession.objects.get(pk=response.json()["session_id"])
+        self.assertEqual(session.student, self.alice)
+        self.assertEqual(session.role, "Data analyst")
 
     def test_mock_interview_api_rejects_missing_consent(self):
         self.client.force_login(self.alice)

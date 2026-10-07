@@ -7,6 +7,7 @@ import logging
 import re
 import secrets
 from datetime import timedelta
+from decimal import Decimal
 from smtplib import SMTPException
 
 from django.conf import settings
@@ -18,7 +19,7 @@ from django.core.exceptions import PermissionDenied
 from django.core.mail import EmailMultiAlternatives
 from django.core.paginator import Paginator
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Max, Prefetch, Q
+from django.db.models import Avg, Count, Max, Prefetch, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -34,7 +35,8 @@ from .forms import (
 from .ai_interview import GeminiAPIError, generate_json
 from .models import (
     Group, GroupMembership, Interview, InterviewRound, InterviewStatus,
-    LearningCourse, StudentRegistrationRequest, User,
+    LearningCourse, MockInterviewScore, MockInterviewSession,
+    StudentRegistrationRequest, User,
 )
 
 logger = logging.getLogger(__name__)
@@ -741,13 +743,16 @@ def student_mock_interview(request):
     return render(request, "tracker/student/mock_interview.html", {
         "ai_url": reverse("student_mock_interview_ai"),
         "active_tab": "mock_interview",
+        "recent_sessions": request.user.mock_interview_sessions.prefetch_related(
+            "scores"
+        )[:8],
     })
 
 
 @student_required
 @require_POST
 def student_mock_interview_ai(request):
-    if len(request.body) > 1_250_000:
+    if len(request.body) > 2_000_000:
         return JsonResponse({"error": "The request is too large. Try again."}, status=413)
     try:
         data = json.loads(request.body)
@@ -757,13 +762,41 @@ def student_mock_interview_ai(request):
         return JsonResponse({"error": "Consent is required before AI analysis."}, status=400)
 
     action = data.get("action")
+    session_id = data.get("session_id")
+    if action == "finish":
+        session = MockInterviewSession.objects.filter(
+            pk=session_id, student=request.user
+        ).first()
+        if session is None:
+            return JsonResponse({"error": "Interview session not found."}, status=404)
+        if session.completed_at is None:
+            session.completed_at = timezone.now()
+            session.save(update_fields=["completed_at"])
+        return JsonResponse({
+            "session_id": session.pk,
+            "session_rating": float(session.rating) if session.rating is not None else None,
+        })
+
     role = data.get("role", "")
     question_number = data.get("question_number")
     if action not in {"question", "feedback"} or not isinstance(role, str):
         return JsonResponse({"error": "Invalid interview request."}, status=400)
     role = role.strip()[:120]
-    if not role or not isinstance(question_number, int) or not 1 <= question_number <= 5:
+    if not role or type(question_number) is not int or not 1 <= question_number <= 5:
         return JsonResponse({"error": "Enter a role and a valid question number."}, status=400)
+
+    session = None
+    if action == "feedback":
+        session = MockInterviewSession.objects.filter(
+            pk=session_id, student=request.user
+        ).first()
+        if session is None:
+            return JsonResponse({"error": "Interview session not found."}, status=404)
+        if session.completed_at is not None:
+            return JsonResponse({"error": "This interview session is complete."}, status=409)
+        if question_number > session.scores.count() + 1:
+            return JsonResponse({"error": "Answer the questions in order."}, status=400)
+        role = session.role
 
     history = data.get("history", [])
     if not isinstance(history, list):
@@ -785,26 +818,43 @@ def student_mock_interview_ai(request):
         )}]
     else:
         question = data.get("question", "")
-        answer = data.get("answer", "")
+        audio = data.get("audio", "")
         frames = data.get("frames", {})
-        if not isinstance(question, str) or not question.strip() or not isinstance(answer, str):
-            return JsonResponse({"error": "Add your answer before requesting feedback."}, status=400)
-        if not answer.strip() or len(answer) > 4000:
-            return JsonResponse({"error": "Answers must contain 1 to 4,000 characters."}, status=400)
+        if not isinstance(question, str) or not question.strip():
+            return JsonResponse({"error": "The interview question is missing."}, status=400)
+        audio_match = re.fullmatch(
+            r"data:(audio/(?:webm|mp4|ogg|wav|mpeg|mp3|aac|flac|opus|aiff|m4a))"
+            r"(?:;codecs=[A-Za-z0-9.-]+)?;base64,([A-Za-z0-9+/=]+)",
+            audio,
+        ) if isinstance(audio, str) else None
+        if not audio_match or len(audio_match.group(2)) > 600_000:
+            return JsonResponse({"error": "Record a valid answer up to 60 seconds long."}, status=400)
+        try:
+            audio_bytes = base64.b64decode(audio_match.group(2), validate=True)
+        except ValueError:
+            return JsonResponse({"error": "The recorded answer is invalid."}, status=400)
+        if not audio_bytes:
+            return JsonResponse({"error": "The recording is empty. Record your answer again."}, status=400)
         if not isinstance(frames, dict):
             return JsonResponse({"error": "Camera and screen snapshots are required."}, status=400)
 
         parts = [{"text": (
-            "Evaluate this mock interview answer. Use the transcript to assess relevance and clarity. "
+            "Evaluate this recorded mock interview answer. Transcribe the spoken answer, then assess "
+            "relevance, correctness, completeness, structure, clarity, and verbal delivery. Do not "
+            "judge accent or infer identity, age, gender, race, health, or personality. "
             "Use the camera image only for framing, lighting, and visibility. Use the screen image only "
-            "for readability and relevance to the role. Do not infer identity, age, gender, race, health, "
-            "or personality from appearance. Give supportive, specific feedback. "
-            "Return JSON with integer score from 1 to 5, strings answer_feedback, camera_feedback, "
-            "screen_feedback, and next_question. Set next_question to null on question 5; otherwise "
-            "ask exactly one new question for the same role.\n"
+            "for readability and relevance to the role. Give supportive, specific feedback. "
+            "Return JSON with answer_transcript, integer score from 1 to 5, strings answer_feedback, "
+            "camera_feedback, screen_feedback, and next_question. Set next_question to null on "
+            "question 5; otherwise ask exactly one new question for the same role.\n"
             f"Role: {role}\nQuestion {question_number}: {question[:500]}\n"
-            f"Student answer transcript: {answer.strip()}\nEarlier Q&A:\n{history_text or 'None'}"
-        )}]
+            f"Earlier Q&A:\n{history_text or 'None'}"
+        )}, {
+            "inlineData": {
+                "mimeType": audio_match.group(1),
+                "data": audio_match.group(2),
+            },
+        }]
         for frame_name, label in (("camera", "Camera snapshot"), ("screen", "Shared-screen snapshot")):
             frame = frames.get(frame_name, "")
             match = re.fullmatch(r"data:image/jpeg;base64,([A-Za-z0-9+/=]+)", frame) if isinstance(frame, str) else None
@@ -831,17 +881,40 @@ def student_mock_interview_ai(request):
         question = result.get("question")
         if not isinstance(question, str) or not question.strip():
             return JsonResponse({"error": "The AI did not return a question. Please try again."}, status=502)
-        return JsonResponse({"question": question.strip()[:500]})
+        session = MockInterviewSession.objects.create(student=request.user, role=role)
+        return JsonResponse({
+            "question": question.strip()[:500],
+            "session_id": session.pk,
+        })
 
     score = result.get("score", 3)
-    if not isinstance(score, int):
+    if type(score) is not int:
         score = 3
+    score = max(1, min(score, 5))
+    MockInterviewScore.objects.update_or_create(
+        session=session,
+        question_number=question_number,
+        defaults={"score": score},
+    )
+    average_score = session.scores.aggregate(average=Avg("score"))["average"]
+    session.rating = Decimal(str(average_score)).quantize(Decimal("0.01"))
+    next_question = result.get("next_question")
+    if question_number == 5 or not isinstance(next_question, str) or not next_question.strip():
+        session.completed_at = timezone.now()
+        next_question = None
+    session.save(update_fields=["rating", "completed_at"])
+    transcript = result.get("answer_transcript", "")
+    if not isinstance(transcript, str):
+        transcript = ""
     return JsonResponse({
-        "score": max(1, min(score, 5)),
+        "score": score,
+        "answer_transcript": transcript[:4000],
         "answer_feedback": str(result.get("answer_feedback", "Review your answer and try again."))[:800],
         "camera_feedback": str(result.get("camera_feedback", "No camera feedback available."))[:500],
         "screen_feedback": str(result.get("screen_feedback", "No screen feedback available."))[:500],
-        "next_question": result.get("next_question") if isinstance(result.get("next_question"), str) else None,
+        "next_question": next_question.strip()[:500] if next_question else None,
+        "session_id": session.pk,
+        "session_rating": float(session.rating),
     })
 
 

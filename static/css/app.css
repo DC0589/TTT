@@ -594,6 +594,16 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
 .mock-session-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .mock-session-actions button { min-height: 42px; }
 .mock-session-actions button:disabled { cursor: wait; opacity: .58; }
+.mock-recorder { display: grid; gap: 10px; }
+.mock-recorder .field-help { margin: 0; }
+.mock-recorder audio { display: block; width: min(100%, 480px); height: 42px; }
+.mock-rating-history > .section-heading { margin-bottom: 8px; }
+.mock-rating-history > .section-heading h2 { margin: 0; color: var(--ink); font: 700 18px/1.3 var(--font-display); }
+.mock-rating-list { display: grid; }
+.mock-rating-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 0; border-top: 1px solid var(--line); }
+.mock-rating-row > div { display: grid; gap: 4px; min-width: 0; }
+.mock-rating-row strong { overflow-wrap: anywhere; color: var(--ink); font-size: 13px; }
+.mock-rating-row span:not(.mock-score), .mock-rating-pending { color: #687186; font-size: 12px; }
 .mock-session-finished { padding-top: 18px; border-top: 1px solid var(--line); }
 .mock-session-finished strong { color: var(--ink); font: 700 16px var(--font-display); }
 .mock-session-finished p { margin: 6px 0 14px; color: #596579; font-size: 13px; }

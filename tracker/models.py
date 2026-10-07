@@ -202,3 +202,39 @@ class InterviewStatus(models.Model):
 
     def __str__(self):
         return f"{self.interview}: {self.final_status}"
+
+
+class MockInterviewSession(models.Model):
+    student = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="mock_interview_sessions"
+    )
+    role = models.CharField(max_length=120)
+    rating = models.DecimalField(max_digits=3, decimal_places=2, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.student} - {self.role}"
+
+
+class MockInterviewScore(models.Model):
+    session = models.ForeignKey(
+        MockInterviewSession, on_delete=models.CASCADE, related_name="scores"
+    )
+    question_number = models.PositiveSmallIntegerField()
+    score = models.PositiveSmallIntegerField()
+
+    class Meta:
+        ordering = ["question_number"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["session", "question_number"],
+                name="unique_mock_interview_question_score",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.session} - question {self.question_number}: {self.score}/5"

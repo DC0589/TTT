@@ -5,12 +5,12 @@
   <div><p class="eyebrow">PRACTICE SESSION</p><h1>AI Mock Interview</h1><p>Answer five role-specific questions and get feedback as you go.</p></div>
 </section>
 <div class="mock-interview" data-mock-interview data-ai-url="{{ ai_url }}">
-  <p class="mock-privacy-note"><strong>Privacy:</strong> Camera and screen previews stay in your browser. After each answer, one still image from each and the transcript you enter are sent to Google Gemini for feedback. The app does not record or save video, images, or answers. Do not show private information on your screen.</p>
+  <p class="mock-privacy-note"><strong>Privacy:</strong> Your recorded answer and one camera and screen snapshot are sent to Google Gemini for feedback. The app saves your interview rating and per-question scores, but not audio, transcripts, or images. Do not show private information on your screen.</p>
   <section class="panel mock-setup" data-interview-setup>
     <div class="panel-heading"><div><p class="eyebrow">GET READY</p><h2>Set up your session</h2><p>Choose a role, then allow camera and screen sharing when prompted.</p></div></div>
     <form class="stack-form" data-interview-start method="post">{% csrf_token %}
       <div class="form-field"><label for="mock-role">Role to practise</label><input class="form-control" id="mock-role" name="role" maxlength="120" placeholder="For example, Data Analyst" required></div>
-      <label class="mock-consent"><input type="checkbox" name="consent" required><span>I agree to send my answer transcript and occasional camera and screen snapshots to Google Gemini for feedback.</span></label>
+      <label class="mock-consent"><input type="checkbox" name="consent" required><span>I agree to send recorded answers and camera and screen snapshots to Google Gemini. My rating and per-question scores will be saved; recordings and transcripts will not.</span></label>
       <button class="button button-primary" type="submit">Start interview</button>
     </form>
     <p class="mock-status" data-interview-status role="status" aria-live="polite"></p>
@@ -22,13 +22,22 @@
         <article class="mock-capture-panel"><div class="mock-capture-heading"><h2>Shared screen</h2><span class="mock-live-indicator">Live preview</span></div><video data-screen-preview autoplay muted playsinline></video></article>
       </div>
       <article class="panel mock-question-panel" data-question-panel>
-        <div class="mock-question-meta"><p class="eyebrow">QUESTION <span data-question-number>1</span> OF 5</p><span data-question-state>Preparing your question</span></div>
+        <div class="mock-question-meta"><p class="eyebrow">QUESTION <span data-question-number>1</span> OF 5</p><span data-question-state>Preparing your question</span><span class="mock-score" data-session-rating hidden></span></div>
         <h2 data-interview-question aria-live="polite">Your first question will appear here.</h2>
         <form class="stack-form" data-answer-form method="post">{% csrf_token %}
-          <div class="form-field"><label for="mock-answer">Your answer transcript</label><textarea class="form-control" id="mock-answer" name="answer" maxlength="4000" rows="5" placeholder="Type your spoken answer, or use your device's dictation." required></textarea><p class="field-help">The AI evaluates your answer text and the camera/screen setup shown in the snapshots.</p></div>
-          <div class="mock-session-actions"><button class="button button-primary" type="submit" data-answer-submit disabled>Send answer for feedback</button><button class="button button-quiet" type="button" data-end-session>End session</button></div>
+          <div class="mock-recorder">
+            <p class="field-help">Record up to 60 seconds. Listen before sending; the recording is not saved.</p>
+            <div class="mock-session-actions">
+              <button class="button button-quiet" type="button" data-record-start>Start recording</button>
+              <button class="button button-quiet" type="button" data-record-stop disabled>Stop recording</button>
+              <button class="button button-primary" type="submit" data-answer-submit disabled>Send for feedback</button>
+            </div>
+            <audio data-recording-preview controls hidden></audio>
+            <p class="mock-status" data-recording-status role="status" aria-live="polite"></p>
+          </div>
+          <div class="mock-session-actions"><button class="button button-quiet" type="button" data-end-session>End session</button></div>
         </form>
-        <div class="mock-session-finished" data-session-finished hidden><strong>Session complete</strong><p>Your feedback is shown below. The app did not save your answers or snapshots.</p><button class="button button-quiet" type="button" data-restart-session>Start another session</button></div>
+        <div class="mock-session-finished" data-session-finished hidden><strong>Session complete</strong><p>Your rating and question scores are saved. Audio, transcripts, and snapshots were not saved.</p><button class="button button-quiet" type="button" data-restart-session>Start another session</button></div>
         <p class="mock-status" data-session-status role="status" aria-live="polite"></p>
       </article>
     </div>
@@ -36,6 +45,21 @@
       <div class="section-heading"><div><p class="eyebrow">COACHING NOTES</p><h2>Feedback</h2></div></div>
       <div class="mock-feedback-list" data-feedback-list><p class="mock-feedback-empty">Feedback for each answer will appear here.</p></div>
     </aside>
+  </section>
+  <section class="panel mock-rating-history">
+    <div class="section-heading"><div><p class="eyebrow">PAST PRACTICE</p><h2>Recent interview ratings</h2></div></div>
+    {% if recent_sessions %}
+      <div class="mock-rating-list">
+        {% for saved_session in recent_sessions %}
+          <div class="mock-rating-row">
+            <div><strong>{{ saved_session.role }}</strong><span>{{ saved_session.created_at|date:"M j, Y" }} · {{ saved_session.scores.all|length }} answers</span></div>
+            {% if saved_session.rating is not None %}<span class="mock-score">{{ saved_session.rating|floatformat:1 }}/5</span>{% else %}<span class="mock-rating-pending">No score yet</span>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="mock-feedback-empty">Completed interview ratings will appear here.</p>
+    {% endif %}
   </section>
 </div>
 {% endblock %}
