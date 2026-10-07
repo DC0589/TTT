@@ -2,15 +2,15 @@
 {% block title %}AI Mock Interview{% endblock %}
 {% block content %}
 <section class="page-heading">
-  <div><p class="eyebrow">PRACTICE SESSION</p><h1>AI Mock Interview</h1><p>Answer five role-specific questions and get feedback as you go.</p></div>
+  <div><p class="eyebrow">PRACTICE SESSION</p><h1>AI Mock Interview</h1><p>Answer ten role-specific questions. Your results load when you finish.</p></div>
 </section>
 <div class="mock-interview" data-mock-interview data-ai-url="{{ ai_url }}">
-  <p class="mock-privacy-note"><strong>Privacy:</strong> Your recorded answer and one camera and screen snapshot are sent to Google Gemini for feedback. The app saves your interview rating and per-question scores, but not audio, transcripts, or images. Do not show private information on your screen.</p>
+  <p class="mock-privacy-note"><strong>Privacy:</strong> Your recorded answer and one camera and screen snapshot are sent to Google Gemini for feedback. Your interview rating, per-question scores, and written feedback are saved and visible to your administrator. Audio, transcripts, and images are not saved. Do not show private information on your screen.</p>
   <section class="panel mock-setup" data-interview-setup>
     <div class="panel-heading"><div><p class="eyebrow">GET READY</p><h2>Set up your session</h2><p>Choose a role, then allow camera and screen sharing when prompted.</p></div></div>
     <form class="stack-form" data-interview-start method="post">{% csrf_token %}
       <div class="form-field"><label for="mock-role">Role to practise</label><input class="form-control" id="mock-role" name="role" maxlength="120" placeholder="For example, Data Analyst" required></div>
-      <label class="mock-consent"><input type="checkbox" name="consent" required><span>I agree to send recorded answers and camera and screen snapshots to Google Gemini. My rating and per-question scores will be saved; recordings and transcripts will not.</span></label>
+      <label class="mock-consent"><input type="checkbox" name="consent" required><span>I agree to send recorded answers and camera and screen snapshots to Google Gemini. My ratings and written feedback will be saved and shared with my administrator; recordings, transcripts, and images will not be saved.</span></label>
       <button class="button button-primary" type="submit">Start interview</button>
     </form>
     <p class="mock-status" data-interview-status role="status" aria-live="polite"></p>
@@ -22,30 +22,37 @@
         <article class="mock-capture-panel"><div class="mock-capture-heading"><h2>Shared screen</h2><span class="mock-live-indicator">Live preview</span></div><video data-screen-preview autoplay muted playsinline></video></article>
       </div>
       <article class="panel mock-question-panel" data-question-panel>
-        <div class="mock-question-meta"><p class="eyebrow">QUESTION <span data-question-number>1</span> OF 5</p><span data-question-state>Preparing your question</span><span class="mock-score" data-session-rating hidden></span></div>
+        <div class="mock-question-meta"><p class="eyebrow">QUESTION <span data-question-number>1</span> OF 10</p><span data-question-state>Preparing your questions</span><span class="mock-score" data-session-rating hidden></span></div>
         <h2 data-interview-question aria-live="polite">Your first question will appear here.</h2>
         <form class="stack-form" data-answer-form method="post">{% csrf_token %}
           <div class="mock-recorder">
-            <p class="field-help">Record up to 60 seconds. Listen before sending; the recording is not saved.</p>
+            <p class="field-help">Record up to 60 seconds. Send each answer and continue; feedback loads after you end the session. Recordings are not saved.</p>
             <div class="mock-session-actions">
               <button class="button button-quiet" type="button" data-record-start>Start recording</button>
               <button class="button button-quiet" type="button" data-record-stop disabled>Stop recording</button>
-              <button class="button button-primary" type="submit" data-answer-submit disabled>Send for feedback</button>
+              <button class="button button-primary" type="submit" data-answer-submit disabled>Send answer</button>
             </div>
             <audio data-recording-preview controls hidden></audio>
             <p class="mock-status" data-recording-status role="status" aria-live="polite"></p>
           </div>
-          <div class="mock-session-actions"><button class="button button-quiet" type="button" data-end-session>End session</button></div>
+          <div class="mock-session-actions"><button class="button button-quiet" type="button" data-end-session>End and load results</button></div>
         </form>
-        <div class="mock-session-finished" data-session-finished hidden><strong>Session complete</strong><p>Your rating and question scores are saved. Audio, transcripts, and snapshots were not saved.</p><button class="button button-quiet" type="button" data-restart-session>Start another session</button></div>
+        <div class="mock-session-finished" data-session-finished hidden><strong>Session complete</strong><p>Your ratings and feedback are loading. Audio, transcripts, and snapshots are not saved.</p><button class="button button-quiet" type="button" data-restart-session>Start another session</button></div>
         <p class="mock-status" data-session-status role="status" aria-live="polite"></p>
       </article>
     </div>
     <aside class="mock-feedback-panel" aria-live="polite">
       <div class="section-heading"><div><p class="eyebrow">COACHING NOTES</p><h2>Feedback</h2></div></div>
-      <div class="mock-feedback-list" data-feedback-list><p class="mock-feedback-empty">Feedback for each answer will appear here.</p></div>
+      <div class="mock-feedback-list" data-feedback-list><p class="mock-feedback-empty">Answer all ten questions and end the session to load your feedback.</p></div>
     </aside>
   </section>
+  <dialog class="mock-results-dialog" data-results-dialog aria-labelledby="mock-results-title">
+    <div class="mock-results-heading"><p class="eyebrow">SESSION REVIEW</p><h2 id="mock-results-title" data-results-title>Your results are loading</h2></div>
+    <p class="mock-results-status" data-results-status role="status" aria-live="polite">Your submitted answers are being reviewed.</p>
+    <p class="mock-results-rating" data-results-rating hidden></p>
+    <div class="mock-results-list" data-results-list></div>
+    <button class="button button-primary" type="button" data-results-close>Close results</button>
+  </dialog>
   <section class="panel mock-rating-history">
     <div class="section-heading"><div><p class="eyebrow">PAST PRACTICE</p><h2>Recent interview ratings</h2></div></div>
     {% if recent_sessions %}

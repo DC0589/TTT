@@ -42,6 +42,7 @@ from .models import (
 logger = logging.getLogger(__name__)
 OTP_LIFETIME = timedelta(minutes=10)
 OTP_MAX_ATTEMPTS = 5
+MOCK_QUESTION_COUNT = 10
 
 
 def _registration_code_hash(registration_id, code):
@@ -401,6 +402,12 @@ def admin_reports(request):
         .select_related("student", "group", "status")
         .order_by("status__final_status", "company_name", "student__username")
     )
+    mock_interviews = MockInterviewSession.objects.filter(
+        student__is_student=True,
+    ).filter(
+        Q(student__created_by=request.user)
+        | Q(student__memberships__group__admin=request.user)
+    ).select_related("student").prefetch_related("scores").distinct()[:100]
     return render(request, "tracker/admin/reports.html", {
         "reports": [
             (
@@ -414,6 +421,7 @@ def admin_reports(request):
                 interviews.filter(status__final_status=InterviewStatus.NOT_SELECTED),
             ),
         ],
+        "mock_interviews": mock_interviews,
     })
 
 
@@ -763,65 +771,97 @@ def student_mock_interview_ai(request):
 
     action = data.get("action")
     session_id = data.get("session_id")
-    if action == "finish":
+    if action in {"finish", "results"}:
         session = MockInterviewSession.objects.filter(
             pk=session_id, student=request.user
         ).first()
         if session is None:
             return JsonResponse({"error": "Interview session not found."}, status=404)
-        if session.completed_at is None:
-            session.completed_at = timezone.now()
-            session.save(update_fields=["completed_at"])
+        if action == "finish":
+            expected_answers = data.get("expected_answers", 0)
+            if type(expected_answers) is not int or not 0 <= expected_answers <= MOCK_QUESTION_COUNT:
+                return JsonResponse({"error": "Invalid answer count."}, status=400)
+            session.expected_answers = expected_answers
+            if session.completed_at is None:
+                session.completed_at = timezone.now()
+            session.save(update_fields=["expected_answers", "completed_at"])
+
+        failed_numbers = data.get("failed_question_numbers", [])
+        if action == "results" and isinstance(failed_numbers, list):
+            for failed_number in failed_numbers:
+                if type(failed_number) is not int or not 1 <= failed_number <= MOCK_QUESTION_COUNT:
+                    continue
+                score, created = MockInterviewScore.objects.get_or_create(
+                    session=session,
+                    question_number=failed_number,
+                    defaults={
+                        "status": MockInterviewScore.FAILED,
+                        "answer_feedback": "Feedback could not be loaded.",
+                    },
+                )
+                if not created and score.status == MockInterviewScore.PENDING:
+                    score.status = MockInterviewScore.FAILED
+                    score.answer_feedback = "Feedback could not be loaded."
+                    score.save(update_fields=["status", "answer_feedback"])
+
+        if action == "finish":
+            return JsonResponse({"session_id": session.pk})
+
+        scores = list(session.scores.values(
+            "question_number", "question", "status", "score",
+            "answer_feedback", "camera_feedback", "screen_feedback",
+        ))
+        finished_answers = sum(
+            score["status"] in {MockInterviewScore.COMPLETE, MockInterviewScore.FAILED}
+            for score in scores
+        )
+        failed_answers = sum(score["status"] == MockInterviewScore.FAILED for score in scores)
+        pending_count = max(0, session.expected_answers - finished_answers)
         return JsonResponse({
             "session_id": session.pk,
+            "expected_answers": session.expected_answers,
+            "finished_answers": finished_answers,
+            "failed_answers": failed_answers,
+            "pending_count": pending_count,
+            "ready": pending_count == 0,
             "session_rating": float(session.rating) if session.rating is not None else None,
+            "scores": scores,
         })
 
     role = data.get("role", "")
-    question_number = data.get("question_number")
     if action not in {"question", "feedback"} or not isinstance(role, str):
         return JsonResponse({"error": "Invalid interview request."}, status=400)
     role = role.strip()[:120]
-    if not role or type(question_number) is not int or not 1 <= question_number <= 5:
-        return JsonResponse({"error": "Enter a role and a valid question number."}, status=400)
+    if not role:
+        return JsonResponse({"error": "Enter a role for the interview."}, status=400)
 
     session = None
-    if action == "feedback":
+    if action == "question":
+        parts = [{"text": (
+            f"Create exactly {MOCK_QUESTION_COUNT} distinct, concise mock interview questions "
+            f"for the role '{role}'. Return JSON with one field, questions, containing an array "
+            f"of exactly {MOCK_QUESTION_COUNT} strings. Do not include answers or commentary."
+        )}]
+    else:
         session = MockInterviewSession.objects.filter(
             pk=session_id, student=request.user
         ).first()
         if session is None:
             return JsonResponse({"error": "Interview session not found."}, status=404)
-        if session.completed_at is not None:
-            return JsonResponse({"error": "This interview session is complete."}, status=409)
+        question_number = data.get("question_number")
+        question = data.get("question", "")
+        if type(question_number) is not int or not 1 <= question_number <= MOCK_QUESTION_COUNT:
+            return JsonResponse({"error": "Invalid question number."}, status=400)
         if question_number > session.scores.count() + 1:
             return JsonResponse({"error": "Answer the questions in order."}, status=400)
-        role = session.role
-
-    history = data.get("history", [])
-    if not isinstance(history, list):
-        return JsonResponse({"error": "Invalid interview history."}, status=400)
-    history_text = "\n".join(
-        f"Q: {item.get('question', '')[:300]}\nA: {item.get('answer', '')[:1200]}"
-        for item in history[-4:]
-        if isinstance(item, dict)
-        and isinstance(item.get("question"), str)
-        and isinstance(item.get("answer"), str)
-    )
-
-    if action == "question":
-        parts = [{"text": (
-            "You are a concise mock interviewer. Ask exactly one realistic question for "
-            f"the role '{role}'. This is question {question_number} of 5. "
-            "Do not repeat earlier questions. Return JSON with one string field: question.\n"
-            f"Earlier questions and answers:\n{history_text or 'None'}"
-        )}]
-    else:
-        question = data.get("question", "")
-        audio = data.get("audio", "")
-        frames = data.get("frames", {})
         if not isinstance(question, str) or not question.strip():
             return JsonResponse({"error": "The interview question is missing."}, status=400)
+        role = session.role
+        if question_number > session.expected_answers:
+            session.expected_answers = question_number
+            session.save(update_fields=["expected_answers"])
+        audio = data.get("audio", "")
+        frames = data.get("frames", {})
         audio_match = re.fullmatch(
             r"data:(audio/(?:webm|mp4|ogg|wav|mpeg|mp3|aac|flac|opus|aiff|m4a))"
             r"(?:;codecs=[A-Za-z0-9.-]+)?;base64,([A-Za-z0-9+/=]+)",
@@ -839,25 +879,22 @@ def student_mock_interview_ai(request):
             return JsonResponse({"error": "Camera and screen snapshots are required."}, status=400)
 
         parts = [{"text": (
-            "Evaluate this recorded mock interview answer. Transcribe the spoken answer, then assess "
-            "relevance, correctness, completeness, structure, clarity, and verbal delivery. Do not "
-            "judge accent or infer identity, age, gender, race, health, or personality. "
-            "Use the camera image only for framing, lighting, and visibility. Use the screen image only "
-            "for readability and relevance to the role. Give supportive, specific feedback. "
-            "Return JSON with answer_transcript, integer score from 1 to 5, strings answer_feedback, "
-            "camera_feedback, screen_feedback, and next_question. Set next_question to null on "
-            "question 5; otherwise ask exactly one new question for the same role.\n"
-            f"Role: {role}\nQuestion {question_number}: {question[:500]}\n"
-            f"Earlier Q&A:\n{history_text or 'None'}"
+            "Evaluate this recorded mock interview answer. Transcribe the speech verbatim and assess "
+            "relevance, correctness, completeness, structure, clarity, and verbal delivery. "
+            "Keep each feedback field to one concise sentence of at most 20 words. Do not judge "
+            "accent or infer identity, age, gender, race, health, or personality. Use the camera image "
+            "only for framing, lighting, and visibility. Use the screen image only for readability and "
+            "relevance to the role. Return JSON with answer_transcript, integer score from 1 to 5, "
+            "and strings answer_feedback, camera_feedback, and screen_feedback.\n"
+            f"Role: {role}\nQuestion {question_number}: {question[:500]}"
         )}, {
-            "inlineData": {
-                "mimeType": audio_match.group(1),
-                "data": audio_match.group(2),
-            },
+            "inlineData": {"mimeType": audio_match.group(1), "data": audio_match.group(2)},
         }]
         for frame_name, label in (("camera", "Camera snapshot"), ("screen", "Shared-screen snapshot")):
             frame = frames.get(frame_name, "")
-            match = re.fullmatch(r"data:image/jpeg;base64,([A-Za-z0-9+/=]+)", frame) if isinstance(frame, str) else None
+            match = re.fullmatch(
+                r"data:image/jpeg;base64,([A-Za-z0-9+/=]+)", frame
+            ) if isinstance(frame, str) else None
             if not match or len(match.group(1)) > 400_000:
                 return JsonResponse({"error": "Camera and screen snapshots are required."}, status=400)
             try:
@@ -871,51 +908,69 @@ def student_mock_interview_ai(request):
                 {"inlineData": {"mimeType": "image/jpeg", "data": match.group(1)}},
             ])
 
+        existing_score = MockInterviewScore.objects.filter(
+            session=session, question_number=question_number
+        ).first()
+        if existing_score and existing_score.status in {
+            MockInterviewScore.PENDING, MockInterviewScore.COMPLETE,
+        }:
+            return JsonResponse({"error": "This answer has already been submitted."}, status=409)
+        score_record, _ = MockInterviewScore.objects.update_or_create(
+            session=session,
+            question_number=question_number,
+            defaults={
+                "question": question[:500],
+                "status": MockInterviewScore.PENDING,
+                "score": None,
+                "answer_feedback": "",
+                "camera_feedback": "",
+                "screen_feedback": "",
+            },
+        )
+
     try:
         result = generate_json(parts)
     except GeminiAPIError as error:
+        if action == "feedback":
+            score_record.status = MockInterviewScore.FAILED
+            score_record.answer_feedback = "Feedback could not be generated. Please try again later."
+            score_record.save(update_fields=["status", "answer_feedback"])
         status = 503 if "not configured" in str(error) else 502
         return JsonResponse({"error": str(error)}, status=status)
 
     if action == "question":
-        question = result.get("question")
-        if not isinstance(question, str) or not question.strip():
-            return JsonResponse({"error": "The AI did not return a question. Please try again."}, status=502)
+        questions = result.get("questions")
+        if not isinstance(questions, list) or len(questions) < MOCK_QUESTION_COUNT:
+            return JsonResponse({"error": "The AI did not return ten questions. Please try again."}, status=502)
+        questions = [question.strip()[:500] for question in questions[:MOCK_QUESTION_COUNT]
+                     if isinstance(question, str) and question.strip()]
+        if len(questions) != MOCK_QUESTION_COUNT:
+            return JsonResponse({"error": "The AI returned invalid questions. Please try again."}, status=502)
         session = MockInterviewSession.objects.create(student=request.user, role=role)
-        return JsonResponse({
-            "question": question.strip()[:500],
-            "session_id": session.pk,
-        })
+        return JsonResponse({"questions": questions, "session_id": session.pk})
 
     score = result.get("score", 3)
     if type(score) is not int:
         score = 3
     score = max(1, min(score, 5))
-    MockInterviewScore.objects.update_or_create(
-        session=session,
-        question_number=question_number,
-        defaults={"score": score},
-    )
-    average_score = session.scores.aggregate(average=Avg("score"))["average"]
-    session.rating = Decimal(str(average_score)).quantize(Decimal("0.01"))
-    next_question = result.get("next_question")
-    if question_number == 5 or not isinstance(next_question, str) or not next_question.strip():
-        session.completed_at = timezone.now()
-        next_question = None
-    session.save(update_fields=["rating", "completed_at"])
-    transcript = result.get("answer_transcript", "")
-    if not isinstance(transcript, str):
-        transcript = ""
-    return JsonResponse({
-        "score": score,
-        "answer_transcript": transcript[:4000],
-        "answer_feedback": str(result.get("answer_feedback", "Review your answer and try again."))[:800],
-        "camera_feedback": str(result.get("camera_feedback", "No camera feedback available."))[:500],
-        "screen_feedback": str(result.get("screen_feedback", "No screen feedback available."))[:500],
-        "next_question": next_question.strip()[:500] if next_question else None,
-        "session_id": session.pk,
-        "session_rating": float(session.rating),
-    })
+    answer_feedback = str(result.get("answer_feedback", "Review your answer and try again."))[:800]
+    camera_feedback = str(result.get("camera_feedback", "No camera feedback available."))[:500]
+    screen_feedback = str(result.get("screen_feedback", "No screen feedback available."))[:500]
+    score_record.status = MockInterviewScore.COMPLETE
+    score_record.score = score
+    score_record.answer_feedback = answer_feedback
+    score_record.camera_feedback = camera_feedback
+    score_record.screen_feedback = screen_feedback
+    score_record.save(update_fields=[
+        "status", "score", "answer_feedback", "camera_feedback", "screen_feedback",
+    ])
+    average_score = session.scores.filter(
+        status=MockInterviewScore.COMPLETE, score__isnull=False
+    ).aggregate(average=Avg("score"))["average"]
+    if average_score is not None:
+        session.rating = Decimal(str(average_score)).quantize(Decimal("0.01"))
+        session.save(update_fields=["rating"])
+    return JsonResponse({"status": MockInterviewScore.COMPLETE, "question_number": question_number})
 
 
 @student_required

@@ -210,6 +210,7 @@ class MockInterviewSession(models.Model):
     )
     role = models.CharField(max_length=120)
     rating = models.DecimalField(max_digits=3, decimal_places=2, blank=True, null=True)
+    expected_answers = models.PositiveSmallIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(blank=True, null=True)
 
@@ -221,11 +222,19 @@ class MockInterviewSession(models.Model):
 
 
 class MockInterviewScore(models.Model):
+    PENDING, COMPLETE, FAILED = "pending", "complete", "failed"
+    STATUS_CHOICES = [(PENDING, "Pending"), (COMPLETE, "Complete"), (FAILED, "Failed")]
+
     session = models.ForeignKey(
         MockInterviewSession, on_delete=models.CASCADE, related_name="scores"
     )
     question_number = models.PositiveSmallIntegerField()
-    score = models.PositiveSmallIntegerField()
+    question = models.TextField(blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=PENDING)
+    score = models.PositiveSmallIntegerField(blank=True, null=True)
+    answer_feedback = models.TextField(blank=True)
+    camera_feedback = models.TextField(blank=True)
+    screen_feedback = models.TextField(blank=True)
 
     class Meta:
         ordering = ["question_number"]

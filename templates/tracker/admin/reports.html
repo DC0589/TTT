@@ -29,4 +29,45 @@
   </div>
 </section>
 {% endfor %}
+<section class="content-section report-section mock-admin-reports">
+  <div class="section-heading"><div><p class="eyebrow">PRACTICE REVIEWS</p><h2>AI mock-interview feedback</h2></div><span class="section-meta">Latest 100 sessions</span></div>
+  {% for session in mock_interviews %}
+  <article class="mock-admin-session">
+    <header class="mock-admin-session-heading">
+      <div>
+        <a href="{% url 'admin_student_detail' session.student.pk %}">{{ session.student.username }}</a>
+        <span>{{ session.role }} · {{ session.created_at|date:"M j, Y" }}</span>
+      </div>
+      <div class="mock-admin-session-result">
+        {% if session.rating is not None %}<span class="mock-score">{{ session.rating|floatformat:1 }}/5</span>{% elif session.completed_at %}<span class="mock-rating-pending">No completed rating</span>{% else %}<span class="mock-rating-pending">In progress</span>{% endif %}
+        <span>{% if session.expected_answers %}{{ session.scores.all|length }} of {{ session.expected_answers }} submitted answers{% else %}{{ session.scores.all|length }} saved answers{% endif %}</span>
+      </div>
+    </header>
+    <details class="mock-admin-feedback">
+      <summary>Review per-question scores and feedback</summary>
+      <div class="mock-admin-question-list">
+        {% for score in session.scores.all %}
+        <section class="mock-admin-question">
+          <div class="mock-admin-question-heading"><h3>Question {{ score.question_number }}</h3>{% if score.status == "complete" %}<span class="mock-score">{{ score.score }}/5</span>{% else %}<span class="mock-rating-pending">{{ score.get_status_display }}</span>{% endif %}</div>
+          {% if score.question %}<p><strong>Question asked</strong>{{ score.question }}</p>{% endif %}
+          {% if score.status == "complete" %}
+            <p><strong>Answer feedback</strong>{{ score.answer_feedback|default:"No answer feedback saved." }}</p>
+            <p><strong>Camera feedback</strong>{{ score.camera_feedback|default:"No camera feedback saved." }}</p>
+            <p><strong>Screen feedback</strong>{{ score.screen_feedback|default:"No screen feedback saved." }}</p>
+          {% elif score.status == "failed" %}
+            <p>{{ score.answer_feedback|default:"Feedback could not be loaded." }}</p>
+          {% else %}
+            <p>Feedback is still processing.</p>
+          {% endif %}
+        </section>
+        {% empty %}
+        <p class="mock-feedback-empty">No answers have been scored yet.</p>
+        {% endfor %}
+      </div>
+    </details>
+  </article>
+  {% empty %}
+  <div class="table-wrap"><div class="table-empty"><strong>No mock interviews yet.</strong><span>Ratings and coaching feedback from your students will appear here.</span></div></div>
+  {% endfor %}
+</section>
 {% endblock %}

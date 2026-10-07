@@ -44,8 +44,13 @@
   const sessionStatus = interview.querySelector('[data-session-status]');
   const setupStatus = interview.querySelector('[data-interview-status]');
   const feedbackList = interview.querySelector('[data-feedback-list]');
+  const resultsDialog = interview.querySelector('[data-results-dialog]');
+  const resultsStatus = interview.querySelector('[data-results-status]');
+  const resultsTitle = interview.querySelector('[data-results-title]');
+  const resultsRating = interview.querySelector('[data-results-rating]');
+  const resultsList = interview.querySelector('[data-results-list]');
   const csrfToken = interview.querySelector('[name="csrfmiddlewaretoken"]').value;
-  const maxQuestions = 5;
+  const maxQuestions = 10;
   let cameraStream;
   let screenStream;
   let recorder;
@@ -56,6 +61,11 @@
   let recordingSeconds = 0;
   let role = '';
   let sessionId = null;
+  let questions = [];
+  let pendingFeedback = [];
+  let failedQuestionNumbers = [];
+  let submittedAnswers = 0;
+  let ending = false;
   let questionNumber = 1;
   let currentQuestion = '';
   let history = [];
@@ -125,22 +135,28 @@
     return result;
   };
 
-  const appendFeedback = feedback => {
-    const empty = feedbackList.querySelector('.mock-feedback-empty');
+  const appendFeedback = (feedback, number, target) => {
+    const empty = target.querySelector('.mock-feedback-empty');
     if (empty) empty.remove();
     const item = document.createElement('article');
     item.className = 'mock-feedback-item';
+    item.dataset.questionNumber = number;
     const heading = document.createElement('div');
     heading.className = 'mock-feedback-item-heading';
     const title = document.createElement('h3');
-    title.textContent = `Question ${questionNumber}`;
+    title.textContent = `Question ${number}`;
     const score = document.createElement('span');
     score.className = 'mock-score';
     score.textContent = `${feedback.score}/5`;
     heading.append(title, score);
     item.append(heading);
+    if (feedback.question) {
+      const question = document.createElement('p');
+      question.className = 'mock-feedback-question';
+      question.textContent = feedback.question;
+      item.append(question);
+    }
     [
-      ['Transcript', feedback.answer_transcript || 'No transcript returned.'],
       ['Answer', feedback.answer_feedback],
       ['Camera', feedback.camera_feedback],
       ['Screen', feedback.screen_feedback],
@@ -153,7 +169,7 @@
       section.append(labelElement, content);
       item.append(section);
     });
-    feedbackList.prepend(item);
+    target.append(item);
   };
 
   const finishSession = message => {
@@ -166,16 +182,82 @@
     setStatus(sessionStatus, message);
   };
 
-  const endSession = async message => {
-    if (sessionId) {
-      try {
-        const result = await requestAI({ action: 'finish', session_id: sessionId });
-        updateSessionRating(result.session_rating);
-      } catch (error) {
-        setStatus(sessionStatus, error.message || 'Could not save the session status.', true);
+  const wait = milliseconds => new Promise(resolve => window.setTimeout(resolve, milliseconds));
+
+  const renderSessionResults = result => {
+    resultsList.replaceChildren();
+    feedbackList.replaceChildren();
+    result.scores.forEach(score => {
+      if (score.status === 'complete') {
+        appendFeedback(score, score.question_number, resultsList);
+        appendFeedback(score, score.question_number, feedbackList);
+      } else if (score.status === 'failed') {
+        const failed = document.createElement('p');
+        failed.className = 'mock-feedback-empty is-error';
+        failed.textContent = `Question ${score.question_number}: ${score.answer_feedback || 'Feedback could not be loaded.'}`;
+        resultsList.append(failed);
       }
+    });
+    if (result.ready && result.session_rating !== null) {
+      updateSessionRating(result.session_rating);
+      resultsRating.textContent = `Overall rating ${result.session_rating.toFixed(1)}/5`;
+      resultsRating.hidden = false;
     }
+    if (result.pending_count) {
+      resultsStatus.textContent = `Results received for ${result.finished_answers} of ${result.expected_answers} answers. Loading the rest...`;
+    } else if (result.failed_answers) {
+      resultsStatus.textContent = `${result.failed_answers} answer${result.failed_answers === 1 ? '' : 's'} could not be scored. The rating uses completed answers.`;
+    } else {
+      resultsStatus.textContent = `Results loaded for ${result.finished_answers} answers.`;
+    }
+  };
+
+  const endSession = async message => {
+    if (!sessionId || ending) return;
+    ending = true;
+    const endedSessionId = sessionId;
+    const endedFeedbackRequests = [...pendingFeedback];
+    const endedFailedNumbers = failedQuestionNumbers;
+    const restartButton = interview.querySelector('[data-restart-session]');
+    restartButton.disabled = true;
     finishSession(message);
+    resultsTitle.textContent = 'Your results are loading';
+    resultsStatus.textContent = 'Your recordings have been sent. Feedback and your rating will appear here as they finish.';
+    resultsRating.hidden = true;
+    resultsList.replaceChildren();
+    resultsDialog.showModal();
+
+    try {
+      await requestAI({
+        action: 'finish',
+        session_id: endedSessionId,
+        expected_answers: submittedAnswers,
+      });
+      let feedbackRequestsSettled = false;
+      Promise.all(endedFeedbackRequests).then(() => {
+        feedbackRequestsSettled = true;
+      });
+      const timeoutAt = Date.now() + 180000;
+      while (Date.now() < timeoutAt) {
+        const result = await requestAI({
+          action: 'results',
+          session_id: endedSessionId,
+          failed_question_numbers: feedbackRequestsSettled ? endedFailedNumbers : [],
+        });
+        renderSessionResults(result);
+        if (result.ready) {
+          resultsTitle.textContent = 'Interview results';
+          restartButton.disabled = false;
+          return;
+        }
+        await wait(1500);
+      }
+      resultsStatus.textContent = 'Some feedback is taking longer than expected. Reload this page later to view saved results.';
+    } catch (error) {
+      resultsTitle.textContent = 'Results could not be loaded';
+      resultsStatus.textContent = error.message || 'Please try again later.';
+      restartButton.disabled = false;
+    }
   };
 
   recordStartButton.addEventListener('click', () => {
@@ -204,6 +286,10 @@
         if (recordingTimer) window.clearInterval(recordingTimer);
         recordStopButton.disabled = true;
         recordStartButton.disabled = false;
+        if (ending) {
+          recordingChunks = [];
+          return;
+        }
         recordingBlob = new Blob(recordingChunks, { type: recorder.mimeType || 'audio/webm' });
         if (!recordingBlob.size) {
           setStatus(recordingStatus, 'No audio was captured. Try recording again.', true);
@@ -276,12 +362,17 @@
         className: 'mock-feedback-empty',
         textContent: 'Feedback for each answer will appear here.',
       }));
-      const result = await requestAI({ action: 'question', question_number: questionNumber });
-      currentQuestion = result.question;
+      const result = await requestAI({ action: 'question' });
+      questions = result.questions;
       sessionId = result.session_id;
+      currentQuestion = questions[0];
       questionText.textContent = currentQuestion;
       questionNumberLabel.textContent = questionNumber;
-      setStatus(sessionStatus, 'Camera and screen are live. Record your answer when you are ready.');
+      pendingFeedback = [];
+      failedQuestionNumbers = [];
+      submittedAnswers = 0;
+      ending = false;
+      setStatus(sessionStatus, 'Camera and screen are live. Ten questions are ready.');
       screenStream.getVideoTracks()[0].addEventListener('ended', () => endSession('Screen sharing stopped. Session ended.'));
     } catch (error) {
       stopCapture();
@@ -296,32 +387,35 @@
 
   answerForm.addEventListener('submit', async event => {
     event.preventDefault();
-    if (busy || !recordingBlob || !currentQuestion || !sessionId) return;
+    if (busy || ending || !recordingBlob || !currentQuestion || !sessionId) return;
     busy = true;
     answerButton.disabled = true;
-    setStatus(sessionStatus, 'Sending your recording and snapshots for feedback...');
     try {
       const audio = await blobToDataUrl(recordingBlob);
-      const feedback = await requestAI({
+      const questionBeingAnswered = questionNumber;
+      const questionFailureList = failedQuestionNumbers;
+      const feedbackRequest = requestAI({
         action: 'feedback',
         session_id: sessionId,
-        question_number: questionNumber,
+        question_number: questionBeingAnswered,
         question: currentQuestion,
         audio,
         frames: { camera: captureFrame(cameraPreview), screen: captureFrame(screenPreview) },
+      }).then(() => null).catch(error => {
+        questionFailureList.push(questionBeingAnswered);
+        return error;
       });
-      appendFeedback(feedback);
-      history.push({ question: currentQuestion, answer: feedback.answer_transcript || '' });
-      updateSessionRating(feedback.session_rating);
+      pendingFeedback.push(feedbackRequest);
+      submittedAnswers += 1;
       clearRecording();
-      if (questionNumber >= maxQuestions || !feedback.next_question) {
-        finishSession(`Interview complete. Your saved overall rating is ${feedback.session_rating.toFixed(1)}/5.`);
+      if (questionBeingAnswered >= maxQuestions) {
+        await endSession('All ten answers are submitted. Results are loading.');
       } else {
         questionNumber += 1;
-        currentQuestion = feedback.next_question;
+        currentQuestion = questions[questionNumber - 1];
         questionNumberLabel.textContent = questionNumber;
         questionText.textContent = currentQuestion;
-        setStatus(sessionStatus, 'Feedback received. Your next question is ready.');
+        setStatus(sessionStatus, 'Answer sent. Continue when you are ready; feedback will load at the end.');
       }
     } catch (error) {
       setStatus(sessionStatus, error.message || 'Could not get feedback. Please try again.', true);
@@ -332,7 +426,11 @@
   });
 
   interview.querySelector('[data-end-session]').addEventListener('click', () => {
-    if (!busy) endSession('Session ended. Your rating and question scores are saved.');
+    if (!busy) endSession('Session ended. Your results are loading.');
+  });
+
+  interview.querySelector('[data-results-close]').addEventListener('click', () => {
+    resultsDialog.close();
   });
 
   interview.querySelector('[data-restart-session]').addEventListener('click', () => {
@@ -340,8 +438,13 @@
     clearRecording();
     history = [];
     sessionId = null;
+    questions = [];
+    pendingFeedback = [];
+    failedQuestionNumbers = [];
+    submittedAnswers = 0;
     questionNumber = 1;
     currentQuestion = '';
+    ending = false;
     sessionRating.hidden = true;
     answerForm.hidden = false;
     interview.querySelector('[data-session-finished]').hidden = true;

@@ -11,7 +11,7 @@ from django.core import mail
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import IntegrityError, transaction
-from django.test import TestCase, override_settings
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -278,8 +278,8 @@ class MockInterviewTests(Base):
 
         self.assertEqual(result["question"], "Tell me about your experience.")
         self.assertEqual(mock_urlopen.call_count, 2)
-        self.assertGreaterEqual(mock_sleep.call_args.args[0], 1)
-        self.assertLess(mock_sleep.call_args.args[0], 1.25)
+        self.assertGreaterEqual(mock_sleep.call_args.args[0], 0.25)
+        self.assertLess(mock_sleep.call_args.args[0], 0.5)
 
     @override_settings(GEMINI_API_KEY="test-key", GEMINI_MODEL="gemini-test")
     @patch("tracker.ai_interview.urlopen")
@@ -296,7 +296,7 @@ class MockInterviewTests(Base):
             ):
                 generate_json([{"text": "Ask a question."}])
 
-        self.assertEqual(mock_urlopen.call_count, 3)
+        self.assertEqual(mock_urlopen.call_count, 2)
 
     @override_settings(GEMINI_API_KEY="test-key", GEMINI_MODEL="gemini-test")
     @patch("tracker.ai_interview.urlopen")
@@ -305,6 +305,13 @@ class MockInterviewTests(Base):
         session = MockInterviewSession.objects.create(
             student=self.alice, role="Data analyst"
         )
+        finish_response = self.client.post(reverse("student_mock_interview_ai"), {
+            "action": "finish",
+            "consent": True,
+            "session_id": session.pk,
+            "expected_answers": 1,
+        }, content_type="application/json")
+        self.assertEqual(finish_response.status_code, 200)
         response_body = {
             "candidates": [{"content": {"parts": [{"text": json.dumps({
                 "score": 4,
@@ -341,19 +348,58 @@ class MockInterviewTests(Base):
         }, content_type="application/json")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["score"], 4)
-        self.assertEqual(response.json()["answer_transcript"], "I check ranges and missing values.")
-        self.assertEqual(response.json()["session_rating"], 4.0)
+        self.assertEqual(response.json()["status"], "complete")
         session.refresh_from_db()
         self.assertEqual(str(session.rating), "4.00")
+        self.assertEqual(session.expected_answers, 1)
+        self.assertIsNotNone(session.completed_at)
         self.assertEqual(session.scores.get().score, 4)
+        saved_score = session.scores.get()
+        self.assertEqual(saved_score.answer_feedback, "Clear answer.")
+        self.assertEqual(saved_score.camera_feedback, "Good framing.")
+        self.assertEqual(saved_score.screen_feedback, "Readable screen.")
         request = mock_urlopen.call_args.args[0]
         payload = json.loads(request.data)
         self.assertEqual(request.get_header("X-goog-api-key"), "test-key")
+        self.assertEqual(
+            payload["generationConfig"]["thinkingConfig"]["thinkingLevel"],
+            "LOW",
+        )
         parts = payload["contents"][0]["parts"]
         self.assertEqual(parts[1]["inlineData"]["mimeType"], "audio/webm")
         self.assertEqual(parts[1]["inlineData"]["data"], audio.split(",", 1)[1])
         self.assertEqual(sum("inlineData" in part for part in parts), 3)
+
+        results_response = self.client.post(reverse("student_mock_interview_ai"), {
+            "action": "results",
+            "consent": True,
+            "session_id": session.pk,
+        }, content_type="application/json")
+        self.assertTrue(results_response.json()["ready"])
+        self.assertEqual(results_response.json()["session_rating"], 4.0)
+        self.assertEqual(results_response.json()["scores"][0]["question"], "How do you validate data?")
+
+    def test_results_poll_reports_pending_answers(self):
+        self.client.force_login(self.alice)
+        session = MockInterviewSession.objects.create(
+            student=self.alice, role="Data analyst", expected_answers=2
+        )
+        MockInterviewScore.objects.create(
+            session=session,
+            question_number=1,
+            question="How do you validate data?",
+            status=MockInterviewScore.PENDING,
+        )
+
+        response = self.client.post(reverse("student_mock_interview_ai"), {
+            "action": "results",
+            "consent": True,
+            "session_id": session.pk,
+        }, content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["ready"])
+        self.assertEqual(response.json()["pending_count"], 2)
 
     def test_student_cannot_submit_audio_to_another_students_session(self):
         session = MockInterviewSession.objects.create(
@@ -386,7 +432,9 @@ class MockInterviewTests(Base):
 
             def read(self):
                 return json.dumps({
-                    "candidates": [{"content": {"parts": [{"text": '{"question":"Tell me about yourself."}'}]}}]
+                    "candidates": [{"content": {"parts": [{"text": json.dumps({
+                        "questions": [f"Question {number}?" for number in range(1, 11)],
+                    })}]}}]
                 }).encode()
 
         mock_urlopen.return_value = FakeResponse()
@@ -398,6 +446,7 @@ class MockInterviewTests(Base):
         }, content_type="application/json")
 
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["questions"]), 10)
         session = MockInterviewSession.objects.get(pk=response.json()["session_id"])
         self.assertEqual(session.student, self.alice)
         self.assertEqual(session.role, "Data analyst")
@@ -451,6 +500,32 @@ class PermissionTests(Base):
 
 
 class ViewTests(Base):
+    def test_admin_mock_feedback_report_is_scoped_to_managed_students(self):
+        owned_session = MockInterviewSession.objects.create(
+            student=self.alice, role="Data analyst", rating="4.00"
+        )
+        other_admin = User.objects.create_user(
+            "other-admin", password="pw12345!", is_admin=True
+        )
+        other_group = Group.objects.create(name="Other batch", admin=other_admin)
+        other_student = User.objects.create_user(
+            "other-student", password="pw12345!", is_student=True
+        )
+        GroupMembership.objects.create(group=other_group, student=other_student)
+        MockInterviewSession.objects.create(
+            student=other_student, role="Private role", rating="2.00"
+        )
+        request = RequestFactory().get(reverse("admin_reports"))
+        request.user = self.admin
+
+        with patch("tracker.views.render") as mock_render:
+            from .views import admin_reports
+
+            admin_reports(request)
+
+        sessions = list(mock_render.call_args.args[2]["mock_interviews"])
+        self.assertEqual(sessions, [owned_session])
+
     def test_main_pages_render_for_each_role(self):
         self.client.force_login(self.admin)
         for name, args in (

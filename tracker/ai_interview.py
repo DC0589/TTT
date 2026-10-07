@@ -21,7 +21,10 @@ def generate_json(parts):
         f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
         data=json.dumps({
             "contents": [{"parts": parts}],
-            "generationConfig": {"responseMimeType": "application/json"},
+            "generationConfig": {
+                "responseMimeType": "application/json",
+                "thinkingConfig": {"thinkingLevel": "LOW"},
+            },
         }).encode(),
         headers={
             "Content-Type": "application/json",
@@ -31,14 +34,14 @@ def generate_json(parts):
     )
 
     try:
-        for attempt in range(3):
+        for attempt in range(2):
             try:
                 with urlopen(request, timeout=20) as response:
                     payload = json.loads(response.read().decode())
                 break
             except HTTPError as error:
-                if error.code == 503 and attempt < 2:
-                    time.sleep(2 ** attempt + random.uniform(0, 0.25))
+                if error.code == 503 and attempt == 0:
+                    time.sleep(0.25 + random.uniform(0, 0.25))
                     continue
                 if error.code == 503:
                     raise GeminiAPIError(
