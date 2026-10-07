@@ -292,11 +292,38 @@ class MockInterviewTests(Base):
         with patch("tracker.ai_interview.time.sleep"):
             with self.assertRaisesMessage(
                 GeminiAPIError,
-                "The AI service is temporarily unavailable. Please try again shortly.",
+                "The AI service is unavailable right now. Please try again shortly.",
             ):
                 generate_json([{"text": "Ask a question."}])
 
-        self.assertEqual(mock_urlopen.call_count, 2)
+        self.assertEqual(mock_urlopen.call_count, 3)
+
+    @override_settings(
+        GEMINI_API_KEY="test-key",
+        GEMINI_MODEL="gemini-test",
+        GEMINI_FALLBACK_MODEL="gemini-lite-test",
+    )
+    @patch("tracker.ai_interview.urlopen")
+    def test_gemini_503_falls_back_to_flash_lite(self, mock_urlopen):
+        response = MagicMock()
+        response.__enter__.return_value = response
+        response.__exit__.return_value = False
+        response.read.return_value = json.dumps({
+            "candidates": [{"content": {"parts": [{"text": '{"question":"Tell me about your experience."}'}]}}]
+        }).encode()
+        mock_urlopen.side_effect = [
+            HTTPError("https://example.test", 503, "Unavailable", {}, BytesIO()),
+            HTTPError("https://example.test", 503, "Unavailable", {}, BytesIO()),
+            response,
+        ]
+
+        with patch("tracker.ai_interview.time.sleep"):
+            result = generate_json([{"text": "Ask a question."}])
+
+        self.assertEqual(result["question"], "Tell me about your experience.")
+        self.assertEqual(mock_urlopen.call_count, 3)
+        self.assertIn("models/gemini-test:generateContent", mock_urlopen.call_args_list[0].args[0].full_url)
+        self.assertIn("models/gemini-lite-test:generateContent", mock_urlopen.call_args_list[-1].args[0].full_url)
 
     @override_settings(GEMINI_API_KEY="test-key", GEMINI_MODEL="gemini-test")
     @patch("tracker.ai_interview.urlopen")
