@@ -21,7 +21,7 @@
     </a>
     <div class="sidebar-label">WORKSPACE</div>
     <nav class="side-nav" aria-label="Main navigation">
-      <a class="nav-link{% if request.resolver_match.url_name == 'admin_dashboard' or request.resolver_match.url_name == 'student_dashboard' %} is-active{% endif %}" href="{% if user.is_admin %}{% url 'admin_dashboard' %}{% else %}{% url 'student_dashboard' %}{% endif %}">
+      <a class="nav-link{% if request.resolver_match.url_name == 'admin_dashboard' or request.resolver_match.url_name == 'student_dashboard' %} is-active{% endif %}" href="{% if user.is_admin %}{% url 'admin_dashboard' %}{% elif user.is_hr %}{% url 'hr_students' %}{% else %}{% url 'student_dashboard' %}{% endif %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>
         <span>Overview</span>
       </a>
@@ -54,6 +54,15 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 7l8 6 8-6"/><path d="m15.5 16 2 2 3.5-4"/></svg>
         <span>Sign-up requests</span>
       </a>
+      <a class="nav-link{% if request.resolver_match.url_name == 'admin_hr_user_add' %} is-active{% endif %}" href="{% url 'admin_hr_user_add' %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20v-1.4a5.5 5.5 0 0 1 11 0V20zM17 8h5M19.5 5.5v5"/></svg>
+        <span>HR access</span>
+      </a>
+      {% elif user.is_hr %}
+      <a class="nav-link{% if request.resolver_match.url_name == 'hr_students' or request.resolver_match.url_name == 'admin_student_add' %} is-active{% endif %}" href="{% url 'hr_students' %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20v-1.4a5.5 5.5 0 0 1 11 0V20zM16 5.2a3.2 3.2 0 0 1 0 6.2M17 14a4.7 4.7 0 0 1 3.5 4.5"/></svg>
+        <span>Students</span>
+      </a>
       {% else %}
       <a class="nav-link{% if request.resolver_match.url_name == 'student_courses' %} is-active{% endif %}" href="{% url 'student_courses' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21zM4 5.5v13M8 7h8M8 11h8"/></svg>
@@ -80,7 +89,7 @@
     </div>
     <div class="profile">
       <span class="avatar">{{ user.username|slice:":1"|upper }}</span>
-      <span class="profile-copy"><strong>{{ user.username }}</strong><small>{% if user.is_admin %}Administrator{% else %}Student account{% endif %}</small></span>
+      <span class="profile-copy"><strong>{{ user.username }}</strong><small>{% if user.is_admin %}Administrator{% elif user.is_hr %}HR staff{% else %}Student account{% endif %}</small></span>
       <form method="post" action="{% url 'logout' %}">{% csrf_token %}
         <button class="icon-button logout-button" type="submit" aria-label="Log out" title="Log out">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H4"/><path d="M13 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5"/></svg>
@@ -94,7 +103,7 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
       <div class="topbar-context"><span class="topbar-kicker">YOUR CAREER JOURNEY</span><span class="topbar-caption">A clearer path to your next opportunity</span></div>
-      <div class="topbar-user"><span class="status-dot"></span><span>{% if user.is_admin %}Admin workspace{% else %}Student workspace{% endif %}</span></div>
+      <div class="topbar-user"><span class="status-dot"></span><span>{% if user.is_admin %}Admin workspace{% elif user.is_hr %}HR workspace{% else %}Student workspace{% endif %}</span></div>
     </header>
     <main class="page-content" id="main-content">
 {% else %}

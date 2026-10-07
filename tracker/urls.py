@@ -12,6 +12,7 @@ urlpatterns = [
     path("logout/", LogoutView.as_view(), name="logout"),
 
     path("admin/dashboard/", v.admin_dashboard, name="admin_dashboard"),
+    path("admin/hr-users/add/", v.admin_hr_user_add, name="admin_hr_user_add"),
     path("admin/students/add/", v.admin_student_add, name="admin_student_add"),
     path("admin/interviews/", v.admin_interviews, name="admin_interviews"),
     path("admin/courses/", v.admin_courses, name="admin_courses"),
@@ -35,6 +36,7 @@ urlpatterns = [
     path("admin/groups/<int:pk>/members/<int:student_id>/remove/", v.member_remove, name="member_remove"),
 
     path("student/dashboard/", v.student_dashboard, name="student_dashboard"),
+    path("hr/students/", v.hr_students, name="hr_students"),
     path("student/mock-interview/", v.student_mock_interview, name="student_mock_interview"),
     path("student/mock-interview/ai/", v.student_mock_interview_ai, name="student_mock_interview_ai"),
     path("student/courses/", v.student_courses, name="student_courses"),

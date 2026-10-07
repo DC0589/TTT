@@ -29,7 +29,7 @@ from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from .forms import (
-    AddMemberForm, FinalStatusForm, GroupForm, InterviewForm, LearningCourseForm,
+    AddMemberForm, FinalStatusForm, GroupForm, HRUserForm, InterviewForm, LearningCourseForm,
     RegistrationOTPForm, RoundForm, RoundStatusForm, StudentForm,
     StudentRegistrationForm,
 )
@@ -82,11 +82,25 @@ def role_required(flag):
 
 
 admin_required = role_required("is_admin")
+hr_required = role_required("is_hr")
 student_required = role_required("is_student")
 
 
+def staff_required(view):
+    @wraps(view)
+    def wrapper(request, *args, **kwargs):
+        if not (request.user.is_admin or request.user.is_hr):
+            raise PermissionDenied
+        return view(request, *args, **kwargs)
+    return login_required(wrapper)
+
+
 def dashboard_for(user):
-    return "admin_dashboard" if user.is_admin else "student_dashboard"
+    if user.is_admin:
+        return "admin_dashboard"
+    if user.is_hr:
+        return "hr_students"
+    return "student_dashboard"
 
 
 class RoleLoginView(LoginView):
@@ -275,7 +289,9 @@ def admin_dashboard(request):
     interviews = (Interview.objects.filter(group__admin=request.user)
                   .select_related("student", "group", "status").prefetch_related("rounds"))
     students = User.objects.filter(is_student=True).filter(
-        Q(memberships__group__admin=request.user) | Q(created_by=request.user)
+        Q(memberships__group__admin=request.user)
+        | Q(created_by=request.user)
+        | Q(created_by__created_by=request.user)
     ).distinct()
     stats = {
         "students": students.count(),
@@ -316,6 +332,36 @@ def admin_dashboard(request):
 
 
 @admin_required
+def admin_hr_user_add(request):
+    form = HRUserForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        hr_user = form.save(commit=False)
+        hr_user.created_by = request.user
+        hr_user.save()
+        messages.success(request, f"HR account {hr_user.username} created.")
+        return redirect("admin_hr_user_add")
+    return render(request, "tracker/admin/hr_user_form.html", {"form": form})
+
+
+@hr_required
+def hr_students(request):
+    search = request.GET.get("q", "").strip()[:100]
+    students = User.objects.filter(is_student=True, created_by=request.user)
+    if search:
+        students = students.filter(
+            Q(username__icontains=search) | Q(email__icontains=search)
+        )
+    page_obj = Paginator(students.order_by("username"), 25).get_page(
+        request.GET.get("page")
+    )
+    return render(request, "tracker/hr/students.html", {
+        "students": page_obj.object_list,
+        "page_obj": page_obj,
+        "search": search,
+    })
+
+
+@staff_required
 def admin_student_add(request):
     form = StudentForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -323,6 +369,8 @@ def admin_student_add(request):
         student.created_by = request.user
         student.save()
         messages.success(request, "Student added.")
+        if request.user.is_hr:
+            return redirect("hr_students")
         return redirect("admin_student_detail", pk=student.pk)
     return render(request, "tracker/admin/student_form.html", {
         "form": form,
@@ -427,7 +475,9 @@ def admin_mock_interviews(request):
     selected_group = groups.filter(pk=int(batch_value)).first() if batch_value.isdigit() else None
 
     students = User.objects.filter(is_student=True).filter(
-        Q(created_by=request.user) | Q(memberships__group__admin=request.user)
+        Q(created_by=request.user)
+        | Q(created_by__created_by=request.user)
+        | Q(memberships__group__admin=request.user)
     )
     if selected_group:
         students = students.filter(memberships__group=selected_group)
@@ -439,6 +489,7 @@ def admin_mock_interviews(request):
         student__is_student=True,
     ).filter(
         Q(student__created_by=request.user)
+        | Q(student__created_by__created_by=request.user)
         | Q(student__memberships__group__admin=request.user)
     ).select_related("student").prefetch_related("scores").distinct()
     if selected_group:
@@ -614,7 +665,9 @@ def registration_reject(request, pk):
 def student_delete(request, pk):
     student = get_object_or_404(
         User.objects.filter(is_student=True).filter(
-            Q(memberships__group__admin=request.user) | Q(created_by=request.user)
+            Q(memberships__group__admin=request.user)
+            | Q(created_by=request.user)
+            | Q(created_by__created_by=request.user)
         ).distinct(),
         pk=pk,
     )
@@ -630,7 +683,9 @@ def admin_students(request):
         view_mode = "cards"
     search = request.GET.get("q", "").strip()[:100]
     students = User.objects.filter(is_student=True).filter(
-        Q(memberships__group__admin=request.user) | Q(created_by=request.user)
+        Q(memberships__group__admin=request.user)
+        | Q(created_by=request.user)
+        | Q(created_by__created_by=request.user)
     ).annotate(
         interview_count=Count(
             "interviews", filter=Q(interviews__group__admin=request.user), distinct=True
@@ -678,7 +733,9 @@ def admin_students(request):
 def admin_student_detail(request, pk):
     student = get_object_or_404(
         User.objects.filter(is_student=True).filter(
-            Q(memberships__group__admin=request.user) | Q(created_by=request.user)
+            Q(memberships__group__admin=request.user)
+            | Q(created_by=request.user)
+            | Q(created_by__created_by=request.user)
         ).distinct().prefetch_related("memberships__group"),
         pk=pk,
     )

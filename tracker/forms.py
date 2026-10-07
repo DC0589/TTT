@@ -36,6 +36,24 @@ class StudentForm(Styled, UserCreationForm):
         return user
 
 
+class HRUserForm(Styled, UserCreationForm):
+    email = forms.EmailField(required=True)
+
+    class Meta:
+        model = User
+        fields = ("username", "email")
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.is_hr = True
+        user.is_admin = False
+        user.is_student = False
+        user.email = self.cleaned_data["email"]
+        if commit:
+            user.save()
+        return user
+
+
 class StudentRegistrationForm(Styled, forms.Form):
     username = forms.CharField(
         max_length=150, validators=User._meta.get_field("username").validators

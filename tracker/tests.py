@@ -64,6 +64,19 @@ class AuthTests(Base):
         r = self.client.post(reverse("login"), {"username": "alice", "password": "pw12345!"})
         self.assertRedirects(r, reverse("student_dashboard"))
 
+    def test_hr_login_redirects_to_hr_workspace(self):
+        hr = User.objects.create_user(
+            "login-hr", password="pw12345!", is_hr=True, created_by=self.admin
+        )
+
+        response = self.client.post(reverse("login"), {
+            "username": hr.username,
+            "password": "pw12345!",
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("hr_students"))
+
     def test_external_registration_requires_verification_and_admin_approval(self):
         self.admin.email = "admin@example.com"
         self.admin.save(update_fields=["email"])
@@ -566,6 +579,24 @@ class PermissionTests(Base):
         self.client.force_login(self.admin)
         self.assertEqual(self.client.get(reverse("student_dashboard")).status_code, 403)
 
+    def test_hr_cannot_open_admin_or_mock_review_pages(self):
+        hr = User.objects.create_user(
+            "hr-staff", password="pw12345!", is_hr=True, created_by=self.admin
+        )
+        self.client.force_login(hr)
+        for name in (
+            "admin_dashboard", "admin_mock_interviews", "admin_reports",
+            "admin_groups", "admin_hr_user_add",
+        ):
+            self.assertEqual(self.client.get(reverse(name)).status_code, 403, name)
+        request = RequestFactory().get(reverse("hr_students"))
+        request.user = hr
+        with patch("tracker.views.render") as mock_render:
+            from .views import hr_students
+
+            hr_students(request)
+        self.assertEqual(mock_render.call_args.args[1], "tracker/hr/students.html")
+
     def test_student_cannot_see_others_interview(self):
         self.client.force_login(self.bob)
         url = reverse("student_interview_detail", args=[self.iv.pk])
@@ -629,6 +660,15 @@ class ViewTests(Base):
         owned_session = MockInterviewSession.objects.create(
             student=self.alice, role="Python"
         )
+        hr = User.objects.create_user(
+            "managed-hr", password="pw12345!", is_hr=True, created_by=self.admin
+        )
+        hr_student = User.objects.create_user(
+            "hr-created-student", password="pw12345!", is_student=True, created_by=hr
+        )
+        hr_session = MockInterviewSession.objects.create(
+            student=hr_student, role="Django"
+        )
         other_admin = User.objects.create_user(
             "reviews-admin", password="pw12345!", is_admin=True
         )
@@ -650,7 +690,70 @@ class ViewTests(Base):
             admin_mock_interviews(request)
 
         sessions = list(mock_render.call_args.args[2]["page_obj"].object_list)
-        self.assertEqual(sessions, [owned_session])
+        self.assertEqual({session.pk for session in sessions}, {owned_session.pk, hr_session.pk})
+
+    def test_admin_can_create_hr_account(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(reverse("admin_hr_user_add"), {
+            "username": "new-hr",
+            "email": "new-hr@example.com",
+            "password1": "S7rong-HR-password-99",
+            "password2": "S7rong-HR-password-99",
+        })
+
+        self.assertRedirects(
+            response, reverse("admin_hr_user_add"), fetch_redirect_response=False
+        )
+        hr = User.objects.get(username="new-hr")
+        self.assertTrue(hr.is_hr)
+        self.assertFalse(hr.is_admin)
+        self.assertFalse(hr.is_student)
+        self.assertEqual(hr.created_by, self.admin)
+
+    def test_hr_can_add_and_only_list_their_students(self):
+        hr = User.objects.create_user(
+            "hr-owner", password="pw12345!", is_hr=True, created_by=self.admin
+        )
+        other_hr = User.objects.create_user(
+            "hr-other", password="pw12345!", is_hr=True, created_by=self.admin
+        )
+        User.objects.create_user(
+            "other-hr-student", password="pw12345!", is_student=True, created_by=other_hr
+        )
+        self.client.force_login(hr)
+
+        response = self.client.post(reverse("admin_student_add"), {
+            "username": "hr-student",
+            "email": "hr-student@example.com",
+            "password1": "S7rong-student-password-99",
+            "password2": "S7rong-student-password-99",
+        })
+
+        self.assertRedirects(
+            response, reverse("hr_students"), fetch_redirect_response=False
+        )
+        student = User.objects.get(username="hr-student")
+        self.assertTrue(student.is_student)
+        self.assertEqual(student.created_by, hr)
+
+        request = RequestFactory().get(reverse("hr_students"))
+        request.user = hr
+        with patch("tracker.views.render") as mock_render:
+            from .views import hr_students
+
+            hr_students(request)
+        visible_students = list(mock_render.call_args.args[2]["students"])
+        self.assertEqual(visible_students, [student])
+
+        admin_request = RequestFactory().get(reverse("admin_students"))
+        admin_request.user = self.admin
+        with patch("tracker.views.render") as mock_render:
+            from .views import admin_students
+
+            admin_students(admin_request)
+        admin_visible_students = list(mock_render.call_args.args[2]["students"])
+        self.assertIn(student, admin_visible_students)
 
     def test_admin_mock_reviews_paginate_sessions(self):
         for _ in range(27):

@@ -6,8 +6,8 @@ from .models import Group, GroupMembership, Interview, InterviewRound, Interview
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
-    fieldsets = UserAdmin.fieldsets + (("Roles", {"fields": ("is_admin", "is_student")}),)
-    list_display = ("username", "email", "is_admin", "is_student")
+    fieldsets = UserAdmin.fieldsets + (("Roles", {"fields": ("is_admin", "is_student", "is_hr")}),)
+    list_display = ("username", "email", "is_admin", "is_hr", "is_student")
 
 
 class RoundInline(admin.TabularInline):

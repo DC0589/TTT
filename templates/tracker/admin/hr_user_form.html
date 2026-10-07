@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Create HR account{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="{% url 'admin_dashboard' %}">Overview</a><span aria-hidden="true">/</span><span>Create HR account</span></div>
+<section class="page-heading">
+  <div><p class="eyebrow">STAFF ACCESS</p><h1>Create HR account</h1><p>HR accounts can add students and manage only their own student list.</p></div>
+</section>
+<section class="panel standalone-form-panel">
+  <form method="post" class="stack-form">{% csrf_token %}{% include "tracker/_form.html" %}
+    <div class="form-page-actions"><button class="button button-primary" type="submit">Create HR account</button><a class="button button-quiet" href="{% url 'admin_dashboard' %}">Cancel</a></div>
+  </form>
+</section>
+{% endblock %}

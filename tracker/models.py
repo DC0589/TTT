@@ -5,6 +5,7 @@ from django.db import models
 class User(AbstractUser):
     is_admin = models.BooleanField(default=False)
     is_student = models.BooleanField(default=False)
+    is_hr = models.BooleanField(default=False)
     created_by = models.ForeignKey(
         "self",
         blank=True,
@@ -17,6 +18,8 @@ class User(AbstractUser):
     def save(self, *args, **kwargs):
         if self.is_superuser:
             self.is_admin = True
+        if self.is_admin:
+            self.is_hr = False
         super().save(*args, **kwargs)
 
 

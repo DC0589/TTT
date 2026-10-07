@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Students{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">HR WORKSPACE</p><h1>Students</h1><p>Students created by your HR account.</p></div>
+  <div class="page-heading-actions"><a class="button button-primary" href="{% url 'admin_student_add' %}">Add student</a></div>
+</section>
+<form class="student-search" method="get" role="search">
+  <label class="sr-only" for="hr-student-search">Search students</label>
+  <input class="form-control" id="hr-student-search" name="q" value="{{ search }}" placeholder="Search by name or email">
+  <button class="button button-quiet" type="submit">Search</button>
+</form>
+<div class="table-wrap">
+  <table class="data-table">
+    <thead><tr><th>Student</th><th>Email</th><th>Added</th></tr></thead>
+    <tbody>
+      {% for student in students %}
+      <tr><td>{{ student.username }}</td><td>{{ student.email }}</td><td>{{ student.date_joined|date:"M j, Y" }}</td></tr>
+      {% empty %}
+      <tr><td colspan="3"><div class="table-empty"><strong>No students found.</strong><span>Students you add will appear here.</span></div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if page_obj.has_previous or page_obj.has_next %}
+<nav class="pagination" aria-label="Student pages">
+  {% if page_obj.has_previous %}<a class="button button-quiet" href="?page={{ page_obj.previous_page_number }}{% if search %}&amp;q={{ search|urlencode }}{% endif %}">Previous</a>{% endif %}
+  <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<a class="button button-quiet" href="?page={{ page_obj.next_page_number }}{% if search %}&amp;q={{ search|urlencode }}{% endif %}">Next</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}
