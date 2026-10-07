@@ -148,6 +148,7 @@ svg { display: block; width: 20px; height: 20px; }
 .course-editor-panel .stack-form { gap: 17px; }
 .preview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .report-section { margin-top: 32px; }
+.mock-admin-reports { scroll-margin-top: 88px; }
 .report-table td a { color: #315fb8; }
 .report-table td a:hover { text-decoration: underline; }
 .report-table td:nth-child(5), .report-table td:nth-child(6), .report-table td:nth-child(7) { white-space: normal; }
