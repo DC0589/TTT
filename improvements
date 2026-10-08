@@ -1,0 +1,21 @@
+00 people logging in at once should be fine, as long as the Neon connection string uses the pooler.
+
+How traffic is handled
+
+Vercel runs the Django app as serverless functions. Each concurrent request can start its own function instance, so the platform scales out on its own.
+The database is Neon PostgreSQL. In settings.py it is configured with dj_database_url.parse(...) and no CONN_MAX_AGE. That means each request opens and closes its own connection.
+Sessions are stored in the database, as Django does by default. Each request makes one session read, one user read and then its own queries.
+Where the risk is
+
+Connection limits: 100 simultaneous requests means up to 100 simultaneous Postgres connections. Neon's direct endpoint allows only a limited number, depending on the plan and compute size. If you hit the limit, you get intermittent 500s.
+Opening a connection costs time: it adds roughly 50–150 ms to every request.
+Neon cold start: on the free tier, compute suspends when idle and the first request after that is slow, a few seconds.
+Login itself: password hashing is deliberately CPU-heavy, around 100–300 ms per login. It is fine at this scale.
+Checks and fixes
+
+Check that DATABASE_URL in Vercel uses Neon's pooled host. The hostname should contain -pooler. This is the most important fix, because the pooler (PgBouncer) can handle thousands of client connections.
+With the pooler, add conn_max_age=0 and DISABLE_SERVER_SIDE_CURSORS=True to the database settings. I can make that change.
+Check Neon's autosuspend setting. On the free plan you can't turn it off, so the first visitor after idle time waits.
+Dashboards run several queries per page. I've already used select_related and prefetch_related in most views, so there is no obvious N+1 problem. The admin dashboard and the mock progress panel are the heaviest pages. At your scale, with tens of students and a few admins, that is fine.
+The AI mock interview calls Gemini. Those calls are bounded by Gemini's rate limits, not your database.
+Do you want me to make the database settings change (step 2)? You'll need to confirm the -pooler hostname in Vercel yourself, because I can't see those environment variables.

@@ -31,7 +31,7 @@
     {% for r in iv.rounds.all %}
     <li class="round-row">
       <span class="round-index">{{ r.round_number|stringformat:"02d" }}</span>
-      <span class="round-copy"><strong>{{ r.description }}</strong><small>Interview round {{ r.round_number }}</small></span>
+      <span class="round-copy"><strong>{{ r.description }}</strong><small>Interview round {{ r.round_number }}{% if r.scheduled_date %} · {{ r.scheduled_date|date:"d M Y" }}{% if r.scheduled_time %} {{ r.scheduled_time|time:"h:i A" }}{% endif %}{% endif %}</small>{% if r.feedback %}<small class="round-feedback-text">Feedback: {{ r.feedback }}</small>{% endif %}</span>
       <span class="status-badge {{ r.badge }}">{{ r.get_status_display }}</span>
     </li>
     {% empty %}

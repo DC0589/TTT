@@ -243,6 +243,10 @@ class InterviewForm(Styled, forms.ModelForm):
         self.fields["group"].queryset = Group.objects.filter(memberships__student=student)
         self.fields["group"].empty_label = "Select a batch"
         self.student = student
+        if not self.instance.pk:
+            self.fields["first_round_type"] = forms.ChoiceField(
+                label="Which round is this?",
+                choices=[("", "Select the round"), *InterviewRound.TYPE_CHOICES])
         for name in ("time_of_interview", "hr_name", "hr_contact_number", "interview_type"):
             self.fields[name].required = True
         self.fields["interview_type"].choices = [("", "Select a type")] + list(Interview.TYPE_CHOICES)
@@ -319,7 +323,23 @@ class InterviewNotesForm(forms.ModelForm):
 class RoundStatusForm(forms.ModelForm):
     class Meta:
         model = InterviewRound
-        fields = ("status",)
+        fields = ("status", "feedback")
+
+    def clean(self):
+        data = super().clean()
+        status = data.get("status")
+        feedback = (data.get("feedback") or "").strip()
+        data["feedback"] = feedback
+        if status and status != InterviewRound.PENDING:
+            rnd = self.instance
+            if rnd.scheduled_date:
+                from datetime import datetime, time as dtime
+                when = datetime.combine(rnd.scheduled_date, rnd.scheduled_time or dtime.min)
+                if timezone.make_aware(when) > timezone.now():
+                    raise forms.ValidationError("You can update the result only after the round time has passed.")
+            if not feedback:
+                self.add_error("feedback", "Add your feedback on how the round went.")
+        return data
 
 
 class FinalStatusForm(Styled, forms.ModelForm):

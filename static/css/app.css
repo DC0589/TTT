@@ -986,3 +986,8 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
 .filter-actions{display:flex;gap:8px;flex-wrap:wrap}
 .trainer-note{border-left:4px solid #4f46e5}
 @media(max-width:700px){.calendar-grid-wrap{display:none}.calendar-mobile-agenda{display:block}.calendar-week{grid-template-columns:1fr}}
+
+.round-row { flex-wrap: wrap; }
+.round-feedback { flex: 1 1 100%; min-height: 56px; font-size: 13px; }
+.round-save { flex: 1 1 100%; }
+.round-feedback-text { flex: 1 1 100%; font-size: 13px; color: var(--muted, #667085); }

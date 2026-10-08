@@ -100,7 +100,7 @@
     if (data && data.error) return data.error;
     const errors = data && data.errors;
     if (errors) {
-      const field = errors.round_type || errors.description || errors.scheduled_date || errors.scheduled_time || errors.status;
+      const field = errors.feedback || errors.__all__ || errors.round_type || errors.description || errors.scheduled_date || errors.scheduled_time || errors.status;
       if (field && field.length) return field[0].message;
     }
     return 'Something went wrong. Please try again.';
@@ -138,6 +138,7 @@
 
   document.getElementById('rounds').addEventListener('change', async event => {
     const dateInput = event.target;
+    if (dateInput.classList.contains('round-status')) return;
     if (dateInput.classList.contains('round-date')) {
       statusError.classList.add('is-hidden');
       try {
@@ -150,13 +151,19 @@
       }
       return;
     }
-    const select = event.target;
-    if (!select.classList.contains('round-status')) return;
+  });
+
+  document.getElementById('rounds').addEventListener('click', async event => {
+    const saveButton = event.target.closest('.round-save');
+    if (!saveButton) return;
+    const row = saveButton.closest('[data-round]');
+    const select = row.querySelector('.round-status');
     statusError.classList.add('is-hidden');
     select.disabled = true;
     try {
       const body = new FormData();
       body.append('status', select.value);
+      body.append('feedback', row.querySelector('.round-feedback').value);
       {% if edit_mode %}body.append('edit_mode', '1');{% endif %}
       const response = await fetch(select.dataset.url, {
         method: 'POST',
@@ -170,7 +177,6 @@
         return;
       }
       select.dataset.previousValue = select.value;
-      const row = select.closest('[data-round]');
       const badge = row.querySelector('.status-badge');
       badge.textContent = select.options[select.selectedIndex].text;
       badge.className = `status-badge status-${data.status}`;

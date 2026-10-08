@@ -9,5 +9,10 @@
   <select id="round-status-{{ r.pk }}" data-previous-value="{{ r.status }}" data-url="{% url 'round_update' r.pk %}" class="form-control round-status">
     {% for val, label in round_choices %}<option value="{{ val }}" {% if val == r.status %}selected{% endif %}>{{ label }}</option>{% endfor %}
   </select>
+  <label class="visually-hidden" for="round-feedback-{{ r.pk }}">Feedback for {{ r.description }}</label>
+  <textarea id="round-feedback-{{ r.pk }}" rows="2" class="form-control round-feedback" placeholder="After the round: how did it go? What was asked, what to improve?">{{ r.feedback }}</textarea>
+  <button type="button" class="button button-secondary round-save">Save result &amp; feedback</button>
+  {% elif r.feedback %}
+  <p class="round-feedback-text"><strong>Your feedback:</strong> {{ r.feedback|linebreaksbr }}</p>
   {% endif %}
 </li>

@@ -1020,7 +1020,7 @@ class ViewTests(Base):
         outsider_group = Group.objects.create(name="Other", admin=self.admin)
         self.client.force_login(self.alice)
         data = {"company_name": "Globex", "role": "QA", "date_of_interview": "2026-01-10",
-                "time_of_interview": "10:30", "interview_type": "walk_in", "hr_name": "Pat", "hr_contact_number": "555"}
+                "time_of_interview": "10:30", "interview_type": "walk_in", "first_round_type": "technical", "hr_name": "Pat", "hr_contact_number": "555"}
         r = self.client.post(
             reverse("student_interview_add"),
             {**data, "group": outsider_group.pk},
@@ -1043,6 +1043,7 @@ class ViewTests(Base):
             "date_of_interview": "2026-01-10",
             "time_of_interview": "14:00",
             "interview_type": "referral",
+            "first_round_type": "hr",
             "hr_name": "Jordan Lee",
             "hr_contact_number": "+1 555 0123",
             "hr_email": "jordan@example.com",
@@ -1350,6 +1351,14 @@ class ViewTests(Base):
         response = self.client.post(url, {"round_type": "coding", "description": "Coding test"})
         self.assertEqual(response.status_code, 201)
         self.assertIn('class="form-control round-status"', response.json()["html"])
+        blocked = self.client.post(url, {"round_type": "hr", "scheduled_date": "2030-01-02", "scheduled_time": "11:30"})
+        self.assertEqual(blocked.status_code, 400)  # first round still pending
+        first = self.iv.rounds.get(round_number=1)
+        upd = reverse("round_update", args=[first.pk])
+        self.assertEqual(self.client.post(upd, {"status": "cleared"}).status_code, 400)  # feedback required
+        self.assertEqual(self.client.post(upd, {"status": "cleared", "feedback": "Solid"}).status_code, 200)
+        first.refresh_from_db()
+        self.assertEqual(first.feedback, "Solid")
         self.assertEqual(self.client.post(url, {"round_type": "hr"}).status_code, 400)
         self.assertEqual(self.client.post(url, {"round_type": "hr", "scheduled_date": "2030-01-02"}).status_code, 400)
         ok = self.client.post(url, {"round_type": "hr", "scheduled_date": "2030-01-02", "scheduled_time": "11:30"})
@@ -1374,7 +1383,7 @@ class ViewTests(Base):
         rnd = InterviewRound.objects.create(interview=self.iv, round_number=1, description="x")
         self.client.post(url, {"final_status": "selected"})
         self.assertFalse(InterviewStatus.objects.filter(interview=self.iv).exists())  # pending round
-        self.client.post(reverse("round_update", args=[rnd.pk]), {"status": "cleared"})
+        self.client.post(reverse("round_update", args=[rnd.pk]), {"status": "cleared", "feedback": "Went well"})
         self.client.post(url, {"final_status": "selected"})
         self.assertEqual(InterviewStatus.objects.get(interview=self.iv).final_status, "selected")
 
@@ -1391,6 +1400,7 @@ class ViewTests(Base):
         self.assertJSONEqual(response.content, {
             "status": "pending",
             "badge": "status-pending",
+            "feedback": "",
             "final_status": "in-progress",
             "final_label": "In progress",
         })
@@ -1610,7 +1620,7 @@ class InterviewManagementTests(TestCase):
         self.form_data = {
             "group": self.group.pk, "company_name": "Acme", "role": "Dev",
             "date_of_interview": self.today.isoformat(), "time_of_interview": "11:00",
-            "interview_type": "referral", "hr_name": "H", "hr_contact_number": "1",
+            "interview_type": "referral", "first_round_type": "hr", "hr_name": "H", "hr_contact_number": "1",
         }
 
     def test_duplicate_warns_then_allows_with_confirmation(self):
@@ -1702,3 +1712,28 @@ class InterviewManagementTests(TestCase):
         self.client.post(reverse("student_interview_quick", args=[self.iv.pk]), {"action": "attended"})
         self.client.force_login(self.admin)
         self.assertContains(self.client.get(reverse("admin_calendar")), "ev-attended")
+
+
+class RoundFlowTests(TestCase):
+    def setUp(self):
+        import datetime
+        self.admin = User.objects.create_user("adm7", password="pw", is_admin=True)
+        self.stu = User.objects.create_user("stu7", password="pw", is_student=True, created_by=self.admin)
+        self.group = Group.objects.create(name="B7", admin=self.admin)
+        GroupMembership.objects.create(group=self.group, student=self.stu)
+        self.client.force_login(self.stu)
+        self.future = timezone.localdate() + datetime.timedelta(days=5)
+
+    def test_first_round_created_and_result_locked_until_time_passes(self):
+        self.client.post(reverse("student_interview_add"), {
+            "group": self.group.pk, "company_name": "Acme", "role": "Dev",
+            "date_of_interview": self.future.isoformat(), "time_of_interview": "10:00",
+            "interview_type": "walk_in", "first_round_type": "coding",
+            "hr_name": "H", "hr_contact_number": "1"})
+        rnd = InterviewRound.objects.get()
+        self.assertEqual((rnd.round_number, rnd.round_type, rnd.scheduled_date), (1, "coding", self.future))
+        resp = self.client.post(reverse("round_update", args=[rnd.pk]), {"status": "cleared", "feedback": "ok"})
+        self.assertEqual(resp.status_code, 400)
+        InterviewRound.objects.filter(pk=rnd.pk).update(scheduled_date=timezone.localdate() - __import__("datetime").timedelta(days=1))
+        resp = self.client.post(reverse("round_update", args=[rnd.pk]), {"status": "cleared", "feedback": "ok"})
+        self.assertEqual(resp.status_code, 200)

@@ -1881,7 +1881,12 @@ def student_interview_add(request):
         iv = form.save(commit=False)
         iv.student = request.user
         iv.save()
-        messages.success(request, "Interview added. Now add its rounds.")
+        round_type = form.cleaned_data["first_round_type"]
+        InterviewRound.objects.create(
+            interview=iv, round_number=1, round_type=round_type,
+            description=dict(InterviewRound.TYPE_CHOICES)[round_type],
+            scheduled_date=iv.date_of_interview, scheduled_time=iv.time_of_interview)
+        messages.success(request, "Interview added. After it happens, update the round result and add your feedback.")
         return redirect("student_interview_detail", pk=iv.pk)
     return render(request, "tracker/student/interview_form.html", {
         "form": form,
@@ -1980,6 +1985,10 @@ def round_add(request, pk):
     iv = _own_interview(request, pk)
     if iv.final_status != "in-progress" and request.POST.get("edit_mode") != "1":
         return JsonResponse({"error": "Open this interview in edit mode to change its rounds."}, status=409)
+    if iv.rounds.filter(status=InterviewRound.PENDING).exists():
+        return JsonResponse({"error": "Update the result of your current round before adding the next one."}, status=400)
+    if iv.rounds.filter(status=InterviewRound.REJECTED).exists():
+        return JsonResponse({"error": "You were rejected in an earlier round."}, status=400)
     form = RoundForm(request.POST, interview=iv)
     if not form.is_valid():
         return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
@@ -2011,6 +2020,7 @@ def round_update(request, pk):
         InterviewStatus.objects.filter(interview=rnd.interview).delete()
     return JsonResponse({
         "status": rnd.status,
+        "feedback": rnd.feedback,
         "badge": rnd.badge,
         "final_status": rnd.interview.final_status,
         "final_label": rnd.interview.final_label,

@@ -233,6 +233,7 @@ class InterviewRound(models.Model):
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=PENDING)
     scheduled_date = models.DateField(blank=True, null=True)
     scheduled_time = models.TimeField(blank=True, null=True)
+    feedback = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
