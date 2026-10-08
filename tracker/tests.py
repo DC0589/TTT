@@ -1737,3 +1737,28 @@ class RoundFlowTests(TestCase):
         InterviewRound.objects.filter(pk=rnd.pk).update(scheduled_date=timezone.localdate() - __import__("datetime").timedelta(days=1))
         resp = self.client.post(reverse("round_update", args=[rnd.pk]), {"status": "cleared", "feedback": "ok"})
         self.assertEqual(resp.status_code, 200)
+
+
+class NotesReplyTests(TestCase):
+    def test_student_sees_visible_notes_and_replies(self):
+        from tracker.models import InterviewNote
+        admin = User.objects.create_user("adm8", password="pw", is_admin=True)
+        stu = User.objects.create_user("stu8", password="pw", is_student=True, created_by=admin)
+        other = User.objects.create_user("oth8", password="pw", is_student=True, created_by=admin)
+        group = Group.objects.create(name="B8", admin=admin)
+        iv = Interview.objects.create(student=stu, group=group, company_name="Hooli", role="Dev",
+                                      date_of_interview=timezone.localdate())
+        shown = InterviewNote.objects.create(interview=iv, author=admin, text="Revise SQL", visible_to_student=True)
+        hidden = InterviewNote.objects.create(interview=iv, author=admin, text="Secret thing")
+        self.client.force_login(stu)
+        page = self.client.get(reverse("student_notes"))
+        self.assertContains(page, "Hooli")
+        self.assertContains(page, "Revise SQL")
+        self.assertNotContains(page, "Secret thing")
+        self.client.post(reverse("student_note_reply", args=[shown.pk]), {"text": "Will do"})
+        self.assertEqual(shown.replies.count(), 1)
+        self.assertEqual(self.client.post(reverse("student_note_reply", args=[hidden.pk]), {"text": "x"}).status_code, 404)
+        self.client.force_login(other)
+        self.assertEqual(self.client.post(reverse("student_note_reply", args=[shown.pk]), {"text": "x"}).status_code, 404)
+        self.client.force_login(admin)
+        self.assertContains(self.client.get(reverse("admin_interview_detail", args=[iv.pk])), "Will do")

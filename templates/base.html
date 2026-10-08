@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=15">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=16">
 </head>
 <body class="{% if user.is_authenticated %}app-body{% else %}auth-body{% endif %}">
 {% if user.is_authenticated %}
@@ -108,6 +108,10 @@
       <a class="nav-link{% if request.resolver_match.url_name == 'student_calendar' %} is-active{% endif %}" href="{% url 'student_calendar' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg>
         <span>Calendar</span>
+      </a>
+      <a class="nav-link{% if request.resolver_match.url_name == 'student_notes' %} is-active{% endif %}" href="{% url 'student_notes' %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h9l4 4V20.5H6z"/><path d="M14.5 3.5V8H19M9 12h7M9 15.5h7"/></svg>
+        <span>Notes</span>
       </a>
       {% endif %}
     </nav>

@@ -33,7 +33,7 @@ from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from .forms import (
-    AddMemberForm, FinalStatusForm, GroupForm, HRUserForm, InterviewAdminNotesForm, InterviewForm, InterviewNotesForm,
+    AddMemberForm, FinalStatusForm, GroupForm, HRUserForm, InterviewAdminNotesForm, NoteReplyForm, InterviewForm, InterviewNotesForm,
     LearningCourseForm, MockQuestionForm, RegistrationOTPForm, RoundForm, RoundScheduleForm,
     RoundStatusForm, StudentForm,
     StudentRegistrationForm,
@@ -42,7 +42,7 @@ from .mock_bank import DIFFICULTY_GUIDE, normalise_difficulty, pick_seed_questio
 from .mock_topics import MOCK_TOPICS, pick_focus_areas, topic_language
 from .ai_interview import GeminiAPIError, generate_json
 from .models import (
-    Group, GroupMembership, Interview, InterviewNote, InterviewRound, InterviewStatus,
+    Group, GroupMembership, Interview, InterviewNote, InterviewNoteReply, InterviewRound, InterviewStatus,
     LearningCourse, MockInterviewScore, MockInterviewSession, MockQuestion,
     StudentRegistrationRequest, User,
 )
@@ -848,7 +848,7 @@ def admin_interview_detail(request, pk):
     return render(request, "tracker/admin/interview_detail.html", {
         "iv": interview,
         "notes_form": InterviewAdminNotesForm() if request.user.is_admin else None,
-        "trainer_notes": interview.trainer_notes.select_related("author") if request.user.is_admin else None,
+        "trainer_notes": interview.trainer_notes.select_related("author").prefetch_related("replies__author") if request.user.is_admin else None,
     })
 
 
@@ -1313,6 +1313,34 @@ def _calendar_context(request, fetch_events):
     else:
         ctx["day_events"] = by_day.get(anchor, [])
     return ctx
+
+
+@student_required
+@require_GET
+def student_notes(request):
+    notes = (InterviewNote.objects
+             .filter(interview__student=request.user, visible_to_student=True)
+             .select_related("interview", "author").prefetch_related("replies__author")
+             .order_by("interview__company_name", "-created_at"))
+    companies = {}
+    for note in notes:
+        companies.setdefault(note.interview, []).append(note)
+    return render(request, "tracker/student/notes.html", {
+        "companies": companies.items(), "total": len(notes),
+    })
+
+
+@student_required
+@require_POST
+def student_note_reply(request, pk):
+    note = get_object_or_404(InterviewNote, pk=pk, interview__student=request.user, visible_to_student=True)
+    form = NoteReplyForm(request.POST)
+    if form.is_valid():
+        InterviewNoteReply.objects.create(note=note, author=request.user, text=form.cleaned_data["text"])
+        messages.success(request, "Reply sent to your trainer.")
+    else:
+        messages.error(request, "Write a reply before sending.")
+    return redirect("student_notes")
 
 
 @student_required

@@ -998,3 +998,8 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
 .note-item { border-top: 1px solid #e5e7ef; padding: 10px 0; }
 .note-item small { color: #667085; }
 .note-item p { margin: 4px 0 0; }
+
+.note-reply { margin: 8px 0 0 16px; padding: 8px 12px; border-left: 3px solid #4f46e5; background: #f4f5ff; border-radius: 8px; }
+.note-reply p { margin: 2px 0 0; }
+.notes-company { margin-bottom: 18px; }
+.reply-form { margin-top: 10px; display: grid; gap: 8px; }

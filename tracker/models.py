@@ -228,6 +228,16 @@ class InterviewNote(models.Model):
         ordering = ["-created_at"]
 
 
+class InterviewNoteReply(models.Model):
+    note = models.ForeignKey(InterviewNote, on_delete=models.CASCADE, related_name="replies")
+    author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+
 class InterviewRound(models.Model):
     PENDING, CLEARED, REJECTED = "pending", "cleared", "rejected"
     STATUS_CHOICES = [(PENDING, "Pending"), (CLEARED, "Cleared"), (REJECTED, "Rejected")]

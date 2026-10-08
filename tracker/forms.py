@@ -398,6 +398,16 @@ class MockQuestionForm(Styled, forms.ModelForm):
         return data
 
 
+class NoteReplyForm(forms.Form):
+    text = forms.CharField(max_length=2000, widget=forms.Textarea(attrs={"rows": 2}))
+
+    def clean_text(self):
+        text = self.cleaned_data["text"].strip()
+        if not text:
+            raise forms.ValidationError("Write a reply first.")
+        return text
+
+
 class InterviewAdminNotesForm(Styled, forms.ModelForm):
     class Meta:
         model = InterviewNote

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Notes{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">FROM YOUR TRAINER</p><h1>Notes</h1><p>Feedback and guidance from your trainer, grouped by company. Reply to any note to let them know how you're doing.</p></div>
+</section>
+{% for iv, notes in companies %}
+<section class="panel notes-company">
+  <div class="section-heading section-heading-panel"><div><p class="eyebrow">{{ iv.role|upper }}</p><h2>{{ iv.company_name }}</h2></div><a class="button button-secondary" href="{% url 'student_interview_detail' iv.pk %}">Open interview</a></div>
+  {% for n in notes %}
+  <div class="note-item">
+    <small>{{ n.created_at|date:"d M Y, h:i A" }}{% if n.author %} · {{ n.author.get_full_name|default:n.author.username }}{% endif %}</small>
+    <p>{{ n.text|linebreaksbr }}</p>
+    {% for r in n.replies.all %}<div class="note-reply"><small>Your reply · {{ r.created_at|date:"d M Y, h:i A" }}</small><p>{{ r.text|linebreaksbr }}</p></div>{% endfor %}
+    <form method="post" action="{% url 'student_note_reply' n.pk %}" class="reply-form">{% csrf_token %}
+      <label class="visually-hidden" for="reply-{{ n.pk }}">Reply</label>
+      <textarea id="reply-{{ n.pk }}" name="text" rows="2" required maxlength="2000" class="form-control" placeholder="Write your response…"></textarea>
+      <button class="button button-primary" type="submit">Send reply</button>
+    </form>
+  </div>
+  {% endfor %}
+</section>
+{% empty %}
+<section class="panel"><div class="empty-state"><strong>No notes yet.</strong><p>When your trainer shares a note on one of your interviews, it will appear here.</p></div></section>
+{% endfor %}
+{% endblock %}
