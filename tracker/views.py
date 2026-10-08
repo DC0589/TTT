@@ -418,7 +418,14 @@ def admin_dashboard(request):
             "percent": round(avg / 5 * 100) if avg is not None else 0,
             "weak": avg is not None and avg < 3,
         })
+    unseen_replies = list(
+        InterviewNoteReply.objects.filter(
+            seen_by_admin=False, note__interview__group__admin=request.user)
+        .select_related("note__interview__student").order_by("-created_at")[:10])
     return render(request, "tracker/admin/dashboard.html", {
+        "unseen_replies": unseen_replies,
+        "unseen_reply_count": InterviewNoteReply.objects.filter(
+            seen_by_admin=False, note__interview__group__admin=request.user).count(),
         "stats": stats, "interviews": interviews[:20],
         "progress_rows": progress_rows, "batches": batches, "selected_batch": selected_batch,
         "roster_total": roster.count(),
@@ -845,10 +852,14 @@ def admin_interview_detail(request, pk):
         pk=pk,
         group__admin=owner,
     )
+    trainer_notes = None
+    if request.user.is_admin:
+        trainer_notes = list(interview.trainer_notes.select_related("author").prefetch_related("replies__author"))
+        InterviewNoteReply.objects.filter(note__interview=interview, seen_by_admin=False).update(seen_by_admin=True)
     return render(request, "tracker/admin/interview_detail.html", {
         "iv": interview,
         "notes_form": InterviewAdminNotesForm() if request.user.is_admin else None,
-        "trainer_notes": interview.trainer_notes.select_related("author").prefetch_related("replies__author") if request.user.is_admin else None,
+        "trainer_notes": trainer_notes,
     })
 
 

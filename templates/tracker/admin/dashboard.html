@@ -15,6 +15,16 @@
   <span class="approval-notice-arrow" aria-hidden="true">→</span>
 </a>
 {% endif %}
+{% if unseen_reply_count %}
+<section class="reply-alert" role="status">
+  <div class="reply-alert-head"><span class="approval-notice-icon" aria-hidden="true">{{ unseen_reply_count }}</span><strong>New student repl{{ unseen_reply_count|pluralize:"y,ies" }} to your notes</strong></div>
+  <ul>
+    {% for r in unseen_replies %}
+    <li><a href="{% url 'admin_interview_detail' r.note.interview_id %}"><strong>{{ r.note.interview.student.get_full_name|default:r.note.interview.student.username }}</strong> · {{ r.note.interview.company_name }}<span>“{{ r.text|truncatechars:90 }}”</span><small>{{ r.created_at|timesince }} ago</small></a></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
 <section class="stat-grid stat-grid-four" aria-label="Community statistics">
   {% for label, n in stats.items %}
   <article class="stat-card">

@@ -232,6 +232,7 @@ class InterviewNoteReply(models.Model):
     note = models.ForeignKey(InterviewNote, on_delete=models.CASCADE, related_name="replies")
     author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
     text = models.TextField()
+    seen_by_admin = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

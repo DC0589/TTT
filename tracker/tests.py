@@ -1761,4 +1761,8 @@ class NotesReplyTests(TestCase):
         self.client.force_login(other)
         self.assertEqual(self.client.post(reverse("student_note_reply", args=[shown.pk]), {"text": "x"}).status_code, 404)
         self.client.force_login(admin)
+        dash = self.client.get(reverse("admin_dashboard"))
+        self.assertContains(dash, "New student reply")
+        self.assertContains(dash, "Will do")
         self.assertContains(self.client.get(reverse("admin_interview_detail", args=[iv.pk])), "Will do")
+        self.assertNotContains(self.client.get(reverse("admin_dashboard")), "New student reply")
