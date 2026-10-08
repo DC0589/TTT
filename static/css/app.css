@@ -991,3 +991,5 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
 .round-feedback { flex: 1 1 100%; min-height: 56px; font-size: 13px; }
 .round-save { flex: 1 1 100%; }
 .round-feedback-text { flex: 1 1 100%; font-size: 13px; color: var(--muted, #667085); }
+
+.form-field input[type="checkbox"] { width: 20px; height: 20px; min-height: 0; padding: 0; margin: 4px 0 0; accent-color: #4f46e5; display: block; }

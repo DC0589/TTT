@@ -1,4 +1,4 @@
-00 people logging in at once should be fine, as long as the Neon connection string uses the pooler.
+100 people logging in at once should be fine, as long as the Neon connection string uses the pooler.
 
 How traffic is handled
 
