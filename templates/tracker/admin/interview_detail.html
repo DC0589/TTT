@@ -26,7 +26,14 @@
   {% if trainer_notes %}
   <h3 class="note-history-title">Previous notes</h3>
   {% for n in trainer_notes %}
-  <div class="note-item"><small>{{ n.created_at|date:"d M Y, h:i A" }}{% if n.author %} · {{ n.author.get_full_name|default:n.author.username }}{% endif %} · <span class="status-badge {% if n.visible_to_student %}status-cleared{% else %}status-pending{% endif %}">{% if n.visible_to_student %}Visible to student{% else %}Private{% endif %}</span></small><p>{{ n.text|linebreaksbr }}</p>{% for r in n.replies.all %}<div class="note-reply"><small>Student reply · {{ r.created_at|date:"d M Y, h:i A" }}</small><p>{{ r.text|linebreaksbr }}</p></div>{% endfor %}</div>
+  <div class="note-item"><small>{{ n.created_at|date:"d M Y, h:i A" }}{% if n.author %} · {{ n.author.get_full_name|default:n.author.username }}{% endif %} · <span class="status-badge {% if n.visible_to_student %}status-cleared{% else %}status-pending{% endif %}">{% if n.visible_to_student %}Visible to student{% else %}Private{% endif %}</span></small><p>{{ n.text|linebreaksbr }}</p>{% for r in n.replies.all %}<div class="note-reply"><small>{% if r.author.is_student %}Student reply{% else %}Your reply{% endif %} · {{ r.created_at|date:"d M Y, h:i A" }}</small><p>{{ r.text|linebreaksbr }}</p></div>{% endfor %}
+    {% if n.visible_to_student %}
+    <form method="post" action="{% url 'admin_note_reply' n.pk %}" class="reply-form">{% csrf_token %}
+      <label class="visually-hidden" for="areply-{{ n.pk }}">Reply</label>
+      <textarea id="areply-{{ n.pk }}" name="text" rows="2" required maxlength="2000" class="form-control" placeholder="Reply to the student…"></textarea>
+      <button class="button button-primary" type="submit">Send reply</button>
+    </form>
+    {% endif %}</div>
   {% endfor %}
   {% endif %}
 </section>

@@ -75,6 +75,7 @@ urlpatterns = [
     path("student/courses/", v.student_courses, name="student_courses"),
     path("student/interview-questions/", v.student_interview_questions, name="student_interview_questions"),
     path("cron/purge-mock-data/", v.cron_purge_mock_data, name="cron_purge_mock_data"),
+    path("admin/notes/<int:pk>/reply/", v.admin_note_reply, name="admin_note_reply"),
     path("student/notes/", v.student_notes, name="student_notes"),
     path("student/notes/<int:pk>/reply/", v.student_note_reply, name="student_note_reply"),
     path("student/calendar/", v.student_calendar, name="student_calendar"),

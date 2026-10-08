@@ -1341,6 +1341,22 @@ def student_notes(request):
     })
 
 
+@admin_required
+@require_POST
+def admin_note_reply(request, pk):
+    note = get_object_or_404(InterviewNote, pk=pk, interview__group__admin=request.user)
+    form = NoteReplyForm(request.POST)
+    if not note.visible_to_student:
+        messages.error(request, "Only notes shown to the student can be replied to.")
+    elif form.is_valid():
+        InterviewNoteReply.objects.create(
+            note=note, author=request.user, text=form.cleaned_data["text"], seen_by_admin=True)
+        messages.success(request, "Reply sent.")
+    else:
+        messages.error(request, "Write a reply before sending.")
+    return redirect("admin_interview_detail", pk=note.interview_id)
+
+
 @student_required
 @require_POST
 def student_note_reply(request, pk):

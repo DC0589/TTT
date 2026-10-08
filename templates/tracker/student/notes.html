@@ -11,7 +11,7 @@
   <div class="note-item">
     <small>{{ n.created_at|date:"d M Y, h:i A" }}{% if n.author %} · {{ n.author.get_full_name|default:n.author.username }}{% endif %}</small>
     <p>{{ n.text|linebreaksbr }}</p>
-    {% for r in n.replies.all %}<div class="note-reply"><small>Your reply · {{ r.created_at|date:"d M Y, h:i A" }}</small><p>{{ r.text|linebreaksbr }}</p></div>{% endfor %}
+    {% for r in n.replies.all %}<div class="note-reply"><small>{% if r.author.is_student %}Your reply{% else %}Trainer reply{% endif %} · {{ r.created_at|date:"d M Y, h:i A" }}</small><p>{{ r.text|linebreaksbr }}</p></div>{% endfor %}
     <form method="post" action="{% url 'student_note_reply' n.pk %}" class="reply-form">{% csrf_token %}
       <label class="visually-hidden" for="reply-{{ n.pk }}">Reply</label>
       <textarea id="reply-{{ n.pk }}" name="text" rows="2" required maxlength="2000" class="form-control" placeholder="Write your response…"></textarea>
