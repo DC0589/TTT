@@ -322,42 +322,6 @@ def verify_registration(request, pk):
         registration.verified_at = timezone.now()
         registration.verification_code_hash = ""
         registration.save(update_fields=["status", "verified_at", "verification_code_hash"])
-    admin_emails = list(
-        User.objects.filter(is_admin=True, is_active=True)
-        .exclude(email="")
-        .values_list("email", flat=True)
-        .distinct()
-    )
-    if not admin_emails and settings.ADMIN_EMAIL:
-        admin_emails = [settings.ADMIN_EMAIL]
-    if admin_emails:
-        approval_url = request.build_absolute_uri(reverse("admin_registrations"))
-        if not _send_notification(
-            "Student registration awaiting approval",
-            "Hello Administrator,\n\n"
-            f"{registration.username} ({registration.email}) verified their email and is awaiting approval.\n"
-            f"Review the request: {approval_url}",
-            admin_emails,
-            f"admin notification for registration {registration.pk}",
-            "emails/admin_registration.html",
-            {
-                "greeting_name": "Administrator",
-                "headline": "A student signup is ready for review",
-                "intro": "A prospective student has verified their email address and is waiting for your decision.",
-                "student_name": registration.username,
-                "student_email": registration.email,
-                "action_label": "Review signup request",
-                "action_url": approval_url,
-                "preheader": f"{registration.username} verified their email and is awaiting approval.",
-            },
-        ):
-            messages.warning(request, "Your email is verified, but the administrator notification could not be sent. Your request remains visible in the admin dashboard.")
-    else:
-        logger.error(
-            "Verified student registration %s has no active admin email recipient",
-            registration.pk,
-        )
-        messages.warning(request, "Your email is verified, but the administrator could not be notified. The request is available in the admin dashboard.")
     messages.success(request, "Email verified. Your account will be created after an administrator approves your request.")
     return redirect(f"{reverse('registration_submitted')}?verified=1")
 
