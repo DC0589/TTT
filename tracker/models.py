@@ -42,6 +42,8 @@ class StudentRegistrationRequest(models.Model):
     password_hash = models.CharField(max_length=128)
     verification_code_hash = models.CharField(max_length=64)
     verification_attempts = models.PositiveSmallIntegerField(default=0)
+    verification_resend_count = models.PositiveSmallIntegerField(default=0)
+    verification_last_sent_at = models.DateTimeField(blank=True, null=True)
     verification_expires_at = models.DateTimeField()
     status = models.CharField(
         max_length=24, choices=STATUS_CHOICES, default=AWAITING_VERIFICATION

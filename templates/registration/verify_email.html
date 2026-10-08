@@ -7,12 +7,20 @@
   </span>
   <p class="eyebrow">EMAIL CONFIRMATION</p>
   <h2>Enter your verification code.</h2>
-  <p class="auth-card-description">We sent a 6-digit code to <strong>{{ registration.email }}</strong>. Enter it below within 10 minutes. You have up to 5 attempts.</p>
+  <p class="auth-card-description">We sent a 6-digit code to <strong>{{ registration.email }}</strong>. Enter the newest code within 10 minutes. Each code has up to 5 attempts.</p>
+  <p class="auth-card-description">If it doesn’t arrive, check your spam or junk folder. You can request up to 3 new codes, at least 60 seconds apart. Only the newest code will work.</p>
   {% if email_backend_console %}<p class="email-mode-note">Development email mode is active. The code is printed in the server console and is not delivered to your inbox.</p>{% endif %}
   <form method="post" class="auth-form">{% csrf_token %}
     {% include "tracker/_form.html" with form=form %}
     <button class="button button-primary button-wide" type="submit">Verify email <span aria-hidden="true">→</span></button>
   </form>
+  {% if can_resend %}
+  <form method="post" action="{% url 'resend_registration_otp' registration.pk %}" class="auth-form auth-resend-form">{% csrf_token %}
+    <button class="button button-quiet button-wide" type="submit">Resend code</button>
+  </form>
+  {% else %}
+  <p class="email-mode-note">You’ve used all available resends. When the newest code expires, this request will close and you can register again.</p>
+  {% endif %}
   <p class="auth-switch">Not your email? <a href="{% url 'register' %}">Start again</a></p>
 </div>
 {% endblock %}

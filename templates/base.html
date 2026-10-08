@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f6f7fb">
+  <meta name="theme-color" content="#10283b">
   <title>{% block title %}Interview Tracker{% endblock %} · Tweak Talent Technologies</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,8 +16,8 @@
 <div class="app-shell">
   <aside class="sidebar" id="sidebar">
     <a class="brand" href="{% url 'home' %}" aria-label="Tweak Talent Technologies home">
-      <span class="brand-mark" aria-hidden="true"><svg class="brand-symbol" viewBox="0 0 36 36" focusable="false"><path d="M6 28V17h5v11M15.5 28V11h5v17M25 28V6h5v22"/></svg></span>
-      <span class="brand-name"><strong>Tweak Talent</strong><small>STUDENT SUCCESS</small></span>
+      <span class="brand-mark" aria-hidden="true"><img class="brand-symbol" src="{% static 'images/ttt-mark.png' %}" alt=""></span>
+      <span class="brand-name"><strong>TWEAK TALENT</strong><small>TECHNOLOGIES</small></span>
     </a>
     <div class="sidebar-label">WORKSPACE</div>
     <nav class="side-nav" aria-label="Main navigation">
@@ -110,8 +110,8 @@
 <main class="auth-shell" id="main-content">
   <section class="auth-aside">
     <a class="brand brand-light" href="{% url 'home' %}">
-      <span class="brand-mark" aria-hidden="true"><svg class="brand-symbol" viewBox="0 0 36 36" focusable="false"><path d="M6 28V17h5v11M15.5 28V11h5v17M25 28V6h5v22"/></svg></span>
-      <span class="brand-name"><strong>Tweak Talent</strong><small>TECHNOLOGIES</small></span>
+      <span class="brand-mark" aria-hidden="true"><img class="brand-symbol" src="{% static 'images/ttt-mark.png' %}" alt=""></span>
+      <span class="brand-name"><strong>TWEAK TALENT</strong><small>TECHNOLOGIES</small></span>
     </a>
     <div class="auth-aside-copy">
       <span class="auth-kicker">YOUR NEXT CHAPTER STARTS HERE</span>

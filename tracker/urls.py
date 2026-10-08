@@ -8,6 +8,7 @@ urlpatterns = [
     path("register/", v.register, name="register"),
     path("register/submitted/", v.registration_submitted, name="registration_submitted"),
     path("register/verify/<int:pk>/", v.verify_registration, name="verify_registration"),
+    path("register/verify/<int:pk>/resend/", v.resend_registration_otp, name="resend_registration_otp"),
     path("login/", v.RoleLoginView.as_view(), name="login"),
     path("logout/", LogoutView.as_view(), name="logout"),
 

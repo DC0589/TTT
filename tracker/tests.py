@@ -204,6 +204,67 @@ class AuthTests(Base):
         self.assertEqual(registration.password_hash, "")
         self.assertEqual(registration.verification_code_hash, "")
 
+    def test_registration_otp_can_be_resent_and_rotates_the_code(self):
+        registration = StudentRegistrationRequest.objects.create(
+            username="resend-student",
+            email="resend@example.com",
+            password_hash="stored-password-hash",
+            verification_code_hash="a" * 64,
+            verification_attempts=4,
+            verification_last_sent_at=timezone.now() - timedelta(seconds=61),
+            verification_expires_at=timezone.now() + timedelta(minutes=5),
+        )
+        old_code_hash = registration.verification_code_hash
+
+        with patch("tracker.views.render_to_string", return_value="<p>Verify code</p>"):
+            response = self.client.post(
+                reverse("resend_registration_otp", args=[registration.pk])
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("verify_registration", args=[registration.pk]))
+        self.assertEqual(len(mail.outbox), 1)
+        resent_code = re.search(
+            r"(?m)^Your email verification code is: (\d{6})$",
+            mail.outbox[0].body,
+        )
+        self.assertIsNotNone(resent_code)
+        registration.refresh_from_db()
+        self.assertNotEqual(registration.verification_code_hash, old_code_hash)
+        self.assertEqual(registration.verification_attempts, 0)
+        self.assertEqual(registration.verification_resend_count, 1)
+        self.assertGreater(
+            registration.verification_expires_at,
+            timezone.now() + timedelta(minutes=9),
+        )
+
+    def test_registration_otp_resend_enforces_cooldown_and_limit(self):
+        registration = StudentRegistrationRequest.objects.create(
+            username="limited-resend",
+            email="limited-resend@example.com",
+            password_hash="stored-password-hash",
+            verification_code_hash="b" * 64,
+            verification_last_sent_at=timezone.now(),
+            verification_expires_at=timezone.now() + timedelta(minutes=5),
+        )
+
+        cooldown_response = self.client.post(
+            reverse("resend_registration_otp", args=[registration.pk])
+        )
+        self.assertEqual(cooldown_response.status_code, 302)
+        self.assertEqual(len(mail.outbox), 0)
+
+        registration.verification_last_sent_at = timezone.now() - timedelta(seconds=61)
+        registration.verification_resend_count = 3
+        registration.save(update_fields=["verification_last_sent_at", "verification_resend_count"])
+        limited_response = self.client.post(
+            reverse("resend_registration_otp", args=[registration.pk])
+        )
+        self.assertEqual(limited_response.status_code, 302)
+        self.assertEqual(len(mail.outbox), 0)
+        registration.refresh_from_db()
+        self.assertEqual(registration.verification_resend_count, 3)
+
     def test_admin_created_student_does_not_need_email_verification(self):
         self.client.force_login(self.admin)
         response = self.client.post(reverse("admin_student_add"), {

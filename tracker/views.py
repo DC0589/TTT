@@ -43,6 +43,8 @@ from .models import (
 logger = logging.getLogger(__name__)
 OTP_LIFETIME = timedelta(minutes=10)
 OTP_MAX_ATTEMPTS = 5
+OTP_RESEND_COOLDOWN = timedelta(seconds=60)
+OTP_MAX_RESENDS = 3
 MOCK_QUESTION_COUNT = 10
 
 
@@ -68,6 +70,30 @@ def _send_notification(subject, body, recipients, context, template_name, email_
         logger.exception("Email delivery failed: %s", context)
         return False
     return True
+
+
+def _send_registration_otp(registration, code):
+    return _send_notification(
+        "Your Interview Tracker verification code",
+        f"Hello {registration.username},\n\n"
+        f"Your email verification code is: {code}\n\n"
+        "Enter this code on the email verification page within 10 minutes. "
+        f"You have up to {OTP_MAX_ATTEMPTS} attempts. After verification, an administrator "
+        "must approve your account request.\n\n"
+        "If you did not request this account, you can ignore this email.",
+        [registration.email],
+        f"student registration {registration.pk}",
+        "emails/registration_otp.html",
+        {
+            "greeting_name": registration.username,
+            "headline": "Verify your email address",
+            "intro": "Enter this code to confirm that this email address belongs to you.",
+            "code": code,
+            "expiry_minutes": int(OTP_LIFETIME.total_seconds() // 60),
+            "attempt_limit": OTP_MAX_ATTEMPTS,
+            "preheader": "Your one-time code to verify your student registration.",
+        },
+    )
 
 
 def role_required(flag):
@@ -119,6 +145,7 @@ def register(request):
     form = StudentRegistrationForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         code = f"{secrets.randbelow(1_000_000):06d}"
+        now = timezone.now()
         try:
             with transaction.atomic():
                 registration = StudentRegistrationRequest.objects.create(
@@ -126,7 +153,8 @@ def register(request):
                     email=form.cleaned_data["email"],
                     password_hash=make_password(form.cleaned_data["password1"]),
                     verification_code_hash="",
-                    verification_expires_at=timezone.now() + OTP_LIFETIME,
+                    verification_last_sent_at=now,
+                    verification_expires_at=now + OTP_LIFETIME,
                 )
                 registration.verification_code_hash = _registration_code_hash(
                     registration.pk, code
@@ -135,27 +163,7 @@ def register(request):
         except IntegrityError:
             form.add_error(None, "A registration for this username or email is already pending.")
             return render(request, "registration/register.html", {"form": form})
-        if not _send_notification(
-            "Your Interview Tracker verification code",
-            f"Hello {registration.username},\n\n"
-            f"Your email verification code is: {code}\n\n"
-            "Enter this code on the registration page within 10 minutes. "
-            "You have up to 5 attempts. After verification, an administrator "
-            "must approve your account request.\n\n"
-            "If you did not request this account, you can ignore this email.",
-            [registration.email],
-            f"student registration {registration.pk}",
-            "emails/registration_otp.html",
-            {
-                "greeting_name": registration.username,
-                "headline": "Verify your email address",
-                "intro": "Thanks for creating an account request with Tweak Talent Technologies. Enter this code to confirm that this email address belongs to you.",
-                "code": code,
-                "expiry_minutes": int(OTP_LIFETIME.total_seconds() // 60),
-                "attempt_limit": OTP_MAX_ATTEMPTS,
-                "preheader": "Your one-time code to verify your student registration.",
-            },
-        ):
+        if not _send_registration_otp(registration, code):
             registration.delete()
             form.add_error(None, "We could not send the verification email. Please try again later.")
             return render(request, "registration/register.html", {"form": form})
@@ -167,6 +175,58 @@ def register(request):
             )
         return redirect("verify_registration", pk=registration.pk)
     return render(request, "registration/register.html", {"form": form})
+
+
+@require_POST
+def resend_registration_otp(request, pk):
+    with transaction.atomic():
+        registration = get_object_or_404(
+            StudentRegistrationRequest.objects.select_for_update(), pk=pk
+        )
+        if registration.status != StudentRegistrationRequest.AWAITING_VERIFICATION:
+            messages.info(request, "This registration is no longer awaiting email verification.")
+            return redirect("login")
+
+        now = timezone.now()
+        if registration.verification_expires_at <= now:
+            registration.status = StudentRegistrationRequest.EXPIRED
+            registration.resolved_at = now
+            registration.password_hash = ""
+            registration.verification_code_hash = ""
+            registration.save(update_fields=[
+                "status", "resolved_at", "password_hash", "verification_code_hash",
+            ])
+            messages.error(request, "This verification request expired. Please register again.")
+            return redirect("register")
+
+        if registration.verification_resend_count >= OTP_MAX_RESENDS:
+            messages.error(request, "You have reached the resend limit. Please register again.")
+            return redirect("verify_registration", pk=registration.pk)
+
+        if registration.verification_last_sent_at:
+            elapsed = now - registration.verification_last_sent_at
+            if elapsed < OTP_RESEND_COOLDOWN:
+                wait_seconds = max(1, int((OTP_RESEND_COOLDOWN - elapsed).total_seconds() + 0.99))
+                messages.info(request, f"Please wait {wait_seconds} seconds before requesting another code.")
+                return redirect("verify_registration", pk=registration.pk)
+
+        code = f"{secrets.randbelow(1_000_000):06d}"
+        if not _send_registration_otp(registration, code):
+            messages.error(request, "We could not send another email. Check the address or try again later.")
+            return redirect("verify_registration", pk=registration.pk)
+
+        registration.verification_code_hash = _registration_code_hash(registration.pk, code)
+        registration.verification_attempts = 0
+        registration.verification_resend_count += 1
+        registration.verification_last_sent_at = now
+        registration.verification_expires_at = now + OTP_LIFETIME
+        registration.save(update_fields=[
+            "verification_code_hash", "verification_attempts", "verification_resend_count",
+            "verification_last_sent_at", "verification_expires_at",
+        ])
+
+    messages.success(request, "A new verification code was sent. Only the newest code will work.")
+    return redirect("verify_registration", pk=registration.pk)
 
 
 def registration_submitted(request):
@@ -201,6 +261,7 @@ def verify_registration(request, pk):
             return render(request, "registration/verify_email.html", {
                 "registration": registration,
                 "form": RegistrationOTPForm(),
+                "can_resend": registration.verification_resend_count < OTP_MAX_RESENDS,
                 "email_backend_console": settings.EMAIL_BACKEND.endswith(
                     ".console.EmailBackend"
                 ),
@@ -211,6 +272,7 @@ def verify_registration(request, pk):
             return render(request, "registration/verify_email.html", {
                 "registration": registration,
                 "form": form,
+                "can_resend": registration.verification_resend_count < OTP_MAX_RESENDS,
                 "email_backend_console": settings.EMAIL_BACKEND.endswith(
                     ".console.EmailBackend"
                 ),
@@ -234,6 +296,7 @@ def verify_registration(request, pk):
             return render(request, "registration/verify_email.html", {
                 "registration": registration,
                 "form": form,
+                "can_resend": registration.verification_resend_count < OTP_MAX_RESENDS,
                 "email_backend_console": settings.EMAIL_BACKEND.endswith(
                     ".console.EmailBackend"
                 ),
