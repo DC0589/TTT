@@ -60,3 +60,10 @@
   {% if page_obj.has_previous or page_obj.has_next %}<nav class="mock-review-pagination" aria-label="Mock review pages">{% if previous_page_url %}<a class="button button-quiet" href="{{ previous_page_url }}">Previous</a>{% endif %}<span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>{% if next_page_url %}<a class="button button-quiet" href="{{ next_page_url }}">Next</a>{% endif %}</nav>{% endif %}
 </section>
 {% endblock %}
+{% block scripts %}
+<script>
+  document.getElementById("review-batch")?.addEventListener("change", function () {
+    this.form.requestSubmit();
+  });
+</script>
+{% endblock %}

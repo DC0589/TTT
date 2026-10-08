@@ -797,6 +797,33 @@ class ViewTests(Base):
         sessions = list(mock_render.call_args.args[2]["page_obj"].object_list)
         self.assertEqual(sessions, [recent_python])
 
+    def test_admin_mock_reviews_batch_selection_scopes_student_options(self):
+        another_batch = Group.objects.create(
+            name="Batch B", admin=self.admin
+        )
+        another_student = User.objects.create_user(
+            "another-batch-student", is_student=True
+        )
+        GroupMembership.objects.create(
+            group=another_batch, student=another_student
+        )
+        request = RequestFactory().get(
+            reverse("admin_mock_interviews"), {"batch": self.group.pk}
+        )
+        request.user = self.admin
+
+        with patch("tracker.views.render") as mock_render:
+            from .views import admin_mock_interviews
+
+            admin_mock_interviews(request)
+
+        context = mock_render.call_args.args[2]
+        self.assertEqual(context["selected_batch"], self.group)
+        self.assertEqual(
+            set(context["students"].values_list("pk", flat=True)),
+            {self.alice.pk, self.bob.pk},
+        )
+
     def test_admin_mock_reviews_scope_unfiltered_sessions(self):
         owned_session = MockInterviewSession.objects.create(
             student=self.alice, role="Python"
