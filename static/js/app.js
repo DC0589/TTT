@@ -664,10 +664,6 @@
     const state = getState();
     if (!state || !state.sessionId) return;
     count += 1;
-    if (warning) {
-      warning.hidden = false;
-      warning.textContent = `Activity flagged (${count}): leaving the interview tab, pasting or copying is recorded and shown to your trainer.`;
-    }
     fetch(url, {
       method: 'POST',
       credentials: 'same-origin',
@@ -678,7 +674,7 @@
       }),
     }).then(r => r.json()).then(result => {
       if (result && result.terminate && window.__mockEnd) {
-        window.__mockEnd('Session ended automatically: too many suspicious activities were flagged.');
+        window.__mockEnd('This session has ended. Your trainer will review it.');
       }
     }).catch(() => {});
   };
