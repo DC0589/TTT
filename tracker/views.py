@@ -410,6 +410,11 @@ def admin_hr_user_add(request):
 def hr_students(request):
     search = request.GET.get("q", "").strip()[:100]
     students = User.objects.filter(is_student=True, created_by=request.user)
+    if request.user.created_by_id:
+        students = User.objects.filter(is_student=True).filter(
+            Q(created_by=request.user)
+            | Q(memberships__group__admin=request.user.created_by)
+        ).distinct()
     if search:
         students = students.filter(
             Q(username__icontains=search) | Q(email__icontains=search)
@@ -813,19 +818,21 @@ def admin_student_detail(request, pk):
     })
 
 
-@admin_required
+@staff_required
 @require_GET
 def admin_groups(request):
     view_mode = request.GET.get("view", "cards")
     if view_mode not in {"cards", "table", "list"}:
         view_mode = "cards"
-    groups = request.user.groups_created.annotate(
+    owner = request.user.created_by if request.user.is_hr else request.user
+    groups = Group.objects.filter(admin=owner).annotate(
         member_count=Count("memberships", distinct=True),
         interview_count=Count("interviews", distinct=True),
     ).order_by("name")
     return render(request, "tracker/admin/groups.html", {
         "groups": groups,
         "view_mode": view_mode,
+        "can_manage": request.user.is_admin,
     })
 
 
@@ -861,17 +868,20 @@ def admin_group_edit(request, pk):
     })
 
 
-@admin_required
+@staff_required
 @require_GET
 def admin_group_detail(request, pk):
-    group = get_object_or_404(Group, pk=pk, admin=request.user)
+    owner = request.user.created_by if request.user.is_hr else request.user
+    group = get_object_or_404(Group, pk=pk, admin=owner)
     return render(request, "tracker/admin/group_detail.html", {
         "group": group,
         "memberships": group.memberships.select_related("student"),
         "interviews": Interview.objects.filter(
             student__memberships__group=group,
-            group__admin=request.user,
-        ).select_related("student", "group", "status").prefetch_related("rounds")})
+            group__admin=owner,
+        ).select_related("student", "group", "status").prefetch_related("rounds"),
+        "can_manage": request.user.is_admin,
+    })
 
 
 @admin_required

@@ -663,9 +663,19 @@ class PermissionTests(Base):
         self.client.force_login(hr)
         for name in (
             "admin_dashboard", "admin_mock_interviews", "admin_reports",
-            "admin_groups", "admin_hr_user_add",
+            "admin_hr_user_add",
         ):
             self.assertEqual(self.client.get(reverse(name)).status_code, 403, name)
+        self.assertEqual(self.client.get(reverse("admin_groups")).status_code, 200)
+        self.assertEqual(
+            self.client.get(reverse("admin_group_detail", args=[self.group.pk])).status_code,
+            200,
+        )
+        self.assertEqual(self.client.get(reverse("admin_group_add")).status_code, 403)
+        self.assertEqual(
+            self.client.get(reverse("admin_group_edit", args=[self.group.pk])).status_code,
+            403,
+        )
         request = RequestFactory().get(reverse("hr_students"))
         request.user = hr
         with patch("tracker.views.render") as mock_render:
@@ -814,6 +824,9 @@ class ViewTests(Base):
         self.assertTrue(student.is_student)
         self.assertEqual(student.created_by, hr)
 
+        other_admin = User.objects.create_user("batch-owner", is_admin=True)
+        other_group = Group.objects.create(name="Private batch", admin=other_admin)
+        GroupMembership.objects.create(group=other_group, student=self.bob)
         request = RequestFactory().get(reverse("hr_students"))
         request.user = hr
         with patch("tracker.views.render") as mock_render:
@@ -821,7 +834,21 @@ class ViewTests(Base):
 
             hr_students(request)
         visible_students = list(mock_render.call_args.args[2]["students"])
-        self.assertEqual(visible_students, [student])
+        self.assertEqual(set(visible_students), {self.alice, self.bob, student})
+
+        batch_request = RequestFactory().get(reverse("admin_groups"))
+        batch_request.user = hr
+        with patch("tracker.views.render") as mock_render:
+            from .views import admin_groups
+
+            admin_groups(batch_request)
+        visible_batches = list(mock_render.call_args.args[2]["groups"])
+        self.assertEqual(visible_batches, [self.group])
+        self.assertFalse(mock_render.call_args.args[2]["can_manage"])
+        self.assertEqual(
+            self.client.get(reverse("admin_group_detail", args=[other_group.pk])).status_code,
+            404,
+        )
 
         admin_request = RequestFactory().get(reverse("admin_students"))
         admin_request.user = self.admin

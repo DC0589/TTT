@@ -9,7 +9,7 @@
     <tbody>
       {% for iv in interviews %}
       <tr>
-        {% if show_student %}<td><span class="table-student"><span class="avatar avatar-tiny">{{ iv.student.username|slice:":1"|upper }}</span><a href="{% url 'admin_student_detail' iv.student.pk %}">{{ iv.student.username }}</a></span></td>{% endif %}
+        {% if show_student %}<td><span class="table-student"><span class="avatar avatar-tiny">{{ iv.student.username|slice:":1"|upper }}</span>{% if user.is_admin %}<a href="{% url 'admin_student_detail' iv.student.pk %}">{{ iv.student.username }}</a>{% else %}{{ iv.student.username }}{% endif %}</span></td>{% endif %}
         {% if show_group %}<td>{{ iv.group.name }}</td>{% endif %}
         <td class="company-cell">{% if link %}<a href="{% url 'student_interview_detail' iv.pk %}">{{ iv.company_name }} <span aria-hidden="true">↗</span></a>{% elif admin_link %}<a href="{% url 'admin_interview_detail' iv.pk %}">{{ iv.company_name }} <span aria-hidden="true">↗</span></a>{% else %}{{ iv.company_name }}{% endif %}</td>
         <td>{{ iv.role }}</td>

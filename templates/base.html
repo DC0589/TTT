@@ -63,6 +63,10 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20v-1.4a5.5 5.5 0 0 1 11 0V20zM16 5.2a3.2 3.2 0 0 1 0 6.2M17 14a4.7 4.7 0 0 1 3.5 4.5"/></svg>
         <span>Students</span>
       </a>
+      <a class="nav-link{% if request.resolver_match.url_name == 'admin_groups' or request.resolver_match.url_name == 'admin_group_detail' %} is-active{% endif %}" href="{% url 'admin_groups' %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5v-1.2a5.5 5.5 0 0 1 11 0v1.2zM16 5.2a3.2 3.2 0 0 1 0 6.2M17 14a4.7 4.7 0 0 1 3.5 4.5v1"/></svg>
+        <span>Batches</span>
+      </a>
       {% else %}
       <a class="nav-link{% if request.resolver_match.url_name == 'student_courses' %} is-active{% endif %}" href="{% url 'student_courses' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21zM4 5.5v13M8 7h8M8 11h8"/></svg>

@@ -3,7 +3,7 @@
 {% block content %}
 <section class="page-heading">
   <div><p class="eyebrow">YOUR COMMUNITY</p><h1>Batches</h1><p>Bring students together and keep their progress moving.</p></div>
-  <a class="button button-primary" href="{% url 'admin_group_add' %}"><span class="button-plus" aria-hidden="true">+</span> Create batch</a>
+  {% if can_manage %}<a class="button button-primary" href="{% url 'admin_group_add' %}"><span class="button-plus" aria-hidden="true">+</span> Create batch</a>{% endif %}
 </section>
 <section class="directory-toolbar">
   <div class="directory-toolbar-meta">
@@ -56,9 +56,9 @@
   {% endif %}
 {% else %}
 <div class="directory-empty-state">
-  <span class="empty-icon">✦</span><h2>Your first batch starts here.</h2>
-  <p>Create a batch to organize students and follow their interview journeys.</p>
-  <a class="button button-primary" href="{% url 'admin_group_add' %}">Create your first batch</a>
+  <span class="empty-icon">✦</span><h2>{% if can_manage %}Your first batch starts here.{% else %}No batches to show yet.{% endif %}</h2>
+  <p>{% if can_manage %}Create a batch to organize students and follow their interview journeys.{% else %}Batches created by your administrator will appear here.{% endif %}</p>
+  {% if can_manage %}<a class="button button-primary" href="{% url 'admin_group_add' %}">Create your first batch</a>{% endif %}
 </div>
 {% endif %}
 {% endblock %}

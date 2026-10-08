@@ -4,33 +4,33 @@
 <div class="breadcrumb"><a href="{% url 'admin_groups' %}">Batches</a><span aria-hidden="true">/</span><span>{{ group.name }}</span></div>
 <section class="page-heading group-detail-heading">
   <div><p class="eyebrow">BATCH DETAILS</p><h1>{{ group.name }}</h1><p>{{ group.description|default:"A place to learn, prepare and grow together." }}</p></div>
-  <div class="group-detail-actions">
+  {% if can_manage %}<div class="group-detail-actions">
     <a class="button button-quiet" href="{% url 'admin_group_edit' group.pk %}">Edit batch</a>
     <form method="post" action="{% url 'group_delete' group.pk %}" data-confirm="Delete this batch and its interviews? This cannot be undone.">{% csrf_token %}
       <button class="button button-danger-outline" type="submit">Delete batch</button>
     </form>
-  </div>
+  </div>{% endif %}
 </section>
 <div class="detail-summary">
   <div><span class="summary-icon" aria-hidden="true">◎</span><span><strong>{{ memberships|length }}</strong><small>Members</small></span></div>
   <div><span class="summary-icon summary-icon-alt" aria-hidden="true">▤</span><span><strong>{{ interviews|length }}</strong><small>Interviews tracked</small></span></div>
 </div>
 <section class="content-section">
-  <div class="section-heading"><div><p class="eyebrow">YOUR COMMUNITY</p><h2>Batch members</h2></div><a class="button button-primary" href="{% url 'admin_group_member_add' group.pk %}"><span class="button-plus" aria-hidden="true">+</span> Add student</a></div>
+  <div class="section-heading"><div><p class="eyebrow">YOUR COMMUNITY</p><h2>Batch members</h2></div>{% if can_manage %}<a class="button button-primary" href="{% url 'admin_group_member_add' group.pk %}"><span class="button-plus" aria-hidden="true">+</span> Add student</a>{% endif %}</div>
   <div class="panel member-list">
       {% for m in memberships %}
       <div class="student-row">
         <span class="avatar avatar-small">{{ m.student.username|slice:":1"|upper }}</span>
-        <span class="student-copy"><strong><a href="{% url 'admin_student_detail' m.student.pk %}">{{ m.student.username }}</a></strong><small>Joined {{ m.joined_at|date:"d M Y" }}</small></span>
-        <form method="post" action="{% url 'member_remove' group.pk m.student.pk %}" data-confirm="Remove {{ m.student.username }} from this batch?">{% csrf_token %}
+        <span class="student-copy"><strong>{% if can_manage %}<a href="{% url 'admin_student_detail' m.student.pk %}">{{ m.student.username }}</a>{% else %}{{ m.student.username }}{% endif %}</strong><small>Joined {{ m.joined_at|date:"d M Y" }}</small></span>
+        {% if can_manage %}<form method="post" action="{% url 'member_remove' group.pk m.student.pk %}" data-confirm="Remove {{ m.student.username }} from this batch?">{% csrf_token %}
           <button class="text-button text-danger" type="submit">Remove</button>
-        </form>
+        </form>{% endif %}
       </div>
       {% empty %}<div class="empty-state empty-compact"><span class="empty-icon">◎</span><p>No students in this batch yet. Add someone to get things moving.</p></div>{% endfor %}
   </div>
 </section>
 <section class="content-section">
   <div class="section-heading"><div><p class="eyebrow">STUDENT PROGRESS</p><h2>Interviews</h2></div><span class="section-meta">{{ interviews|length }} total</span></div>
-  {% include "tracker/_interview_table.html" with show_student=True show_group=True %}
+  {% include "tracker/_interview_table.html" with show_student=True show_group=True admin_link=can_manage %}
 </section>
 {% endblock %}
