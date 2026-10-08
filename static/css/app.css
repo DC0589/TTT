@@ -879,4 +879,5 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
 .directory-pagination{border-radius:10px;font-size:12px}
 .directory-empty{border-radius:12px}
 
-@media(max-width:800px){.dir-summary{grid-template-columns:repeat(2,1fr)}.dir-summary>div:nth-child(3){border-left:0}.dir-summary>div:nth-child(n+3){border-top:1px solid var(--hair)}}
+@media(max-width:800px){.dir-summary{grid-template-columns:repeat(2,1fr)}.dir-summary>div:nth-child(3){border-left:0}.dir-summary>div:nth-child(n+3){border-top:1px solid var(--hair)}}.nav-badge { margin-left: auto; min-width: 20px; padding: 1px 7px; color: #fff; background: #e5484d; border-radius: 999px; font-size: 11px; font-weight: 700; text-align: center; }
+.nav-badge[hidden] { display: none; }

@@ -610,3 +610,31 @@
     setStatus(setupStatus, '');
   });
 })();
+
+(function () {
+  var url = window.SIGNUP_POLL_URL;
+  if (!url) return;
+  var baseTitle = document.title.replace(/^\(\d+\)\s*/, '');
+  var badge = document.querySelector('[data-signup-badge]');
+  var last = null;
+  function render(count) {
+    document.title = (count > 0 ? '(' + count + ') ' : '') + baseTitle;
+    if (badge) { badge.textContent = count; badge.hidden = count <= 0; }
+  }
+  function poll() {
+    fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d) return;
+        if (last !== null && d.count > last && 'Notification' in window && Notification.permission === 'granted') {
+          new Notification('New sign-up request', { body: d.count + ' request(s) awaiting approval' });
+        }
+        last = d.count;
+        render(d.count);
+      })
+      .catch(function () {});
+  }
+  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+  poll();
+  setInterval(poll, 20000);
+})();

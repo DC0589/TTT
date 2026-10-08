@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=3">
 </head>
 <body class="{% if user.is_authenticated %}app-body{% else %}auth-body{% endif %}">
 {% if user.is_authenticated %}
@@ -53,6 +53,7 @@
       <a class="nav-link{% if request.resolver_match.url_name == 'admin_registrations' %} is-active{% endif %}" href="{% url 'admin_registrations' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 7l8 6 8-6"/><path d="m15.5 16 2 2 3.5-4"/></svg>
         <span>Sign-up requests</span>
+        <span class="nav-badge" data-signup-badge hidden></span>
       </a>
       <a class="nav-link{% if request.resolver_match.url_name == 'admin_hr_user_add' %} is-active{% endif %}" href="{% url 'admin_hr_user_add' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20v-1.4a5.5 5.5 0 0 1 11 0V20zM17 8h5M19.5 5.5v5"/></svg>
@@ -175,7 +176,8 @@
     if (mainContent) mainContent.scrollTop = 0;
   });
 </script>
-<script src="{% static 'js/app.js' %}?v=2" defer></script>
+{% if user.is_authenticated and user.is_admin %}<script>window.SIGNUP_POLL_URL="{% url 'registrations_pending_count' %}";</script>{% endif %}
+<script src="{% static 'js/app.js' %}?v=3" defer></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

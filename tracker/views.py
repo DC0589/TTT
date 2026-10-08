@@ -631,6 +631,14 @@ def admin_interview_detail(request, pk):
 
 
 @admin_required
+def registrations_pending_count(request):
+    count = StudentRegistrationRequest.objects.filter(
+        status=StudentRegistrationRequest.AWAITING_APPROVAL
+    ).count()
+    return JsonResponse({"count": count})
+
+
+@admin_required
 def admin_registrations(request):
     registrations = Paginator(
         StudentRegistrationRequest.objects.filter(
