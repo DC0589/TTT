@@ -933,6 +933,8 @@ def admin_student_detail(request, pk):
         "memberships": student.memberships.filter(
             group__admin=request.user).select_related("group"),
         "interviews": interviews,
+        "progress": _mock_progress(student),
+        "mock_sessions": student.mock_interview_sessions.order_by("-created_at")[:15],
     })
 
 

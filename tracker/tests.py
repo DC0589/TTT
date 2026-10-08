@@ -1521,3 +1521,15 @@ class CsrfLogoutTests(TestCase):
         response = client.post("/logout/")
         self.assertRedirects(response, "/login/", fetch_redirect_response=False)
         self.assertNotIn("_auth_user_id", client.session)
+
+
+class AdminStudentProgressTests(TestCase):
+    def test_admin_sees_mock_progress(self):
+        admin = User.objects.create_user("adm9", password="pw", is_admin=True)
+        student = User.objects.create_user("stu9", password="pw", is_student=True, created_by=admin)
+        MockInterviewSession.objects.create(student=student, role="Python", rating=4, difficulty="easy")
+        self.client.login(username="adm9", password="pw")
+        response = self.client.get(f"/admin/students/{student.pk}/")
+        self.assertContains(response, "Mock interview progress")
+        self.assertContains(response, "By topic")
+        self.assertContains(response, "Python")
