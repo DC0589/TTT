@@ -16,7 +16,7 @@
   <div><span class="summary-icon summary-icon-alt" aria-hidden="true">▤</span><span><strong>{{ interviews|length }}</strong><small>Interviews tracked</small></span></div>
 </div>
 <section class="content-section">
-  <div class="section-heading"><div><p class="eyebrow">YOUR COMMUNITY</p><h2>Batch members</h2></div>{% if can_manage %}<a class="button button-primary" href="{% url 'admin_group_member_add' group.pk %}"><span class="button-plus" aria-hidden="true">+</span> Add student</a>{% endif %}</div>
+  <div class="section-heading"><div><p class="eyebrow">YOUR COMMUNITY</p><h2>Batch members</h2></div>{% if can_add %}<a class="button button-primary" href="{% url 'admin_group_member_add' group.pk %}"><span class="button-plus" aria-hidden="true">+</span> Add student</a>{% endif %}</div>
   <div class="panel member-list">
       {% for m in memberships %}
       <div class="student-row">

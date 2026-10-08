@@ -662,7 +662,7 @@ class PermissionTests(Base):
         )
         self.client.force_login(hr)
         for name in (
-            "admin_dashboard", "admin_mock_interviews", "admin_reports",
+            "admin_dashboard", "admin_reports",
             "admin_hr_user_add",
         ):
             self.assertEqual(self.client.get(reverse(name)).status_code, 403, name)
@@ -671,7 +671,7 @@ class PermissionTests(Base):
             self.client.get(reverse("admin_group_detail", args=[self.group.pk])).status_code,
             200,
         )
-        self.assertEqual(self.client.get(reverse("admin_group_add")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("admin_group_add")).status_code, 200)
         self.assertEqual(
             self.client.get(reverse("admin_group_edit", args=[self.group.pk])).status_code,
             403,

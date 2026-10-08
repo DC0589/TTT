@@ -836,15 +836,16 @@ def admin_groups(request):
         "groups": groups,
         "view_mode": view_mode,
         "can_manage": request.user.is_admin,
+        "can_add": True,
     })
 
 
-@admin_required
+@staff_required
 def admin_group_add(request):
     form = GroupForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         group = form.save(commit=False)
-        group.admin = request.user
+        group.admin = request.user.created_by if request.user.is_hr else request.user
         group.save()
         messages.success(request, "Batch created.")
         return redirect("admin_group_detail", pk=group.pk)
@@ -884,12 +885,14 @@ def admin_group_detail(request, pk):
             group__admin=owner,
         ).select_related("student", "group", "status").prefetch_related("rounds"),
         "can_manage": request.user.is_admin,
+        "can_add": True,
     })
 
 
-@admin_required
+@staff_required
 def admin_group_member_add(request, pk):
-    group = get_object_or_404(Group, pk=pk, admin=request.user)
+    owner = request.user.created_by if request.user.is_hr else request.user
+    group = get_object_or_404(Group, pk=pk, admin=owner)
     form = AddMemberForm(request.POST or None, group=group)
     if request.method == "POST" and form.is_valid():
         form.save()
