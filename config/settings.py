@@ -104,3 +104,5 @@ if EMAIL_HOST.lower() in {"smtp.gmail.com", "smtp.googlemail.com"}:
 if not DEBUG:
     SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+CSRF_FAILURE_VIEW = "tracker.views.csrf_failure"

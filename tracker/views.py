@@ -1142,6 +1142,18 @@ def student_dashboard(request):
     })
 
 
+def csrf_failure(request, reason=""):
+    from django.contrib.auth import logout
+    from django.views.csrf import csrf_failure as default_failure
+    # A stale token (e.g. after signing in from another tab) must not trap a user on logout.
+    if request.path == reverse("logout"):
+        logout(request)
+        return redirect("login")
+    if request.method == "POST" and not request.user.is_authenticated:
+        return redirect("login")
+    return default_failure(request, reason)
+
+
 @require_GET
 def cron_purge_mock_data(request):
     secret = settings.CRON_SECRET

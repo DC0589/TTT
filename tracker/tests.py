@@ -11,7 +11,7 @@ from django.core import mail
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import IntegrityError, transaction
-from django.test import RequestFactory, TestCase, override_settings
+from django.test import Client, RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -1511,3 +1511,13 @@ class RetentionTests(TestCase):
             self.assertEqual(self.client.get("/cron/purge-mock-data/").status_code, 403)
             ok = self.client.get("/cron/purge-mock-data/", HTTP_AUTHORIZATION="Bearer s3")
             self.assertEqual(ok.json()["purged"], 1)
+
+
+class CsrfLogoutTests(TestCase):
+    def test_stale_token_logout_still_logs_out(self):
+        User.objects.create_user("csrfu", password="pw", is_student=True)
+        client = Client(enforce_csrf_checks=True)
+        client.login(username="csrfu", password="pw")
+        response = client.post("/logout/")
+        self.assertRedirects(response, "/login/", fetch_redirect_response=False)
+        self.assertNotIn("_auth_user_id", client.session)
