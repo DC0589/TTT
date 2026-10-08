@@ -1122,6 +1122,12 @@ def student_mock_interview_ai(request):
             f"{DIFFICULTY_GUIDE[difficulty]} Every question must match this difficulty level. "
             f"Exactly {MOCK_CODING_QUESTION_COUNT} of them must be hands-on coding questions that "
             "the candidate answers by writing code; the rest are spoken questions. "
+            "Coding questions must test logic implementation: problem solving with loops, "
+            "conditions, string/list/dictionary manipulation, algorithms, pattern printing, "
+            "step-by-step data transformation, or SQL queries built from clear business logic. "
+            "Do not ask for memorised syntax, library trivia or setup/configuration code. Each "
+            "must be solvable with plain language features (and small sample data) in a few "
+            "minutes, with a clearly stated input and expected output. "
         )
         if focus_areas:
             prompt += f"Draw from these focus areas for this session: {', '.join(focus_areas)}. "
