@@ -162,6 +162,7 @@ class Interview(models.Model):
     hr_name = models.CharField(max_length=150, blank=True)
     hr_contact_number = models.CharField(max_length=30, blank=True)
     hr_email = models.EmailField(blank=True)
+    prep_notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -199,6 +200,7 @@ class InterviewRound(models.Model):
     round_number = models.PositiveIntegerField()
     description = models.CharField(max_length=255)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=PENDING)
+    scheduled_date = models.DateField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

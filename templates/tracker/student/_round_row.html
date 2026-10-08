@@ -1,8 +1,10 @@
 <li class="round-row" data-round>
   <span class="round-index">{{ r.round_number|stringformat:"02d" }}</span>
-  <span class="round-copy"><strong>{{ r.description }}</strong><small>Interview round {{ r.round_number }}</small></span>
+  <span class="round-copy"><strong>{{ r.description }}</strong><small>Interview round {{ r.round_number }}{% if r.scheduled_date %} · {{ r.scheduled_date|date:"d M Y" }}{% endif %}</small></span>
   <span class="status-badge {{ r.badge }}">{{ r.get_status_display }}</span>
   {% if editable %}
+  <label class="visually-hidden" for="round-date-{{ r.pk }}">Date for {{ r.description }}</label>
+  <input id="round-date-{{ r.pk }}" type="date" class="form-control round-date" value="{{ r.scheduled_date|date:'Y-m-d' }}" data-url="{% url 'round_schedule' r.pk %}">
   <label class="visually-hidden" for="round-status-{{ r.pk }}">Update status for {{ r.description }}</label>
   <select id="round-status-{{ r.pk }}" data-previous-value="{{ r.status }}" data-url="{% url 'round_update' r.pk %}" class="form-control round-status">
     {% for val, label in round_choices %}<option value="{{ val }}" {% if val == r.status %}selected{% endif %}>{{ label }}</option>{% endfor %}

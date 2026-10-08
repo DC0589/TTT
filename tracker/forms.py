@@ -219,15 +219,19 @@ class InterviewForm(Styled, forms.ModelForm):
         model = Interview
         fields = (
             "group", "company_name", "role", "job_posting_url", "date_of_interview",
-            "hr_name", "hr_contact_number", "hr_email",
+            "hr_name", "hr_contact_number", "hr_email", "prep_notes",
         )
-        widgets = {"date_of_interview": forms.DateInput(attrs={"type": "date"})}
+        widgets = {
+            "date_of_interview": forms.DateInput(attrs={"type": "date"}),
+            "prep_notes": forms.Textarea(attrs={"rows": 4}),
+        }
         labels = {
             "group": "Batch",
             "hr_name": "HR contact name",
             "hr_contact_number": "HR contact number",
             "hr_email": "HR email address",
             "job_posting_url": "Job posting URL",
+            "prep_notes": "Preparation notes",
         }
         help_texts = {"hr_email": "Enter the HR contact’s email address."}
 
@@ -240,13 +244,26 @@ class InterviewForm(Styled, forms.ModelForm):
 class RoundForm(Styled, forms.ModelForm):
     class Meta:
         model = InterviewRound
-        fields = ("description",)
+        fields = ("description", "scheduled_date")
+        widgets = {"scheduled_date": forms.DateInput(attrs={"type": "date"})}
 
     def clean_description(self):
         d = self.cleaned_data["description"].strip()
         if not d:
             raise forms.ValidationError("Describe the round.")
         return d
+
+
+class RoundScheduleForm(forms.ModelForm):
+    class Meta:
+        model = InterviewRound
+        fields = ("scheduled_date",)
+
+
+class InterviewNotesForm(forms.ModelForm):
+    class Meta:
+        model = Interview
+        fields = ("prep_notes",)
 
 
 class RoundStatusForm(forms.ModelForm):

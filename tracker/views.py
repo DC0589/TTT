@@ -8,7 +8,8 @@ import json
 import logging
 import re
 import secrets
-from datetime import timedelta
+import calendar as pycalendar
+from datetime import date, timedelta
 from decimal import Decimal
 from smtplib import SMTPException
 
@@ -31,8 +32,9 @@ from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from .forms import (
-    AddMemberForm, FinalStatusForm, GroupForm, HRUserForm, InterviewForm, LearningCourseForm,
-    MockQuestionForm, RegistrationOTPForm, RoundForm, RoundStatusForm, StudentForm,
+    AddMemberForm, FinalStatusForm, GroupForm, HRUserForm, InterviewForm, InterviewNotesForm,
+    LearningCourseForm, MockQuestionForm, RegistrationOTPForm, RoundForm, RoundScheduleForm,
+    RoundStatusForm, StudentForm,
     StudentRegistrationForm,
 )
 from .mock_bank import DIFFICULTY_GUIDE, normalise_difficulty, pick_seed_questions
@@ -1040,12 +1042,97 @@ def _own_interview(request, pk):
     return get_object_or_404(Interview.objects.select_related("group"), pk=pk, student=request.user)
 
 
+def _schedule_events(user, start, end):
+    events = []
+    for iv in user.interviews.filter(date_of_interview__range=(start, end)).select_related("group"):
+        events.append({
+            "date": iv.date_of_interview, "kind": "interview",
+            "title": f"{iv.company_name} interview", "detail": iv.role,
+            "url": reverse("student_interview_detail", args=[iv.pk]),
+        })
+    rounds = InterviewRound.objects.filter(
+        interview__student=user, scheduled_date__range=(start, end),
+    ).select_related("interview")
+    for rnd in rounds:
+        events.append({
+            "date": rnd.scheduled_date, "kind": "round",
+            "title": f"{rnd.interview.company_name}: {rnd.description}",
+            "detail": f"Round {rnd.round_number} - {rnd.get_status_display()}",
+            "url": reverse("student_interview_detail", args=[rnd.interview_id]),
+            "done": rnd.status != InterviewRound.PENDING,
+        })
+    events.sort(key=lambda e: (e["date"], e["title"]))
+    return events
+
+
+def _reminders(user, days=7):
+    today = timezone.localdate()
+    items = []
+    for event in _schedule_events(user, today, today + timedelta(days=days)):
+        if event.get("done"):
+            continue
+        delta = (event["date"] - today).days
+        event["when"] = "Today" if delta == 0 else "Tomorrow" if delta == 1 else f"In {delta} days"
+        event["urgent"] = delta <= 1
+        items.append(event)
+    return items
+
+
+@student_required
+@require_GET
+def student_calendar(request):
+    today = timezone.localdate()
+    try:
+        year, month = (int(part) for part in request.GET.get("month", "").split("-"))
+        first = date(year, month, 1)
+    except (ValueError, TypeError):
+        first = today.replace(day=1)
+    weeks = pycalendar.Calendar(firstweekday=0).monthdatescalendar(first.year, first.month)
+    events = _schedule_events(request.user, weeks[0][0], weeks[-1][-1])
+    by_day = {}
+    for event in events:
+        by_day.setdefault(event["date"], []).append(event)
+    grid = [[{"date": day, "in_month": day.month == first.month, "today": day == today,
+              "events": by_day.get(day, [])} for day in week] for week in weeks]
+    previous_month = (first - timedelta(days=1)).replace(day=1)
+    next_month = (first + timedelta(days=32)).replace(day=1)
+    return render(request, "tracker/student/calendar.html", {
+        "grid": grid, "month_label": first.strftime("%B %Y"),
+        "prev_month": previous_month.strftime("%Y-%m"), "next_month": next_month.strftime("%Y-%m"),
+        "reminders": _reminders(request.user, 14),
+        "active_tab": "calendar",
+    })
+
+
+@student_required
+@require_POST
+def interview_notes(request, pk):
+    iv = _own_interview(request, pk)
+    form = InterviewNotesForm(request.POST, instance=iv)
+    if form.is_valid():
+        form.save()
+        messages.success(request, "Preparation notes saved.")
+    return redirect("student_interview_detail", pk=iv.pk)
+
+
+@student_required
+@require_POST
+def round_schedule(request, pk):
+    rnd = get_object_or_404(InterviewRound, pk=pk, interview__student=request.user)
+    form = RoundScheduleForm(request.POST, instance=rnd)
+    if not form.is_valid():
+        return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
+    form.save()
+    return JsonResponse({"scheduled_date": rnd.scheduled_date.isoformat() if rnd.scheduled_date else ""})
+
+
 @student_required
 def student_dashboard(request):
     interviews = request.user.interviews.select_related("group", "status").prefetch_related("rounds")
     return render(request, "tracker/student/dashboard.html", {
         "groups": request.user.student_groups.all(), "interviews": interviews[:5],
         "active_tab": "overview",
+        "reminders": _reminders(request.user),
         "total": interviews.count(),
         "selected": interviews.filter(status__final_status="selected").count(),
         "in_progress": interviews.filter(status__isnull=True).count(),
@@ -1615,7 +1702,8 @@ def round_add(request, pk):
     with transaction.atomic():
         nxt = (iv.rounds.aggregate(m=Max("round_number"))["m"] or 0) + 1
         rnd = InterviewRound.objects.create(
-            interview=iv, round_number=nxt, description=form.cleaned_data["description"])
+            interview=iv, round_number=nxt, description=form.cleaned_data["description"],
+            scheduled_date=form.cleaned_data.get("scheduled_date"))
         InterviewStatus.objects.filter(interview=iv).delete()  # new round reopens the interview
     html = render_to_string("tracker/student/_round_row.html", {
         "r": rnd,

@@ -1438,3 +1438,45 @@ class MockLiteModeTests(TestCase):
 
     def test_empty_text_is_rejected(self):
         self.assertEqual(self.post(text="  ", lite=True).status_code, 400)
+
+
+class PrepTrackerTests(TestCase):
+    def setUp(self):
+        from tracker.models import Group, GroupMembership, Interview, InterviewRound
+        self.student = User.objects.create_user("prep", password="pw12345!", is_student=True)
+        admin = User.objects.create_user("prepadmin", password="pw12345!", is_admin=True)
+        group = Group.objects.create(name="B1", admin=admin)
+        GroupMembership.objects.create(group=group, student=self.student)
+        today = timezone.localdate()
+        self.iv = Interview.objects.create(
+            student=self.student, group=group, company_name="Acme", role="Dev",
+            date_of_interview=today + timedelta(days=1))
+        self.rnd = InterviewRound.objects.create(
+            interview=self.iv, round_number=1, description="Technical",
+            scheduled_date=today + timedelta(days=2))
+        self.client.force_login(self.student)
+
+    def test_notes_are_saved(self):
+        response = self.client.post(reverse("interview_notes", args=[self.iv.pk]), {"prep_notes": "Revise SQL"})
+        self.assertEqual(response.status_code, 302)
+        self.iv.refresh_from_db()
+        self.assertEqual(self.iv.prep_notes, "Revise SQL")
+
+    def test_round_date_can_be_changed_but_not_by_others(self):
+        url = reverse("round_schedule", args=[self.rnd.pk])
+        self.assertEqual(self.client.post(url, {"scheduled_date": "2030-01-05"}).status_code, 200)
+        self.rnd.refresh_from_db()
+        self.assertEqual(str(self.rnd.scheduled_date), "2030-01-05")
+        other = User.objects.create_user("other", password="pw12345!", is_student=True)
+        self.client.force_login(other)
+        self.assertEqual(self.client.post(url, {"scheduled_date": "2030-02-01"}).status_code, 404)
+
+    def test_reminders_and_calendar(self):
+        from tracker.views import _reminders
+        items = _reminders(self.student)
+        self.assertEqual([i["when"] for i in items], ["Tomorrow", "In 2 days"])
+        response = self.client.get(reverse("student_calendar"))
+        self.assertContains(response, "Acme interview")
+        self.assertContains(response, "Acme: Technical")
+        self.assertEqual(self.client.get(reverse("student_calendar") + "?month=bad").status_code, 200)
+        self.assertContains(self.client.get(reverse("student_dashboard")), "Coming up this week")

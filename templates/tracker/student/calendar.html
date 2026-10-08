@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Calendar{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">YOUR SCHEDULE</p><h1>Interview calendar</h1><p>Interview dates and scheduled rounds in one place. Add a date to a round from its interview page to see it here.</p></div>
+</section>
+{% if reminders %}
+<section class="panel reminder-panel">
+  <div class="section-heading"><div><p class="eyebrow">REMINDERS</p><h2>Next 14 days</h2></div></div>
+  <ul class="reminder-list">
+    {% for item in reminders %}<li class="reminder-item{% if item.urgent %} is-urgent{% endif %}"><span class="reminder-when">{{ item.when }}</span><a href="{{ item.url }}"><strong>{{ item.title }}</strong><small>{{ item.date|date:"D, d M" }} · {{ item.detail }}</small></a></li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+<section class="panel calendar-panel">
+  <div class="calendar-nav">
+    <a class="button button-quiet" href="?month={{ prev_month }}">&larr; Prev</a>
+    <h2>{{ month_label }}</h2>
+    <a class="button button-quiet" href="?month={{ next_month }}">Next &rarr;</a>
+  </div>
+  <div class="calendar-grid" role="grid">
+    <div class="calendar-head">Mon</div><div class="calendar-head">Tue</div><div class="calendar-head">Wed</div><div class="calendar-head">Thu</div><div class="calendar-head">Fri</div><div class="calendar-head">Sat</div><div class="calendar-head">Sun</div>
+    {% for week in grid %}{% for day in week %}
+    <div class="calendar-day{% if not day.in_month %} is-outside{% endif %}{% if day.today %} is-today{% endif %}">
+      <span class="calendar-date">{{ day.date.day }}</span>
+      {% for event in day.events %}<a class="calendar-event calendar-event-{{ event.kind }}{% if event.done %} is-done{% endif %}" href="{{ event.url }}" title="{{ event.title }} - {{ event.detail }}">{{ event.title }}</a>{% endfor %}
+    </div>
+    {% endfor %}{% endfor %}
+  </div>
+</section>
+{% endblock %}

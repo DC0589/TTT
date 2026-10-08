@@ -26,6 +26,14 @@
     <div><span class="hr-detail-label">Job posting</span>{% if iv.job_posting_url %}<a href="{{ iv.job_posting_url }}" target="_blank" rel="noopener noreferrer">Open job posting ↗</a>{% else %}<strong>Not provided</strong>{% endif %}</div>
   </div>
 </section>
+<section class="panel prep-notes-panel">
+  <div class="panel-heading"><div><p class="eyebrow">PREPARATION</p><h2>Notes for {{ iv.company_name }}</h2><p>Topics to revise, questions asked, things to ask the recruiter.</p></div></div>
+  <form method="post" action="{% url 'interview_notes' iv.pk %}" class="stack-form">{% csrf_token %}
+    <label class="visually-hidden" for="prep-notes">Preparation notes</label>
+    <textarea id="prep-notes" name="prep_notes" rows="5" class="form-control" placeholder="Write your notes here...">{{ iv.prep_notes }}</textarea>
+    <div><button class="button button-primary" type="submit">Save notes</button></div>
+  </form>
+</section>
 <div class="interview-detail-grid{% if not editable %} interview-detail-readonly{% endif %}">
   <section class="panel rounds-panel">
     <div class="section-heading section-heading-panel"><div><p class="eyebrow">YOUR PROGRESS</p><h2>Interview rounds</h2></div><span class="round-progress">{{ iv.progress }}</span></div>
@@ -38,6 +46,8 @@
       {% if edit_mode %}<input type="hidden" name="edit_mode" value="1">{% endif %}
       <label class="visually-hidden" for="round-description">Round description</label>
       <input id="round-description" name="description" maxlength="255" required placeholder="e.g. Technical interview" class="form-control">
+      <label class="visually-hidden" for="round-scheduled">Round date (optional)</label>
+      <input id="round-scheduled" name="scheduled_date" type="date" class="form-control" title="Round date (optional, used for reminders)">
       <button class="button button-primary" type="submit"><span class="button-plus" aria-hidden="true">+</span> Add round</button>
       <p id="round-error" class="form-feedback is-hidden" role="alert"></p>
     </form>
@@ -102,6 +112,7 @@
       document.getElementById('rounds').insertAdjacentHTML('beforeend', data.html);
       document.getElementById('rounds-empty').classList.add('is-hidden');
       document.getElementById('round-description').value = '';
+      document.getElementById('round-scheduled').value = '';
       updateResultBadge('In progress', 'in-progress');
       const finalStatus = document.querySelector('[name=final_status]');
       if (finalStatus) finalStatus.value = '';
@@ -111,6 +122,19 @@
   });
 
   document.getElementById('rounds').addEventListener('change', async event => {
+    const dateInput = event.target;
+    if (dateInput.classList.contains('round-date')) {
+      statusError.classList.add('is-hidden');
+      try {
+        const body = new FormData();
+        body.append('scheduled_date', dateInput.value);
+        const response = await fetch(dateInput.dataset.url, {method: 'POST', headers: {'X-CSRFToken': csrf}, body});
+        if (!response.ok) showError(statusError, 'Enter a valid date.');
+      } catch {
+        showError(statusError, 'We couldn’t save this date. Try again.');
+      }
+      return;
+    }
     const select = event.target;
     if (!select.classList.contains('round-status')) return;
     statusError.classList.add('is-hidden');
