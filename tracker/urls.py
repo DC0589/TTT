@@ -69,6 +69,7 @@ urlpatterns = [
     path("student/mock-interview/ai/", v.student_mock_interview_ai, name="student_mock_interview_ai"),
     path("student/courses/", v.student_courses, name="student_courses"),
     path("student/interview-questions/", v.student_interview_questions, name="student_interview_questions"),
+    path("cron/purge-mock-data/", v.cron_purge_mock_data, name="cron_purge_mock_data"),
     path("student/calendar/", v.student_calendar, name="student_calendar"),
     path("student/interviews/", v.student_interviews, name="student_interviews"),
     path("student/interviews/<int:pk>/notes/", v.interview_notes, name="interview_notes"),

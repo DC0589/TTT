@@ -1480,3 +1480,34 @@ class PrepTrackerTests(TestCase):
         self.assertContains(response, "Acme: Technical")
         self.assertEqual(self.client.get(reverse("student_calendar") + "?month=bad").status_code, 200)
         self.assertContains(self.client.get(reverse("student_dashboard")), "Coming up this week")
+
+
+class RetentionTests(TestCase):
+    def setUp(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        self.student = User.objects.create_user("ret", password="pw", is_student=True)
+        events = [{"type": "tab_hidden", "at": "x"}, {"type": "copy", "at": "x"}]
+        self.old = MockInterviewSession.objects.create(
+            student=self.student, role="Python", rating=4, integrity_events=events)
+        MockInterviewSession.objects.filter(pk=self.old.pk).update(
+            created_at=timezone.now() - timedelta(days=31))
+        self.new = MockInterviewSession.objects.create(
+            student=self.student, role="Python", rating=3, integrity_events=events)
+
+    def test_purge_keeps_score_and_rating(self):
+        from .retention import purge_old_mock_data
+        before = MockInterviewSession.objects.get(pk=self.old.pk).integrity_score
+        self.assertEqual(purge_old_mock_data(30), 1)
+        old = MockInterviewSession.objects.get(pk=self.old.pk)
+        self.assertEqual(old.integrity_events, [])
+        self.assertEqual(old.integrity_score, before)
+        self.assertEqual(old.integrity_flag_count, 2)
+        self.assertEqual(float(old.rating), 4.0)
+        self.assertEqual(len(MockInterviewSession.objects.get(pk=self.new.pk).integrity_events), 2)
+
+    def test_cron_requires_secret(self):
+        with self.settings(CRON_SECRET="s3"):
+            self.assertEqual(self.client.get("/cron/purge-mock-data/").status_code, 403)
+            ok = self.client.get("/cron/purge-mock-data/", HTTP_AUTHORIZATION="Bearer s3")
+            self.assertEqual(ok.json()["purged"], 1)

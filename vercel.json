@@ -19,5 +19,11 @@
       "src": "/(.*)",
       "dest": "vercel_app.py"
     }
+  ],
+  "crons": [
+    {
+      "path": "/cron/purge-mock-data/",
+      "schedule": "30 21 * * *"
+    }
   ]
 }

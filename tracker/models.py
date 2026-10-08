@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 
 
 class User(AbstractUser):
@@ -238,6 +239,8 @@ class MockInterviewSession(models.Model):
     completed_at = models.DateTimeField(blank=True, null=True)
     integrity_events = models.JSONField(default=list, blank=True)
     difficulty = models.CharField(max_length=10, blank=True)
+    integrity_summary = models.JSONField(default=dict, blank=True)
+    events_purged_at = models.DateTimeField(blank=True, null=True)
 
     INTEGRITY_PENALTIES = {
         "tab_hidden": 10, "window_blur": 5, "paste": 10, "copy": 3,
@@ -246,10 +249,14 @@ class MockInterviewSession(models.Model):
 
     @property
     def integrity_flag_count(self):
+        if self.events_purged_at:
+            return self.integrity_summary.get("flags", 0)
         return sum(1 for e in (self.integrity_events or []) if e.get("type") != "auto_ended")
 
     @property
     def integrity_score(self):
+        if self.events_purged_at:
+            return self.integrity_summary.get("score", 100)
         penalty = sum(self.INTEGRITY_PENALTIES.get(e.get("type"), 0) for e in (self.integrity_events or []))
         return max(0, 100 - penalty)
 
@@ -262,7 +269,19 @@ class MockInterviewSession(models.Model):
 
     @property
     def auto_ended(self):
+        if self.events_purged_at:
+            return bool(self.integrity_summary.get("auto_ended"))
         return any(e.get("type") == "auto_ended" for e in (self.integrity_events or []))
+
+    def purge_integrity_events(self):
+        """Drop the detailed flag log but keep the score summary."""
+        self.integrity_summary = {
+            "score": self.integrity_score, "flags": self.integrity_flag_count,
+            "auto_ended": self.auto_ended,
+        }
+        self.integrity_events = []
+        self.events_purged_at = timezone.now()
+        self.save(update_fields=["integrity_summary", "integrity_events", "events_purged_at"])
 
     class Meta:
         ordering = ["-created_at"]

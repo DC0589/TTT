@@ -1142,6 +1142,16 @@ def student_dashboard(request):
     })
 
 
+@require_GET
+def cron_purge_mock_data(request):
+    secret = settings.CRON_SECRET
+    supplied = request.headers.get("Authorization", "")
+    if not secret or not hmac.compare_digest(supplied, f"Bearer {secret}"):
+        raise PermissionDenied
+    from .retention import purge_old_mock_data
+    return JsonResponse({"purged": purge_old_mock_data()})
+
+
 def _mock_progress(user):
     rated = list(user.mock_interview_sessions.filter(rating__isnull=False).order_by("created_at"))
     topics = {}
@@ -1175,7 +1185,15 @@ def _mock_progress(user):
             if topic.lower() not in attempted:
                 suggestion = {"topic": topic, "reason": "you haven't tried it yet"}
                 break
-    return {"topics": rows, "levels": levels, "trend": trend, "suggestion": suggestion}
+    overall = None
+    if rated:
+        values = [float(x.rating) for x in rated]
+        overall = {
+            "sessions": len(values), "average": round(sum(values) / len(values), 2),
+            "best": max(values), "first": values[0], "latest": values[-1],
+            "change": round(values[-1] - values[0], 2),
+        }
+    return {"topics": rows, "levels": levels, "trend": trend, "suggestion": suggestion, "overall": overall}
 
 
 @student_required

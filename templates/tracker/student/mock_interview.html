@@ -5,7 +5,7 @@
   <div><p class="eyebrow">PRACTICE SESSION</p><h1>AI Mock Interview</h1><p>Pick a topic and answer ten questions, including hands-on coding questions. Your results load when you finish.</p></div>
 </section>
 <div class="mock-interview" data-mock-interview data-ai-url="{{ ai_url }}">
-  <p class="mock-privacy-note"><strong>Privacy:</strong> Your recorded answer and one camera and screen snapshot are sent to Google Gemini for feedback. Your interview rating, per-question scores, and written feedback are saved and visible to your administrator. Audio, transcripts, and images are not saved. Do not show private information on your screen.</p>
+  <p class="mock-privacy-note"><strong>Privacy:</strong> Your recorded answer and one camera and screen snapshot are sent to Google Gemini for feedback. Your interview rating, per-question scores, and written feedback are saved and visible to your administrator. Audio, transcripts, and images are not saved. Detailed activity logs are deleted after 30 days; your scores are kept. Do not show private information on your screen.</p>
   <section class="panel mock-setup" data-interview-setup>
     <div class="panel-heading"><div><p class="eyebrow">GET READY</p><h2>Set up your session</h2><p>Choose a role, then allow camera and screen sharing when prompted.</p></div></div>
     <form class="stack-form" data-interview-start method="post">{% csrf_token %}
@@ -91,6 +91,7 @@
   {% if progress.trend %}
   <section class="panel mock-progress">
     <div class="section-heading"><div><p class="eyebrow">YOUR PROGRESS</p><h2>Scores over time</h2></div></div>
+    {% if progress.overall %}<p class="progress-suggest">All-time: <strong>{{ progress.overall.sessions }}</strong> session{{ progress.overall.sessions|pluralize }} · average <strong>{{ progress.overall.average }}/5</strong> · best <strong>{{ progress.overall.best }}/5</strong> · first {{ progress.overall.first }} → latest {{ progress.overall.latest }}.</p>{% endif %}
     {% if progress.suggestion %}<p class="progress-suggest">Suggested next topic: <strong>{{ progress.suggestion.topic }}</strong> ({{ progress.suggestion.reason }}).</p>{% endif %}
     <div class="progress-trend">
       {% for point in progress.trend %}<div class="trend-col" title="{{ point.topic }} · {{ point.rating }}/5"><span class="trend-val">{{ point.rating }}</span><div class="trend-bar" style="height: {{ point.percent }}%"></div><span class="trend-label">{{ point.label }}</span></div>{% endfor %}
