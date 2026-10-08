@@ -801,6 +801,28 @@ def admin_students(request):
 
 
 @admin_required
+@require_POST
+def admin_student_reset_password(request, pk):
+    student = get_object_or_404(
+        User.objects.filter(is_student=True).filter(
+            Q(memberships__group__admin=request.user)
+            | Q(created_by=request.user)
+            | Q(created_by__created_by=request.user)
+        ).distinct(),
+        pk=pk,
+    )
+    temporary_password = secrets.token_urlsafe(9)
+    student.set_password(temporary_password)
+    student.save(update_fields=["password"])
+    messages.success(
+        request,
+        f"Temporary password for {student.username}: {temporary_password} "
+        "- share it securely; it will not be shown again.",
+    )
+    return redirect("admin_student_detail", pk=student.pk)
+
+
+@admin_required
 def admin_student_detail(request, pk):
     student = get_object_or_404(
         User.objects.filter(is_student=True).filter(

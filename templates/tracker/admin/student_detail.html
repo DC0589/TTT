@@ -5,6 +5,9 @@
 <section class="student-profile-hero">
   <span class="student-profile-avatar">{{ student.username|slice:":1"|upper }}</span>
   <div class="student-profile-copy"><p class="eyebrow">STUDENT PROFILE</p><h1>{{ student.username }}</h1><p>{{ student.email|default:"No email address provided" }}</p><small>Member since {{ student.date_joined|date:"d M Y" }}</small></div>
+  <form method="post" action="{% url 'admin_student_reset_password' student.pk %}" data-confirm="Generate a new temporary password for {{ student.username }}? Their current password will stop working.">{% csrf_token %}
+    <button class="button button-quiet" type="submit">Reset password</button>
+  </form>
   <form method="post" action="{% url 'student_delete' student.pk %}" data-confirm="Delete this student account? This permanently deletes their profile, batch memberships, interviews and interview rounds.">{% csrf_token %}
     <button class="button button-danger-outline" type="submit">Delete student</button>
   </form>

@@ -27,6 +27,7 @@ urlpatterns = [
     path("admin/registrations/<int:pk>/reject/", v.registration_reject, name="registration_reject"),
     path("admin/students/", v.admin_students, name="admin_students"),
     path("admin/students/<int:pk>/", v.admin_student_detail, name="admin_student_detail"),
+    path("admin/students/<int:pk>/reset-password/", v.admin_student_reset_password, name="admin_student_reset_password"),
     path("admin/students/<int:pk>/delete/", v.student_delete, name="student_delete"),
     path("admin/groups/", v.admin_groups, name="admin_groups"),
     path("admin/groups/new/", v.admin_group_add, name="admin_group_add"),
