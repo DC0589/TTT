@@ -70,6 +70,7 @@
   let recordingTimer;
   let recordingSeconds = 0;
   let role = '';
+  let difficulty = 'medium';
   let sessionId = null;
   window.__mockIntegrity = () => ({ sessionId, question: typeof questionNumber === 'number' ? questionNumber : null });
   let questions = [];
@@ -143,7 +144,7 @@
     const response = await fetch(interview.dataset.aiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-      body: JSON.stringify({ ...payload, role, consent: true, history }),
+      body: JSON.stringify({ ...payload, role, difficulty, consent: true, history }),
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'The AI request failed. Please try again.');
@@ -491,6 +492,7 @@
       return;
     }
     role = (topicSelect.value === '__other__' ? otherTopic.value : topicSelect.value).trim();
+    difficulty = startForm.elements.difficulty ? startForm.elements.difficulty.value : 'medium';
     if (!role || !startForm.elements.consent.checked) return;
     busy = true;
     startForm.querySelector('button[type="submit"]').disabled = true;

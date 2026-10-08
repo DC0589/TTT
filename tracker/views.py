@@ -33,6 +33,7 @@ from .forms import (
     RegistrationOTPForm, RoundForm, RoundStatusForm, StudentForm,
     StudentRegistrationForm,
 )
+from .mock_bank import DIFFICULTY_GUIDE, normalise_difficulty, pick_seed_questions
 from .mock_topics import MOCK_TOPICS, pick_focus_areas, topic_language
 from .ai_interview import GeminiAPIError, generate_json
 from .models import (
@@ -1110,17 +1111,28 @@ def student_mock_interview_ai(request):
                 session__student=request.user, session__role=role,
             ).exclude(question="").order_by("-id").values_list("question", flat=True)[:40]
         )
+        difficulty = normalise_difficulty(data.get("difficulty"))
+        seeds = pick_seed_questions(role, difficulty, exclude=previous_questions)
         focus_areas = pick_focus_areas(role)
         default_language = topic_language(role)
         prompt = (
             f"Create exactly {MOCK_QUESTION_COUNT} distinct, concise mock interview questions "
             f"on the topic '{role}'. Mix conceptual, scenario-based and practical questions of "
-            "varying difficulty and put them in a varied order. "
+            "and put them in a varied order. "
+            f"{DIFFICULTY_GUIDE[difficulty]} Every question must match this difficulty level. "
             f"Exactly {MOCK_CODING_QUESTION_COUNT} of them must be hands-on coding questions that "
             "the candidate answers by writing code; the rest are spoken questions. "
         )
         if focus_areas:
             prompt += f"Draw from these focus areas for this session: {', '.join(focus_areas)}. "
+        if seeds:
+            prompt += (
+                "Real interview questions to include in this session. Use them as questions "
+                "(lightly clean the wording, and write any missing sample data for coding ones). "
+                "Items starting with [code] are coding questions. Fill the remaining slots with "
+                "new questions of the same style and level:\n- "
+                + "\n- ".join(seeds) + "\n"
+            )
         if previous_questions:
             prompt += (
                 "The candidate has already been asked the questions below in earlier sessions. "

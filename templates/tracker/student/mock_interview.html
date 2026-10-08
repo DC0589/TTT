@@ -17,6 +17,13 @@
         <input class="form-control mock-other-topic" name="other_topic" maxlength="120" placeholder="For example, Data Analyst" data-other-topic hidden>
         <p class="field-help">Questions are shuffled for every session and avoid ones you have already been asked on this topic. Some are coding questions with a built-in editor.</p>
       </div>
+      <div class="form-field"><label for="mock-difficulty">Difficulty</label>
+        <select class="form-control" id="mock-difficulty" name="difficulty">
+          <option value="easy">Easy - fundamentals</option>
+          <option value="medium" selected>Medium - typical interview round</option>
+          <option value="hard">Hard - senior-level, in depth</option>
+        </select>
+      </div>
       <label class="mock-consent"><input type="checkbox" name="consent" required><span>I agree to send recorded answers and camera and screen snapshots to Google Gemini. My ratings and written feedback will be saved and shared with my administrator; recordings, transcripts, and images will not be saved.</span></label>
       <button class="button button-primary" type="submit">Start interview</button>
     </form>

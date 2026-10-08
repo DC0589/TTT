@@ -177,7 +177,7 @@
   });
 </script>
 {% if user.is_authenticated and user.is_admin %}<script>window.SIGNUP_POLL_URL="{% url 'registrations_pending_count' %}";</script>{% endif %}
-<script src="{% static 'js/app.js' %}?v=4" defer></script>
+<script src="{% static 'js/app.js' %}?v=5" defer></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
