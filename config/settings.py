@@ -65,7 +65,7 @@ AUTH_PASSWORD_VALIDATORS = [
 LOGIN_URL = "login"
 LOGOUT_REDIRECT_URL = "login"
 LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
+TIME_ZONE = "Asia/Kolkata"
 USE_TZ = True
 
 STATIC_URL = "/static/"
