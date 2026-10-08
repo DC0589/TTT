@@ -82,7 +82,7 @@ def _send_notification(subject, body, recipients, context, template_name, email_
 
 def _send_registration_otp(registration, code):
     return _send_notification(
-        "Your Interview Tracker verification code",
+        "Tweak Talent Technologies | Email verification code",
         f"Hello {registration.username},\n\n"
         f"Your email verification code is: {code}\n\n"
         "Enter this code on the email verification page within 10 minutes. "
@@ -99,7 +99,7 @@ def _send_registration_otp(registration, code):
             "code": code,
             "expiry_minutes": int(OTP_LIFETIME.total_seconds() // 60),
             "attempt_limit": OTP_MAX_ATTEMPTS,
-            "preheader": "Your one-time code to verify your student registration.",
+            "preheader": "Your Tweak Talent Technologies email verification code.",
         },
     )
 
@@ -533,9 +533,9 @@ def _filtered_interviews(request):
 
 @staff_required
 def admin_interviews(request):
-    view_mode = request.GET.get("view", "cards")
+    view_mode = request.GET.get("view", "table")
     if view_mode not in {"cards", "table", "list"}:
-        view_mode = "cards"
+        view_mode = "table"
     interviews, filters, batches = _filtered_interviews(request)
     query = request.GET.copy()
     query.pop("view", None)
@@ -1008,9 +1008,9 @@ def student_delete(request, pk):
 
 @admin_required
 def admin_students(request):
-    view_mode = request.GET.get("view", "cards")
+    view_mode = request.GET.get("view", "table")
     if view_mode not in {"cards", "table", "list"}:
-        view_mode = "cards"
+        view_mode = "table"
     search = request.GET.get("q", "").strip()[:100]
     students = User.objects.filter(is_student=True).filter(
         Q(memberships__group__admin=request.user)
@@ -1107,9 +1107,9 @@ def admin_student_detail(request, pk):
 @staff_required
 @require_GET
 def admin_groups(request):
-    view_mode = request.GET.get("view", "cards")
+    view_mode = request.GET.get("view", "table")
     if view_mode not in {"cards", "table", "list"}:
-        view_mode = "cards"
+        view_mode = "table"
     owner = request.user.created_by if request.user.is_hr else request.user
     groups = Group.objects.filter(admin=owner).annotate(
         member_count=Count("memberships", distinct=True),

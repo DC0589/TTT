@@ -95,6 +95,10 @@ class AuthTests(Base):
         self.assertFalse(User.objects.filter(username="dave").exists())
         self.assertEqual(registration.status, StudentRegistrationRequest.AWAITING_VERIFICATION)
         self.assertTrue(check_password("S7rong-pass-99", registration.password_hash))
+        self.assertEqual(
+            mail.outbox[0].subject,
+            "Tweak Talent Technologies | Email verification code",
+        )
 
         code = re.search(
             r"(?m)^Your email verification code is: (\d{6})$",
@@ -104,7 +108,15 @@ class AuthTests(Base):
         self.assertEqual(len(mail.outbox[0].alternatives), 1)
         self.assertEqual(mail.outbox[0].alternatives[0][1], "text/html")
         self.assertIn(code.group(1), mail.outbox[0].alternatives[0][0])
-        self.assertIn("Tweak Talent", mail.outbox[0].alternatives[0][0])
+        self.assertIn("Tweak Talent Technologies", mail.outbox[0].alternatives[0][0])
+        self.assertIn(
+            "Warm regards,<br><strong",
+            mail.outbox[0].alternatives[0][0],
+        )
+        self.assertIn(
+            "Tweak Talent Technologies team",
+            mail.outbox[0].alternatives[0][0],
+        )
         self.assertIn("Hello dave,", mail.outbox[0].body)
         verify_path = reverse("verify_registration", args=[registration.pk])
         verify_page = self.client.get(verify_path)
@@ -970,6 +982,24 @@ class ViewTests(Base):
         )
         self.assertContains(response, "alice")
         self.assertNotContains(response, "bob")
+
+    def test_interviews_batches_and_students_default_to_table_view(self):
+        from .views import admin_groups, admin_interviews, admin_students
+
+        for view in (admin_interviews, admin_groups, admin_students):
+            with self.subTest(view=view.__name__):
+                for params, expected_mode in (
+                    ({}, "table"),
+                    ({"view": "cards"}, "cards"),
+                    ({"view": "list"}, "list"),
+                ):
+                    request = RequestFactory().get("/", params)
+                    request.user = self.admin
+                    with patch("tracker.views.render") as render_mock:
+                        view(request)
+                    self.assertEqual(
+                        render_mock.call_args.args[2]["view_mode"], expected_mode
+                    )
 
     def test_registration_queue_renders_verified_applications_and_decision_actions(self):
         registration = StudentRegistrationRequest.objects.create(
