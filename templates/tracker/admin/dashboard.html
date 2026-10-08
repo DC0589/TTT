@@ -67,17 +67,26 @@
   {% include "tracker/_interview_table.html" with show_student=True admin_link=True %}
 </section>
 <section class="admin-management">
-  <div class="section-heading"><div><p class="eyebrow">COMMUNITY</p><h2>Students</h2></div><div class="section-heading-actions"><a class="button button-quiet" href="{% url 'admin_students' %}">View all</a><a class="button button-primary" href="{% url 'admin_student_add' %}">Add student</a></div></div>
+  <div class="section-heading"><div><p class="eyebrow">COMMUNITY</p><h2>Students progress</h2></div><div class="section-heading-actions"><a class="button button-quiet" href="{% url 'admin_students' %}">View all</a><a class="button button-primary" href="{% url 'admin_student_add' %}">Add student</a></div></div>
   <section class="panel student-panel">
-      <div class="panel-heading"><div><h3>Your students</h3><p>Students who can track interviews in your batches.</p></div></div>
+      <form method="get" class="progress-filter">
+        <label for="batch-filter">Batch</label>
+        <select id="batch-filter" name="batch" onchange="this.form.submit()">
+          <option value="">All batches</option>
+          {% for b in batches %}<option value="{{ b.pk }}"{% if selected_batch and selected_batch.pk == b.pk %} selected{% endif %}>{{ b.name }}</option>{% endfor %}
+        </select>
+        <noscript><button class="button button-quiet" type="submit">Filter</button></noscript>
+        <span class="section-meta">{{ roster_total }} student{{ roster_total|pluralize }}{% if selected_batch %} in {{ selected_batch.name }}{% endif %}</span>
+      </form>
       <div class="student-list">
-        {% for s in students %}
-        <div class="student-row">
-          <span class="avatar avatar-small">{{ s.username|slice:":1"|upper }}</span>
-          <span class="student-copy"><strong><a href="{% url 'admin_student_detail' s.pk %}">{{ s.username }}</a></strong><small>{{ s.email|default:"No email added" }}</small></span>
-          <a class="text-button student-view-link" href="{% url 'admin_student_detail' s.pk %}">View</a>
+        {% for row in progress_rows %}
+        <div class="student-row progress-student-row">
+          <span class="avatar avatar-small">{{ row.student.username|slice:":1"|upper }}</span>
+          <span class="student-copy"><strong><a href="{% url 'admin_student_detail' row.student.pk %}">{{ row.student.username }}</a></strong><small>{{ row.student.interview_count }} interview{{ row.student.interview_count|pluralize }} · {{ row.student.selected_count }} selected</small></span>
+          <span class="progress-student-score{% if row.weak %} weak{% endif %}">{% if row.mock_avg is not None %}<span class="progress-track"><span class="progress-fill" style="width: {{ row.percent }}%"></span></span><em>Mock {{ row.mock_avg }}/5 · {{ row.mock_count }}</em>{% else %}<em>No mock interviews yet</em>{% endif %}</span>
+          <a class="text-button student-view-link" href="{% url 'admin_student_detail' row.student.pk %}">View</a>
         </div>
-        {% empty %}<div class="empty-state empty-compact"><span class="empty-icon">✦</span><p>No students yet. Add your first student to get started.</p></div>{% endfor %}
+        {% empty %}<div class="empty-state empty-compact"><span class="empty-icon">✦</span><p>No students found{% if selected_batch %} in this batch{% endif %}.</p></div>{% endfor %}
       </div>
   </section>
 </section>

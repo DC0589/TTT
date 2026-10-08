@@ -395,9 +395,32 @@ def admin_dashboard(request):
             ("Not selected", outcome_counts["not_selected"]),
         )
     ]
+    batches = list(request.user.groups_created.order_by("name"))
+    batch_id = request.GET.get("batch", "")
+    selected_batch = next((b for b in batches if str(b.pk) == batch_id), None)
+    roster = students
+    if selected_batch:
+        roster = roster.filter(memberships__group=selected_batch)
+    roster = roster.annotate(
+        mock_count=Count("mock_interview_sessions", filter=Q(mock_interview_sessions__rating__isnull=False), distinct=True),
+        mock_avg=Avg("mock_interview_sessions__rating"),
+        interview_count=Count("interviews", filter=Q(interviews__group__admin=request.user), distinct=True),
+        selected_count=Count("interviews", filter=Q(
+            interviews__group__admin=request.user, interviews__status__final_status="selected"), distinct=True),
+    ).order_by("username")
+    progress_rows = []
+    for student in roster[:100]:
+        avg = float(student.mock_avg) if student.mock_avg is not None else None
+        progress_rows.append({
+            "student": student, "mock_count": student.mock_count,
+            "mock_avg": round(avg, 2) if avg is not None else None,
+            "percent": round(avg / 5 * 100) if avg is not None else 0,
+            "weak": avg is not None and avg < 3,
+        })
     return render(request, "tracker/admin/dashboard.html", {
         "stats": stats, "interviews": interviews[:20],
-        "students": students.order_by("username")[:8],
+        "progress_rows": progress_rows, "batches": batches, "selected_batch": selected_batch,
+        "roster_total": roster.count(),
         "outcome_chart": outcome_chart,
         "selection_rate": round(outcome_counts["selected"] * 100 / decided) if decided else 0,
         "pending_registrations": StudentRegistrationRequest.objects.filter(

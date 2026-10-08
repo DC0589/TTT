@@ -1533,3 +1533,22 @@ class AdminStudentProgressTests(TestCase):
         self.assertContains(response, "Mock interview progress")
         self.assertContains(response, "By topic")
         self.assertContains(response, "Python")
+
+
+class AdminDashboardBatchFilterTests(TestCase):
+    def test_filter_by_batch(self):
+        admin = User.objects.create_user("adm8", password="pw", is_admin=True)
+        a = User.objects.create_user("inbatch", password="pw", is_student=True, created_by=admin)
+        b = User.objects.create_user("otherbatch", password="pw", is_student=True, created_by=admin)
+        g1 = Group.objects.create(name="B1", admin=admin)
+        g2 = Group.objects.create(name="B2", admin=admin)
+        GroupMembership.objects.create(group=g1, student=a)
+        GroupMembership.objects.create(group=g2, student=b)
+        MockInterviewSession.objects.create(student=a, role="Python", rating=4)
+        self.client.login(username="adm8", password="pw")
+        response = self.client.get(f"/admin/dashboard/?batch={g1.pk}")
+        self.assertContains(response, "Students progress")
+        self.assertContains(response, "inbatch")
+        self.assertNotContains(response, "otherbatch")
+        self.assertContains(response, "Mock 4.0/5")
+        self.assertContains(self.client.get("/admin/dashboard/"), "otherbatch")
