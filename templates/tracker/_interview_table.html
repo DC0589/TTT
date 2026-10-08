@@ -3,7 +3,7 @@
     <thead><tr>
       {% if show_student %}<th scope="col">Student</th>{% endif %}
       {% if show_group %}<th scope="col">Batch</th>{% endif %}
-      <th scope="col">Company</th><th scope="col">Job role</th><th scope="col">Job link</th><th scope="col">Date</th><th scope="col">Rounds</th><th scope="col">Result</th>
+      <th scope="col">Company</th><th scope="col">Job role</th><th scope="col">Job link</th><th scope="col">Date</th><th scope="col">Type</th><th scope="col">Rounds</th><th scope="col">Result</th>{% if quick %}<th scope="col">Quick actions</th>{% endif %}
       {% if link %}<th scope="col">Actions</th>{% endif %}
     </tr></thead>
     <tbody>
@@ -15,12 +15,14 @@
         <td>{{ iv.role }}</td>
         <td>{% if iv.job_posting_url %}<a class="job-role-link" href="{{ iv.job_posting_url }}" target="_blank" rel="noopener noreferrer">View job <span aria-hidden="true">↗</span></a>{% elif link %}<a class="job-role-link" href="{% url 'student_interview_edit' iv.pk %}">Add job link</a>{% elif admin_link %}<a class="job-role-link" href="{% url 'admin_interview_detail' iv.pk %}">Not provided</a>{% else %}<span class="job-link-missing">Not provided</span>{% endif %}</td>
         <td class="date-cell">{{ iv.date_of_interview|date:"d M Y" }}{% if iv.time_of_interview %}<br><small>{{ iv.time_of_interview|time:"h:i A" }}</small>{% endif %}</td>
+        <td>{{ iv.get_interview_type_display|default:"-" }}</td>
         <td><span class="round-count">{{ iv.progress }}</span></td>
         <td><span class="status-badge {{ iv.badge }}">{{ iv.final_label }}</span></td>
+        {% if quick %}<td>{% include "tracker/_quick_actions.html" %}</td>{% endif %}
         {% if link %}<td><a class="button button-quiet table-action" href="{% url 'student_interview_edit' iv.pk %}">Edit</a></td>{% endif %}
       </tr>
       {% empty %}
-      <tr><td colspan="{% if link %}{% if show_student and show_group %}9{% elif show_student or show_group %}8{% else %}7{% endif %}{% elif show_student and show_group %}8{% elif show_student or show_group %}7{% else %}6{% endif %}">
+      <tr><td colspan="12">
         <div class="table-empty"><span class="empty-icon">✦</span><strong>No interviews to show yet.</strong><span>Your next opportunity will appear here.</span></div>
       </td></tr>
       {% endfor %}

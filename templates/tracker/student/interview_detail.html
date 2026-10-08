@@ -17,9 +17,13 @@
     </form>
   </div>
 </section>
+{% if iv.notes_visible_to_student and iv.admin_notes %}
+<section class="panel trainer-note"><div class="section-heading"><div><p class="eyebrow">FROM YOUR TRAINER</p><h2>Trainer note</h2></div></div><p>{{ iv.admin_notes|linebreaksbr }}</p></section>
+{% endif %}
 <section class="panel hr-contact-panel">
   <div class="panel-heading"><span class="panel-icon" aria-hidden="true">↗</span><div><p class="eyebrow">YOUR POINT OF CONTACT</p><h2>HR contact details</h2><p>Recruiter information for this opportunity.</p></div></div>
   <div class="hr-contact-grid">
+    <div><span class="hr-detail-label">Interview type</span><strong>{{ iv.get_interview_type_display|default:"Not provided" }}</strong></div>
     <div><span class="hr-detail-label">HR name</span><strong>{{ iv.hr_name|default:"Not provided" }}</strong></div>
     <div><span class="hr-detail-label">Contact number</span>{% if iv.hr_contact_number %}<a href="tel:{{ iv.hr_contact_number }}">{{ iv.hr_contact_number }}</a>{% else %}<strong>Not provided</strong>{% endif %}</div>
     <div><span class="hr-detail-label">Email address</span>{% if iv.hr_email %}<a href="mailto:{{ iv.hr_email }}">{{ iv.hr_email }}</a>{% else %}<strong>Not provided</strong>{% endif %}</div>

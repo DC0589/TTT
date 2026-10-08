@@ -2,10 +2,12 @@
   <div class="form-errors" role="alert">{{ form.non_field_errors }}</div>
 {% endif %}
 {% for f in form %}
+  {% if f.is_hidden %}{{ f }}{% else %}
   <div class="form-field">
     <label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %}<span class="required-mark" aria-hidden="true"> *</span>{% endif %}</label>
     {{ f }}
     {% for e in f.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
     {% if f.help_text and f.name != 'password1' %}<p class="field-help">{{ f.help_text|safe }}</p>{% endif %}
   </div>
+  {% endif %}
 {% endfor %}

@@ -4,27 +4,41 @@
 <section class="page-heading">
   <div><p class="eyebrow">STUDENT PROGRESS</p><h1>Interviews</h1><p>Review interviews and outcomes across the batches you manage.</p></div>
 </section>
+<section class="panel">
+  <form method="get" class="interview-filters">
+    <input type="hidden" name="view" value="{{ view_mode }}">
+    <div><label for="f-student">Student</label><input id="f-student" name="student" value="{{ filters.student }}" placeholder="Name"></div>
+    <div><label for="f-company">Company</label><input id="f-company" name="company" value="{{ filters.company }}" placeholder="Company"></div>
+    <div><label for="f-batch">Batch</label><select id="f-batch" name="batch"><option value="">All batches</option>{% for b in batches %}<option value="{{ b.pk }}"{% if filters.batch == b.pk|stringformat:"s" %} selected{% endif %}>{{ b.name }}</option>{% endfor %}</select></div>
+    <div><label for="f-status">Result</label><select id="f-status" name="status"><option value="">Any</option><option value="in-progress"{% if filters.status == "in-progress" %} selected{% endif %}>In progress</option><option value="selected"{% if filters.status == "selected" %} selected{% endif %}>Selected</option><option value="not-selected"{% if filters.status == "not-selected" %} selected{% endif %}>Not selected</option></select></div>
+    <div><label for="f-type">Type</label><select id="f-type" name="type"><option value="">Any</option>{% for key, label in type_choices %}<option value="{{ key }}"{% if filters.type == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div><label for="f-from">From</label><input id="f-from" type="date" name="date_from" value="{{ filters.date_from }}"></div>
+    <div><label for="f-to">To</label><input id="f-to" type="date" name="date_to" value="{{ filters.date_to }}"></div>
+    <div class="filter-actions"><button class="button button-primary" type="submit">Filter</button>{% if has_filters %}<a class="button button-quiet" href="?view={{ view_mode }}">Clear</a>{% endif %}<a class="button button-quiet" href="{% url 'admin_interviews_export' %}?{{ filter_query }}">Export CSV</a></div>
+  </form>
+</section>
 <section class="directory-toolbar">
   <div class="directory-toolbar-meta">
     <span><strong>{{ interviews|length }}</strong> interview{{ interviews|length|pluralize }}</span>
     <nav class="view-switch" aria-label="Interview display format">
-      <a href="?view=cards" class="{% if view_mode == 'cards' %}is-selected{% endif %}"{% if view_mode == "cards" %} aria-current="page"{% endif %}>Cards</a>
-      <a href="?view=table" class="{% if view_mode == 'table' %}is-selected{% endif %}"{% if view_mode == "table" %} aria-current="page"{% endif %}>Table</a>
-      <a href="?view=list" class="{% if view_mode == 'list' %}is-selected{% endif %}"{% if view_mode == "list" %} aria-current="page"{% endif %}>List</a>
+      <a href="?view=cards&{{ filter_query }}" class="{% if view_mode == 'cards' %}is-selected{% endif %}"{% if view_mode == "cards" %} aria-current="page"{% endif %}>Cards</a>
+      <a href="?view=table&{{ filter_query }}" class="{% if view_mode == 'table' %}is-selected{% endif %}"{% if view_mode == "table" %} aria-current="page"{% endif %}>Table</a>
+      <a href="?view=list&{{ filter_query }}" class="{% if view_mode == 'list' %}is-selected{% endif %}"{% if view_mode == "list" %} aria-current="page"{% endif %}>List</a>
     </nav>
   </div>
 </section>
 {% if interviews %}
   {% if view_mode == "table" %}
-  {% include "tracker/_interview_table.html" with interviews=interviews show_student=True admin_link=True %}
+  {% include "tracker/_interview_table.html" with interviews=interviews show_student=True admin_link=True quick=True %}
   {% elif view_mode == "list" %}
   <section class="directory-rows" aria-label="Interviews">
     {% for interview in interviews %}
     <article class="directory-row-card interview-directory-row">
       <span class="interview-company-mark interview-company-mark-small" aria-hidden="true">{{ interview.company_name|slice:":1"|upper }}</span>
-      <span class="directory-row-copy"><strong><a href="{% url 'admin_interview_detail' interview.pk %}">{{ interview.company_name }}</a></strong><small>{{ interview.student.username }} · {{ interview.role }} · {{ interview.group.name }} · {{ interview.date_of_interview|date:"d M Y" }}</small></span>
+      <span class="directory-row-copy"><strong><a href="{% url 'admin_interview_detail' interview.pk %}">{{ interview.company_name }}</a></strong><small>{{ interview.student.username }} · {{ interview.role }} · {{ interview.group.name }} · {{ interview.date_of_interview|date:"d M Y" }}{% if interview.interview_type %} · {{ interview.get_interview_type_display }}{% endif %}</small></span>
       <span class="directory-row-count"><strong>{{ interview.progress }}</strong><small>Rounds cleared</small></span>
       <span class="status-badge {{ interview.badge }}">{{ interview.final_label }}</span>
+      <span>{% include "tracker/_quick_actions.html" with iv=interview %}</span>
       {% if interview.job_posting_url %}<a class="button button-quiet" href="{{ interview.job_posting_url }}" target="_blank" rel="noopener noreferrer">Job link ↗</a>{% endif %}
     </article>
     {% endfor %}
@@ -39,14 +53,15 @@
       </div>
       <p class="eyebrow">{{ interview.student.username }} · {{ interview.group.name }}</p>
       <h2><a href="{% url 'admin_interview_detail' interview.pk %}">{{ interview.company_name }}</a></h2>
-      <p class="interview-card-role">{{ interview.role }} · {{ interview.date_of_interview|date:"d M Y" }}</p>
+      <p class="interview-card-role">{{ interview.role }} · {{ interview.date_of_interview|date:"d M Y" }}{% if interview.time_of_interview %} · {{ interview.time_of_interview|time:"h:i A" }}{% endif %}{% if interview.interview_type %} · {{ interview.get_interview_type_display }}{% endif %}</p>
       <div class="interview-card-meta"><span>{{ interview.progress }} rounds cleared</span>{% if interview.job_posting_url %}<a class="job-role-link" href="{{ interview.job_posting_url }}" target="_blank" rel="noopener noreferrer">Open job link ↗</a>{% else %}<span>Job link not provided</span>{% endif %}</div>
+      {% include "tracker/_quick_actions.html" with iv=interview %}
       <div class="interview-card-actions"><a class="button button-primary" href="{% url 'admin_interview_detail' interview.pk %}">View interview</a></div>
     </article>
     {% endfor %}
   </section>
   {% endif %}
 {% else %}
-<div class="directory-empty-state"><span class="empty-icon">✦</span><h2>No interviews to review yet</h2><p>Student interviews in your batches will appear here.</p></div>
+<div class="directory-empty-state"><span class="empty-icon">✦</span><h2>{% if has_filters %}No interviews match these filters{% else %}No interviews to review yet{% endif %}</h2><p>{% if has_filters %}Try clearing a filter.{% else %}Student interviews in your batches will appear here.{% endif %}</p></div>
 {% endif %}
 {% endblock %}

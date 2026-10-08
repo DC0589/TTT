@@ -154,6 +154,13 @@ BADGES = {
 
 
 class Interview(models.Model):
+    TYPE_CHOICES = [
+        ("walk_in", "Walk-in"), ("campus_drive", "Campus drive"),
+        ("off_campus", "Off-campus"), ("referral", "Referral"), ("hr_call", "HR call"),
+    ]
+    ATTENDED, NO_SHOW, RESCHEDULED = "attended", "no_show", "rescheduled"
+    ATTENDANCE_CHOICES = [(ATTENDED, "Attended"), (NO_SHOW, "No-show"), (RESCHEDULED, "Rescheduled")]
+
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name="interviews")
     group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name="interviews")
     company_name = models.CharField(max_length=150)
@@ -165,6 +172,10 @@ class Interview(models.Model):
     hr_contact_number = models.CharField(max_length=30, blank=True)
     hr_email = models.EmailField(blank=True)
     prep_notes = models.TextField(blank=True)
+    interview_type = models.CharField(max_length=20, choices=TYPE_CHOICES, blank=True)
+    attendance = models.CharField(max_length=15, choices=ATTENDANCE_CHOICES, blank=True)
+    admin_notes = models.TextField(blank=True)
+    notes_visible_to_student = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -187,6 +198,16 @@ class Interview(models.Model):
     @property
     def badge(self):
         return BADGES[self.final_status]
+
+    @property
+    def calendar_status(self):
+        final = self.final_status
+        if final == "selected":
+            return "selected"
+        if final == "not-selected":
+            return "rejected"
+        return {"attended": "attended", "no_show": "no_show", "rescheduled": "rescheduled"}.get(
+            self.attendance, "scheduled")
 
     @property
     def progress(self):

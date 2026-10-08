@@ -1020,7 +1020,7 @@ class ViewTests(Base):
         outsider_group = Group.objects.create(name="Other", admin=self.admin)
         self.client.force_login(self.alice)
         data = {"company_name": "Globex", "role": "QA", "date_of_interview": "2026-01-10",
-                "time_of_interview": "10:30", "hr_name": "Pat", "hr_contact_number": "555"}
+                "time_of_interview": "10:30", "interview_type": "walk_in", "hr_name": "Pat", "hr_contact_number": "555"}
         r = self.client.post(
             reverse("student_interview_add"),
             {**data, "group": outsider_group.pk},
@@ -1042,6 +1042,7 @@ class ViewTests(Base):
             "job_posting_url": "https://example.com/jobs/qa",
             "date_of_interview": "2026-01-10",
             "time_of_interview": "14:00",
+            "interview_type": "referral",
             "hr_name": "Jordan Lee",
             "hr_contact_number": "+1 555 0123",
             "hr_email": "jordan@example.com",
@@ -1569,7 +1570,7 @@ class InterviewTimeAndAdminCalendarTests(TestCase):
             "group": self.group.pk, "company_name": "Acme", "role": "Dev",
             "date_of_interview": "2026-01-10"})
         self.assertEqual(response.status_code, 200)
-        for field in ("time_of_interview", "hr_name", "hr_contact_number"):
+        for field in ("time_of_interview", "hr_name", "hr_contact_number", "interview_type"):
             self.assertIn(field, response.context["form"].errors)
         self.assertFalse(Interview.objects.exists())
 
@@ -1586,3 +1587,112 @@ class InterviewTimeAndAdminCalendarTests(TestCase):
         other = Group.objects.create(name="B8", admin=self.admin)
         self.assertNotContains(
             self.client.get(reverse("admin_calendar") + f"?batch={other.pk}"), "Initech")
+
+
+class InterviewManagementTests(TestCase):
+    def setUp(self):
+        import datetime
+        self.admin = User.objects.create_user("adm6", password="pw", is_admin=True)
+        self.stu = User.objects.create_user("stu6", password="pw", is_student=True, created_by=self.admin)
+        self.group = Group.objects.create(name="B6", admin=self.admin)
+        GroupMembership.objects.create(group=self.group, student=self.stu)
+        self.today = timezone.localdate()
+        self.iv = Interview.objects.create(
+            student=self.stu, group=self.group, company_name="Acme", role="Dev",
+            date_of_interview=self.today, time_of_interview=datetime.time(10, 0),
+            interview_type="walk_in", hr_name="H", hr_contact_number="1")
+        self.form_data = {
+            "group": self.group.pk, "company_name": "Acme", "role": "Dev",
+            "date_of_interview": self.today.isoformat(), "time_of_interview": "11:00",
+            "interview_type": "referral", "hr_name": "H", "hr_contact_number": "1",
+        }
+
+    def test_duplicate_warns_then_allows_with_confirmation(self):
+        self.client.force_login(self.stu)
+        url = reverse("student_interview_add")
+        response = self.client.post(url, self.form_data)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "already have an interview for Dev at Acme")
+        self.assertContains(response, "Save anyway")
+        self.assertEqual(Interview.objects.count(), 1)
+        self.client.post(url, {**self.form_data, "confirm_clash": "on"})
+        self.assertEqual(Interview.objects.count(), 2)
+
+    def test_same_slot_clash_warns(self):
+        self.client.force_login(self.stu)
+        data = {**self.form_data, "company_name": "Other", "time_of_interview": "10:00"}
+        response = self.client.post(reverse("student_interview_add"), data)
+        self.assertContains(response, "same date and time")
+
+    def test_admin_filters_and_csv_export(self):
+        Interview.objects.create(
+            student=self.stu, group=self.group, company_name="Globex", role="QA",
+            date_of_interview=self.today, interview_type="hr_call", hr_name="Zed", hr_contact_number="999")
+        self.client.force_login(self.admin)
+        page = self.client.get(reverse("admin_interviews") + "?type=hr_call")
+        self.assertContains(page, "Globex")
+        self.assertNotContains(page, ">Acme<")
+        page = self.client.get(reverse("admin_interviews") + "?company=acm&view=table")
+        self.assertContains(page, "Acme")
+        self.assertNotContains(page, "Globex")
+        csv_response = self.client.get(reverse("admin_interviews_export") + "?type=hr_call")
+        body = csv_response.content.decode()
+        self.assertIn("Globex", body)
+        self.assertIn("Zed", body)
+        self.assertNotIn("Acme", body)
+
+    def test_trainer_note_visibility(self):
+        self.client.force_login(self.admin)
+        self.client.post(reverse("admin_interview_notes", args=[self.iv.pk]),
+                         {"admin_notes": "Practice system design"})
+        self.client.force_login(self.stu)
+        detail = reverse("student_interview_detail", args=[self.iv.pk])
+        self.assertNotContains(self.client.get(detail), "Practice system design")
+        self.client.force_login(self.admin)
+        self.client.post(reverse("admin_interview_notes", args=[self.iv.pk]),
+                         {"admin_notes": "Practice system design", "notes_visible_to_student": "on"})
+        self.client.force_login(self.stu)
+        self.assertContains(self.client.get(detail), "Practice system design")
+
+    def test_quick_actions(self):
+        self.client.force_login(self.stu)
+        url = reverse("student_interview_quick", args=[self.iv.pk])
+        self.client.post(url, {"action": "no_show"})
+        self.iv.refresh_from_db()
+        self.assertEqual(self.iv.attendance, "no_show")
+        self.client.post(url, {"action": "no_show"})
+        self.iv.refresh_from_db()
+        self.assertEqual(self.iv.attendance, "")
+        self.client.post(url, {"action": "offer"})
+        self.iv.refresh_from_db()
+        self.assertEqual(self.iv.final_status, "selected")
+        other = User.objects.create_user("stuX", password="pw", is_student=True)
+        self.client.force_login(other)
+        self.assertEqual(self.client.post(url, {"action": "attended"}).status_code, 404)
+        self.client.force_login(self.admin)
+        self.client.post(reverse("admin_interview_quick", args=[self.iv.pk]), {"action": "rescheduled"})
+        self.iv.refresh_from_db()
+        self.assertEqual(self.iv.attendance, "rescheduled")
+
+    def test_calendar_views_and_more_popup(self):
+        for i in range(4):
+            Interview.objects.create(
+                student=self.stu, group=self.group, company_name=f"Co{i}", role="R",
+                date_of_interview=self.today, interview_type="walk_in", hr_name="h", hr_contact_number="1")
+        self.client.force_login(self.admin)
+        base = reverse("admin_calendar")
+        month = self.client.get(base)
+        self.assertContains(month, "more</button>")
+        self.assertContains(month, "calendar-mobile-agenda")
+        for view in ("week", "day", "list"):
+            page = self.client.get(f"{base}?view={view}&date={self.today.isoformat()}")
+            self.assertContains(page, "Co3")
+        self.assertContains(self.client.get(base + "?view=week&date=bogus"), "calendar-week")
+        self.client.force_login(self.stu)
+        self.assertContains(self.client.get(reverse("student_calendar") + "?view=list"), "Acme")
+
+    def test_calendar_status_colour(self):
+        self.client.force_login(self.stu)
+        self.client.post(reverse("student_interview_quick", args=[self.iv.pk]), {"action": "attended"})
+        self.client.force_login(self.admin)
+        self.assertContains(self.client.get(reverse("admin_calendar")), "ev-attended")

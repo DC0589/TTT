@@ -1,0 +1,67 @@
+<div class="calendar-toolbar">
+  <nav class="view-switch" aria-label="Calendar view">
+    {% for key, label in cal_views %}<a href="?view={{ key }}&date={{ cal_anchor }}{{ extra_qs }}" class="{% if cal_view == key %}is-selected{% endif %}"{% if cal_view == key %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+  </nav>
+  <a class="button button-quiet" href="?view={{ cal_view }}&date={{ cal_today }}{{ extra_qs }}">Today</a>
+</div>
+<div class="calendar-nav">
+  <a class="button button-quiet" href="?view={{ cal_view }}&date={{ cal_prev }}{{ extra_qs }}">&larr; Prev</a>
+  <h2>{{ cal_title }}</h2>
+  <a class="button button-quiet" href="?view={{ cal_view }}&date={{ cal_next }}{{ extra_qs }}">Next &rarr;</a>
+</div>
+<div class="calendar-legend" aria-label="Colour legend">
+  {% for key, label in status_labels.items %}<span class="legend-chip ev-{{ key }}">{{ label }}</span>{% endfor %}
+  {% for b in legend_batches %}<span class="legend-batch"><i style="background: {{ b.color }}"></i>{{ b.name }}</span>{% endfor %}
+</div>
+{% if cal_view == "month" %}
+<div class="calendar-grid-wrap">
+  <div class="calendar-grid" role="grid">
+    <div class="calendar-head">Mon</div><div class="calendar-head">Tue</div><div class="calendar-head">Wed</div><div class="calendar-head">Thu</div><div class="calendar-head">Fri</div><div class="calendar-head">Sat</div><div class="calendar-head">Sun</div>
+    {% for week in grid %}{% for day in week %}
+    <div class="calendar-day{% if not day.in_month %} is-outside{% endif %}{% if day.today %} is-today{% endif %}">
+      <a class="calendar-date" href="?view=day&date={{ day.date|date:'Y-m-d' }}{{ extra_qs }}">{{ day.date.day }}</a>
+      {% for ev in day.events|slice:":2" %}{% include "tracker/_calendar_event.html" with ev=ev full=False %}{% endfor %}
+      {% if day.events|length > 2 %}
+      <button type="button" class="calendar-more" data-cal-more>+{{ day.events|length|add:"-2" }} more</button>
+      <div class="calendar-more-data" hidden data-title="{{ day.date|date:'l, d F Y' }}">{% for ev in day.events %}{% include "tracker/_calendar_event.html" with ev=ev full=True %}{% endfor %}</div>
+      {% endif %}
+    </div>
+    {% endfor %}{% endfor %}
+  </div>
+</div>
+{% endif %}
+{% if cal_view == "month" or cal_view == "list" %}
+<div class="calendar-agenda{% if cal_view == 'month' %} calendar-mobile-agenda{% endif %}">
+  {% for day in agenda %}
+  <div class="agenda-day{% if day.today %} is-today{% endif %}"><h3>{{ day.date|date:"D, d M" }}</h3>{% for ev in day.events %}{% include "tracker/_calendar_event.html" with ev=ev full=True %}{% endfor %}</div>
+  {% empty %}<p class="muted">Nothing scheduled this month.</p>{% endfor %}
+</div>
+{% elif cal_view == "week" %}
+<div class="calendar-week">
+  {% for day in week_days %}
+  <div class="week-col{% if day.today %} is-today{% endif %}"><h3><a href="?view=day&date={{ day.date|date:'Y-m-d' }}{{ extra_qs }}">{{ day.date|date:"D d" }}</a></h3>
+    {% for ev in day.events %}{% include "tracker/_calendar_event.html" with ev=ev full=True %}{% empty %}<p class="muted">—</p>{% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="calendar-agenda">
+  {% for ev in day_events %}{% include "tracker/_calendar_event.html" with ev=ev full=True %}{% empty %}<p class="muted">Nothing scheduled for this day.</p>{% endfor %}
+</div>
+{% endif %}
+<dialog class="cal-dialog" id="cal-more-dialog"><h3 data-cal-title></h3><div class="cal-dialog-body" data-cal-body></div><button class="button button-primary" type="button" data-cal-close>Close</button></dialog>
+<script>
+(function () {
+  const dialog = document.getElementById('cal-more-dialog');
+  if (!dialog) return;
+  document.querySelectorAll('[data-cal-more]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      const data = button.nextElementSibling;
+      dialog.querySelector('[data-cal-title]').textContent = data.dataset.title;
+      dialog.querySelector('[data-cal-body]').innerHTML = data.innerHTML;
+      dialog.showModal();
+    });
+  });
+  dialog.querySelector('[data-cal-close]').addEventListener('click', function () { dialog.close(); });
+})();
+</script>

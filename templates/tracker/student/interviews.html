@@ -17,7 +17,7 @@
 </section>
 {% if interviews %}
   {% if view_mode == "table" %}
-  {% include "tracker/_interview_table.html" with interviews=interviews link=True %}
+  {% include "tracker/_interview_table.html" with interviews=interviews link=True quick=True %}
   {% elif view_mode == "list" %}
   <section class="directory-rows" aria-label="My interviews">
     {% for interview in interviews %}
@@ -26,6 +26,7 @@
       <span class="directory-row-copy"><strong><a href="{% url 'student_interview_detail' interview.pk %}">{{ interview.company_name }}</a></strong><small>{{ interview.role }} · {{ interview.group.name }} · {{ interview.date_of_interview|date:"d M Y" }}</small></span>
       <span class="directory-row-count"><strong>{{ interview.progress }}</strong><small>Rounds cleared</small></span>
       <span class="status-badge {{ interview.badge }}">{{ interview.final_label }}</span>
+      <span>{% include "tracker/_quick_actions.html" with iv=interview %}</span>
       <a class="button button-quiet" href="{% url 'student_interview_edit' interview.pk %}">Edit details</a>
     </article>
     {% endfor %}
@@ -42,6 +43,7 @@
       <h2><a href="{% url 'student_interview_detail' interview.pk %}">{{ interview.company_name }}</a></h2>
       <p class="interview-card-role">{{ interview.role }}</p>
       <div class="interview-card-meta"><span>{{ interview.group.name }}</span><span>{{ interview.progress }} rounds cleared</span></div>
+      {% include "tracker/_quick_actions.html" with iv=interview %}
       <div class="interview-card-actions">
         <a class="button button-quiet" href="{% url 'student_interview_detail' interview.pk %}">View interview</a>
         <a class="button button-primary" href="{% url 'student_interview_edit' interview.pk %}">Edit details</a>

@@ -13,19 +13,6 @@
 </section>
 {% endif %}
 <section class="panel calendar-panel">
-  <div class="calendar-nav">
-    <a class="button button-quiet" href="?month={{ prev_month }}">&larr; Prev</a>
-    <h2>{{ month_label }}</h2>
-    <a class="button button-quiet" href="?month={{ next_month }}">Next &rarr;</a>
-  </div>
-  <div class="calendar-grid" role="grid">
-    <div class="calendar-head">Mon</div><div class="calendar-head">Tue</div><div class="calendar-head">Wed</div><div class="calendar-head">Thu</div><div class="calendar-head">Fri</div><div class="calendar-head">Sat</div><div class="calendar-head">Sun</div>
-    {% for week in grid %}{% for day in week %}
-    <div class="calendar-day{% if not day.in_month %} is-outside{% endif %}{% if day.today %} is-today{% endif %}">
-      <span class="calendar-date">{{ day.date.day }}</span>
-      {% for event in day.events %}<a class="calendar-event calendar-event-{{ event.kind }}{% if event.done %} is-done{% endif %}" href="{{ event.url }}" title="{{ event.title }} - {{ event.detail }}">{% if event.time %}{{ event.time|time:"h:i A" }} {% endif %}{{ event.title }}</a>{% endfor %}
-    </div>
-    {% endfor %}{% endfor %}
-  </div>
+  {% include "tracker/_calendar_views.html" %}
 </section>
 {% endblock %}

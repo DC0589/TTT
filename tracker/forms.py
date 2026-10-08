@@ -219,7 +219,7 @@ class InterviewForm(Styled, forms.ModelForm):
         model = Interview
         fields = (
             "group", "company_name", "role", "job_posting_url", "date_of_interview",
-            "time_of_interview", "hr_name", "hr_contact_number", "hr_email", "prep_notes",
+            "time_of_interview", "interview_type", "hr_name", "hr_contact_number", "hr_email", "prep_notes",
         )
         widgets = {
             "date_of_interview": forms.DateInput(attrs={"type": "date"}),
@@ -229,6 +229,7 @@ class InterviewForm(Styled, forms.ModelForm):
         labels = {
             "group": "Batch",
             "time_of_interview": "Interview time",
+            "interview_type": "Interview type",
             "hr_name": "HR contact name",
             "hr_contact_number": "HR contact number",
             "hr_email": "HR email address",
@@ -241,8 +242,33 @@ class InterviewForm(Styled, forms.ModelForm):
         super().__init__(*a, **k)
         self.fields["group"].queryset = Group.objects.filter(memberships__student=student)
         self.fields["group"].empty_label = "Select a batch"
-        for name in ("time_of_interview", "hr_name", "hr_contact_number"):
+        self.student = student
+        for name in ("time_of_interview", "hr_name", "hr_contact_number", "interview_type"):
             self.fields[name].required = True
+        self.fields["interview_type"].choices = [("", "Select a type")] + list(Interview.TYPE_CHOICES)
+        self.fields["confirm_clash"] = forms.BooleanField(
+            required=False, widget=forms.HiddenInput(), label="Save anyway")
+        self.fields["confirm_clash"].widget.attrs.setdefault("class", INPUT)
+
+    def clean(self):
+        data = super().clean()
+        if self.errors or self.cleaned_data.get("confirm_clash"):
+            return data
+        others = Interview.objects.filter(student=self.student)
+        if self.instance.pk:
+            others = others.exclude(pk=self.instance.pk)
+        problems = []
+        company, role = data.get("company_name"), data.get("role")
+        if company and role and others.filter(
+                company_name__iexact=company.strip(), role__iexact=role.strip()).exists():
+            problems.append(f"You already have an interview for {role} at {company}.")
+        when, at = data.get("date_of_interview"), data.get("time_of_interview")
+        if when and at and others.filter(date_of_interview=when, time_of_interview=at).exists():
+            problems.append("You already have another interview at the same date and time.")
+        if problems:
+            self.fields["confirm_clash"].widget = forms.CheckboxInput(attrs={"class": ""})
+            raise forms.ValidationError(problems + ["Tick “Save anyway” below if this is intentional, then save again."])
+        return data
 
 
 class RoundForm(Styled, forms.ModelForm):
@@ -330,3 +356,11 @@ class MockQuestionForm(Styled, forms.ModelForm):
         if data.get("kind") != MockQuestion.CODING:
             data["language"] = ""
         return data
+
+
+class InterviewAdminNotesForm(Styled, forms.ModelForm):
+    class Meta:
+        model = Interview
+        fields = ("admin_notes", "notes_visible_to_student")
+        widgets = {"admin_notes": forms.Textarea(attrs={"rows": 4})}
+        labels = {"admin_notes": "Trainer note", "notes_visible_to_student": "Show this note to the student"}

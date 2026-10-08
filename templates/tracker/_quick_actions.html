@@ -1,0 +1,10 @@
+{% if iv.attendance %}<span class="attendance-chip">{{ iv.get_attendance_display }}</span>{% endif %}
+{% if user.is_admin or user.is_student %}
+<form method="post" action="{% if user.is_admin %}{% url 'admin_interview_quick' iv.pk %}{% else %}{% url 'student_interview_quick' iv.pk %}{% endif %}" class="quick-actions">{% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <button class="quick-btn{% if iv.attendance == 'attended' %} is-on{% endif %}" type="submit" name="action" value="attended">Attended</button>
+  <button class="quick-btn{% if iv.attendance == 'no_show' %} is-on{% endif %}" type="submit" name="action" value="no_show">No-show</button>
+  <button class="quick-btn{% if iv.attendance == 'rescheduled' %} is-on{% endif %}" type="submit" name="action" value="rescheduled">Rescheduled</button>
+  {% if iv.final_status != 'selected' %}<button class="quick-btn" type="submit" name="action" value="offer">Offer received</button>{% endif %}
+</form>
+{% endif %}

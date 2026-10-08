@@ -10,10 +10,21 @@
 <section class="panel admin-interview-summary">
   <div><span class="hr-detail-label">Student</span><strong>{% if user.is_admin %}<a href="{% url 'admin_student_detail' iv.student.pk %}">{{ iv.student.username }}</a>{% else %}{{ iv.student.username }}{% endif %}</strong></div>
   <div><span class="hr-detail-label">Job role</span>{% if iv.job_posting_url %}<a href="{{ iv.job_posting_url }}" target="_blank" rel="noopener noreferrer">{{ iv.role }} <span aria-hidden="true">↗</span></a>{% else %}<strong>{{ iv.role }}</strong>{% endif %}</div>
+  <div><span class="hr-detail-label">Interview type</span><strong>{{ iv.get_interview_type_display|default:"Not provided" }}</strong></div>
+  <div><span class="hr-detail-label">Attendance</span><strong>{{ iv.get_attendance_display|default:"Not marked" }}</strong></div>
   <div><span class="hr-detail-label">HR name</span><strong>{{ iv.hr_name|default:"Not provided" }}</strong></div>
   <div><span class="hr-detail-label">Contact number</span>{% if iv.hr_contact_number %}<a href="tel:{{ iv.hr_contact_number }}">{{ iv.hr_contact_number }}</a>{% else %}<strong>Not provided</strong>{% endif %}</div>
   <div><span class="hr-detail-label">Email address</span>{% if iv.hr_email %}<a href="mailto:{{ iv.hr_email }}">{{ iv.hr_email }}</a>{% else %}<strong>Not provided</strong>{% endif %}</div>
 </section>
+{% if user.is_admin %}
+<section class="panel">{% include "tracker/_quick_actions.html" %}</section>
+<section class="panel trainer-note">
+  <div class="section-heading"><div><p class="eyebrow">PRIVATE</p><h2>Trainer note</h2></div></div>
+  <form method="post" action="{% url 'admin_interview_notes' iv.pk %}" class="stack-form">{% csrf_token %}{% include "tracker/_form.html" with form=notes_form %}
+    <button class="button button-primary" type="submit">Save note</button>
+  </form>
+</section>
+{% endif %}
 <section class="panel admin-rounds-panel">
   <div class="section-heading section-heading-panel"><div><p class="eyebrow">PROGRESS</p><h2>Interview rounds</h2></div><span class="round-progress">{{ iv.progress }}</span></div>
   <ul class="round-list">
