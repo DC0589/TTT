@@ -155,9 +155,13 @@ svg { display: block; width: 20px; height: 20px; }
 .report-table td:nth-child(5), .report-table td:nth-child(6), .report-table td:nth-child(7) { white-space: normal; }
 .mock-admin-session { padding: 16px 0; border-top: 1px solid var(--line); }
 .mock-review-browser { margin-bottom: 22px; padding: 18px; }
-.mock-review-filters { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)) auto auto; align-items: end; gap: 12px; }
-.mock-review-filters .form-field { min-width: 0; }
-.mock-review-filters .button { min-height: 42px; white-space: nowrap; }
+.mock-review-filters { display: grid; gap: 16px; }
+.mock-review-filter-fields { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: end; gap: 12px; }
+.mock-review-filter-fields .form-field { min-width: 0; }
+.mock-review-filter-fields .form-control { height: 42px; min-height: 42px; padding-block: 0; }
+.mock-review-filter-actions, .mock-review-filter-submit, .mock-review-filter-exports { display: flex; align-items: center; gap: 10px; }
+.mock-review-filter-actions { justify-content: space-between; }
+.mock-review-filter-actions .button { min-height: 42px; white-space: nowrap; }
 .mock-review-pagination { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 20px; }
 .mock-review-pagination > span { color: #687186; font-size: 12px; }
 .mock-admin-session-heading, .mock-admin-session-result, .mock-admin-question-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
@@ -661,7 +665,7 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
 @media (max-width: 950px) {
   .mock-session { grid-template-columns: minmax(0, 1fr); }
   .mock-feedback-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .mock-review-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .mock-review-filter-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 600px) {
   .mock-capture-grid, .mock-feedback-list { grid-template-columns: minmax(0, 1fr); }
@@ -671,7 +675,9 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
   .mock-question-meta { align-items: flex-start; flex-direction: column; gap: 5px; }
   .mock-results-dialog { padding: 18px; }
   .mock-review-browser { padding: 14px; }
-  .mock-review-filters { grid-template-columns: minmax(0, 1fr); }
+  .mock-review-filter-fields { grid-template-columns: minmax(0, 1fr); }
+  .mock-review-filter-actions { align-items: stretch; flex-direction: column; }
+  .mock-review-filter-submit, .mock-review-filter-exports { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 1100px) {
   .sidebar { width: 220px; padding-right: 16px; padding-left: 16px; }

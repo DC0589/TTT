@@ -6,15 +6,23 @@
 </section>
 <section class="panel mock-review-browser">
   <form class="mock-review-filters" method="get">
-    <div class="form-field"><label for="review-batch">Batch</label><select class="form-control" id="review-batch" name="batch"><option value="">All managed students</option>{% for batch in batches %}<option value="{{ batch.pk }}"{% if selected_batch.pk == batch.pk %} selected{% endif %}>{{ batch.name }}</option>{% endfor %}</select></div>
-    <div class="form-field"><label for="review-student">Student</label><select class="form-control" id="review-student" name="student"><option value="">All students</option>{% for student in students %}<option value="{{ student.pk }}"{% if selected_student.pk == student.pk %} selected{% endif %}>{{ student.username }}</option>{% endfor %}</select></div>
-    <div class="form-field"><label for="review-topic">Topic / role</label><select class="form-control" id="review-topic" name="topic"><option value="">All topics</option>{% for topic in topics %}<option value="{{ topic }}"{% if selected_topic == topic %} selected{% endif %}>{{ topic }}</option>{% endfor %}</select></div>
-    <div class="form-field"><label for="review-from">From date</label><input class="form-control" id="review-from" type="date" name="from_date" value="{{ from_date }}"></div>
-    <div class="form-field"><label for="review-to">To date</label><input class="form-control" id="review-to" type="date" name="to_date" value="{{ to_date }}"></div>
-    <button class="button button-primary" type="submit">Apply filters</button>
-    <a class="button button-quiet" href="{% url 'admin_mock_interviews' %}">Clear</a>
-    <a class="button button-quiet" href="{% url 'admin_mock_interviews_export' %}?{{ export_query }}">Export CSV</a>
-    <a class="button button-quiet" href="{% url 'admin_mock_interviews_report' %}?{{ export_query }}">Printable report</a>
+    <div class="mock-review-filter-fields">
+      <div class="form-field"><label for="review-batch">Batch</label><select class="form-control" id="review-batch" name="batch"><option value="">All managed students</option>{% for batch in batches %}<option value="{{ batch.pk }}"{% if selected_batch.pk == batch.pk %} selected{% endif %}>{{ batch.name }}</option>{% endfor %}</select></div>
+      <div class="form-field"><label for="review-student">Student</label><select class="form-control" id="review-student" name="student"><option value="">All students</option>{% for student in students %}<option value="{{ student.pk }}"{% if selected_student.pk == student.pk %} selected{% endif %}>{{ student.username }}</option>{% endfor %}</select></div>
+      <div class="form-field"><label for="review-topic">Topic / role</label><select class="form-control" id="review-topic" name="topic"><option value="">All topics</option>{% for topic in topics %}<option value="{{ topic }}"{% if selected_topic == topic %} selected{% endif %}>{{ topic }}</option>{% endfor %}</select></div>
+      <div class="form-field"><label for="review-from">From date</label><input class="form-control" id="review-from" type="date" name="from_date" value="{{ from_date }}"></div>
+      <div class="form-field"><label for="review-to">To date</label><input class="form-control" id="review-to" type="date" name="to_date" value="{{ to_date }}"></div>
+    </div>
+    <div class="mock-review-filter-actions">
+      <div class="mock-review-filter-submit">
+        <button class="button button-primary" type="submit">Apply filters</button>
+        <a class="button button-quiet" href="{% url 'admin_mock_interviews' %}">Clear</a>
+      </div>
+      <div class="mock-review-filter-exports">
+        <a class="button button-quiet" href="{% url 'admin_mock_interviews_export' %}?{{ export_query }}">Export CSV</a>
+        <a class="button button-quiet" href="{% url 'admin_mock_interviews_report' %}?{{ export_query }}">Printable report</a>
+      </div>
+    </div>
   </form>
 </section>
 <section class="content-section mock-admin-reports">
