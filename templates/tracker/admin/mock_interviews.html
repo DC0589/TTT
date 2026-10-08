@@ -26,6 +26,12 @@
         <span>{% if session.expected_answers %}{{ session.scores.all|length }} of {{ session.expected_answers }} submitted{% else %}{{ session.scores.all|length }} saved answers{% endif %}</span>
       </div>
     </header>
+    {% with n=session.integrity_events|length %}{% if n %}
+    <details class="mock-admin-feedback mock-integrity-flags" open>
+      <summary>⚠ {{ n }} suspicious activit{{ n|pluralize:"y,ies" }} flagged</summary>
+      <ul>{% for e in session.integrity_events %}<li>{{ e.at|slice:":19"|cut:"T" }} · {% if e.type == "tab_hidden" %}Switched to another tab/app{% elif e.type == "window_blur" %}Clicked outside the interview window{% elif e.type == "paste" %}Pasted text ({{ e.detail }}){% elif e.type == "copy" %}Copied text{% elif e.type == "context_menu" %}Opened right-click menu{% else %}Dev-tools/view-source shortcut ({{ e.detail }}){% endif %}{% if e.question %} · Q{{ e.question }}{% endif %}</li>{% endfor %}</ul>
+    </details>
+    {% else %}<p class="mock-integrity-clean">✓ No suspicious activity recorded</p>{% endif %}{% endwith %}
     <details class="mock-admin-feedback">
       <summary>Review per-question scores and feedback</summary>
       <div class="mock-admin-question-list">

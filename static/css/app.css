@@ -881,3 +881,7 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
 
 @media(max-width:800px){.dir-summary{grid-template-columns:repeat(2,1fr)}.dir-summary>div:nth-child(3){border-left:0}.dir-summary>div:nth-child(n+3){border-top:1px solid var(--hair)}}.nav-badge { margin-left: auto; min-width: 20px; padding: 1px 7px; color: #fff; background: #e5484d; border-radius: 999px; font-size: 11px; font-weight: 700; text-align: center; }
 .nav-badge[hidden] { display: none; }
+.mock-integrity-warning { color: #b42318; font-weight: 700; }
+.mock-integrity-flags summary { color: #b42318; font-weight: 700; }
+.mock-integrity-flags ul { margin: 8px 0 0 18px; font-size: 13px; }
+.mock-integrity-clean { margin: 8px 0 0; color: #1a7f4b; font-size: 13px; font-weight: 600; }

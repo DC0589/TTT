@@ -234,6 +234,7 @@ class MockInterviewSession(models.Model):
     expected_answers = models.PositiveSmallIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(blank=True, null=True)
+    integrity_events = models.JSONField(default=list, blank=True)
 
     class Meta:
         ordering = ["-created_at"]

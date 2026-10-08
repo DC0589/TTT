@@ -1017,12 +1017,34 @@ def student_mock_interview_ai(request):
 
     action = data.get("action")
     session_id = data.get("session_id")
-    if action in {"finish", "results"}:
+    if action in {"finish", "results", "integrity"}:
         session = MockInterviewSession.objects.filter(
             pk=session_id, student=request.user
         ).first()
         if session is None:
             return JsonResponse({"error": "Interview session not found."}, status=404)
+        if action == "integrity":
+            events = data.get("events")
+            if not isinstance(events, list):
+                return JsonResponse({"error": "Invalid events."}, status=400)
+            allowed = {"tab_hidden", "window_blur", "paste", "copy", "context_menu", "devtools_key"}
+            stored = list(session.integrity_events or [])
+            for event in events[:20]:
+                if not isinstance(event, dict) or event.get("type") not in allowed:
+                    continue
+                if len(stored) >= 300:
+                    break
+                detail = event.get("detail")
+                stored.append({
+                    "type": event["type"],
+                    "at": timezone.localtime().isoformat(timespec="seconds"),
+                    "question": event.get("question") if type(event.get("question")) is int else None,
+                    "detail": detail[:80] if isinstance(detail, str) else "",
+                })
+            session.integrity_events = stored
+            session.save(update_fields=["integrity_events"])
+            return JsonResponse({"ok": True})
+
         if action == "finish":
             expected_answers = data.get("expected_answers", 0)
             if type(expected_answers) is not int or not 0 <= expected_answers <= MOCK_QUESTION_COUNT:
