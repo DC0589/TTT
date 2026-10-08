@@ -7,6 +7,10 @@ from .models import Group, GroupMembership, Interview, InterviewRound, Interview
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
     fieldsets = UserAdmin.fieldsets + (("Roles", {"fields": ("is_admin", "is_student", "is_hr")}),)
+    fieldsets += (("Student details", {"fields": (
+        "referred_by", "mobile_number", "graduation", "department", "hometown",
+        "parent_name", "parent_mobile_number", "skills",
+    )}),)
     list_display = ("username", "email", "is_admin", "is_hr", "is_student")
 
 

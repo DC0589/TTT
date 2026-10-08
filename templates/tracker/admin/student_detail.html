@@ -14,6 +14,19 @@
   <article class="student-metric"><span class="metric-icon metric-icon-blue">▤</span><span><strong>{{ interviews|length }}</strong><small>Tracked interviews</small></span></article>
   <article class="student-metric"><span class="metric-icon metric-icon-red">↗</span><span><strong>{{ student.date_joined|date:"M Y" }}</strong><small>Joined Tweak Talent</small></span></article>
 </section>
+<section class="content-section">
+  <div class="section-heading"><div><p class="eyebrow">STUDENT PROFILE</p><h2>Personal details</h2></div></div>
+  <div class="student-group-list">
+    <p><strong>Referred by:</strong> {{ student.referred_by|default:"Not provided" }}</p>
+    <p><strong>Mobile number:</strong> {{ student.mobile_number|default:"Not provided" }}</p>
+    <p><strong>Graduation:</strong> {{ student.graduation|default:"Not provided" }}</p>
+    <p><strong>Department:</strong> {{ student.department|default:"Not provided" }}</p>
+    <p><strong>From:</strong> {{ student.hometown|default:"Not provided" }}</p>
+    <p><strong>Parent name:</strong> {{ student.parent_name|default:"Not provided" }}</p>
+    <p><strong>Parent mobile number:</strong> {{ student.parent_mobile_number|default:"Not provided" }}</p>
+    <p><strong>Skills:</strong> {{ student.skills|default:"Not provided"|linebreaksbr }}</p>
+  </div>
+</section>
 <section class="content-section student-groups-section">
   <div class="section-heading"><div><p class="eyebrow">LEARNING COMMUNITY</p><h2>Batches</h2></div><span class="section-meta">{{ memberships|length }} batch{{ memberships|length|pluralize:"es" }}</span></div>
   <div class="student-group-list">

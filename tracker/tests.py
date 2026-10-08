@@ -270,6 +270,14 @@ class AuthTests(Base):
         response = self.client.post(reverse("admin_student_add"), {
             "username": "direct-student",
             "email": "direct@example.com",
+            "referred_by": "A. Referrer",
+            "mobile_number": "+1 555 0100",
+            "graduation": "BSc Computer Science, 2025",
+            "department": "Computer Science",
+            "hometown": "Springfield",
+            "parent_name": "Parent Example",
+            "parent_mobile_number": "+1 555 0101",
+            "skills": "Python, Django",
             "password1": "T7rong-pass-99",
             "password2": "T7rong-pass-99",
         })
@@ -279,6 +287,14 @@ class AuthTests(Base):
             response, reverse("admin_student_detail", args=[student.pk]))
         self.assertTrue(student.is_student)
         self.assertEqual(student.created_by, self.admin)
+        self.assertEqual(student.referred_by, "A. Referrer")
+        self.assertEqual(student.mobile_number, "+1 555 0100")
+        self.assertEqual(student.graduation, "BSc Computer Science, 2025")
+        self.assertEqual(student.department, "Computer Science")
+        self.assertEqual(student.hometown, "Springfield")
+        self.assertEqual(student.parent_name, "Parent Example")
+        self.assertEqual(student.parent_mobile_number, "+1 555 0101")
+        self.assertEqual(student.skills, "Python, Django")
         self.assertFalse(StudentRegistrationRequest.objects.filter(
             username="direct-student").exists())
 
@@ -953,14 +969,18 @@ class ViewTests(Base):
 
     def test_admin_creates_group_and_adds_member(self):
         self.client.force_login(self.admin)
+        unassigned = User.objects.create_user("unassigned-member", is_student=True)
         r = self.client.post(reverse("admin_group_add"), {"name": "Batch B", "description": ""})
         g = Group.objects.get(name="Batch B")
         self.assertRedirects(r, reverse("admin_group_detail", args=[g.pk]))
+        response = self.client.get(reverse("admin_group_member_add", args=[g.pk]))
+        self.assertContains(response, "unassigned-member")
+        self.assertNotContains(response, "alice")
         self.client.post(
             reverse("admin_group_member_add", args=[g.pk]),
-            {"student": self.alice.pk},
+            {"student": unassigned.pk},
         )
-        self.assertTrue(g.memberships.filter(student=self.alice).exists())
+        self.assertTrue(g.memberships.filter(student=unassigned).exists())
 
     def test_student_adds_interview_only_for_own_group(self):
         outsider_group = Group.objects.create(name="Other", admin=self.admin)
@@ -1260,25 +1280,20 @@ class ViewTests(Base):
             reverse("admin_group_member_add", args=[new_group.pk]),
             {"student": self.alice.pk},
         )
-        self.assertRedirects(add_response, reverse("admin_group_detail", args=[new_group.pk]))
-        self.assertTrue(GroupMembership.objects.filter(
+        self.assertEqual(add_response.status_code, 200)
+        self.assertFalse(GroupMembership.objects.filter(
             group=new_group, student=self.alice).exists())
+        available_response = self.client.get(
+            reverse("admin_group_member_add", args=[new_group.pk]))
+        self.assertNotContains(available_response, "alice")
         self.client.force_login(self.admin)
         group_response = self.client.get(reverse("admin_group_detail", args=[new_group.pk]))
-        self.assertContains(group_response, "Acme")
-        self.assertContains(group_response, self.group.name)
+        self.assertNotContains(group_response, "Acme")
         same_group_response = self.client.post(
             reverse("admin_group_member_add", args=[self.group.pk]),
             {"student": self.alice.pk},
         )
-        self.assertRedirects(
-            same_group_response,
-            reverse("admin_group_detail", args=[self.group.pk]),
-        )
-        self.assertContains(
-            self.client.get(reverse("admin_group_detail", args=[self.group.pk])),
-            "Acme",
-        )
+        self.assertEqual(same_group_response.status_code, 200)
 
         self.client.force_login(self.alice)
         response = self.client.get(reverse("student_interviews"))

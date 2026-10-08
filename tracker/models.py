@@ -6,6 +6,14 @@ class User(AbstractUser):
     is_admin = models.BooleanField(default=False)
     is_student = models.BooleanField(default=False)
     is_hr = models.BooleanField(default=False)
+    referred_by = models.CharField(max_length=150, blank=True)
+    mobile_number = models.CharField(max_length=30, blank=True)
+    graduation = models.CharField(max_length=150, blank=True)
+    department = models.CharField(max_length=150, blank=True)
+    hometown = models.CharField(max_length=150, blank=True)
+    parent_name = models.CharField(max_length=150, blank=True)
+    parent_mobile_number = models.CharField(max_length=30, blank=True)
+    skills = models.TextField(blank=True)
     created_by = models.ForeignKey(
         "self",
         blank=True,

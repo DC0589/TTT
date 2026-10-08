@@ -25,7 +25,25 @@ class StudentForm(Styled, UserCreationForm):
 
     class Meta:
         model = User
-        fields = ("username", "email")
+        fields = (
+            "username", "email", "referred_by", "mobile_number", "graduation",
+            "department", "hometown", "parent_name", "parent_mobile_number", "skills",
+        )
+        labels = {
+            "referred_by": "Who referred the student",
+            "mobile_number": "Student mobile number",
+            "graduation": "Graduation",
+            "department": "Department",
+            "hometown": "Where the student is from",
+            "parent_name": "Parent name",
+            "parent_mobile_number": "Parent mobile number",
+            "skills": "Skills",
+        }
+        help_texts = {
+            "graduation": "Degree, graduation year, or other graduation details.",
+            "skills": "Separate skills with commas.",
+        }
+        widgets = {"skills": forms.Textarea(attrs={"rows": 3})}
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -172,8 +190,9 @@ class AddMemberForm(Styled, forms.Form):
     def __init__(self, *a, group, **k):
         super().__init__(*a, **k)
         self.group = group
-        self.fields["student"].queryset = User.objects.filter(is_student=True).exclude(
-            memberships__group=group)
+        self.fields["student"].queryset = User.objects.filter(
+            is_student=True, memberships__isnull=True
+        )
 
     def save(self):
         return GroupMembership.objects.create(group=self.group, student=self.cleaned_data["student"])
