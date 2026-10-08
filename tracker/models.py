@@ -235,6 +235,32 @@ class MockInterviewSession(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(blank=True, null=True)
     integrity_events = models.JSONField(default=list, blank=True)
+    difficulty = models.CharField(max_length=10, blank=True)
+
+    INTEGRITY_PENALTIES = {
+        "tab_hidden": 10, "window_blur": 5, "paste": 10, "copy": 3,
+        "context_menu": 2, "devtools_key": 5, "auto_ended": 0,
+    }
+
+    @property
+    def integrity_flag_count(self):
+        return sum(1 for e in (self.integrity_events or []) if e.get("type") != "auto_ended")
+
+    @property
+    def integrity_score(self):
+        penalty = sum(self.INTEGRITY_PENALTIES.get(e.get("type"), 0) for e in (self.integrity_events or []))
+        return max(0, 100 - penalty)
+
+    @property
+    def integrity_level(self):
+        score = self.integrity_score
+        if score >= 80:
+            return "low"
+        return "medium" if score >= 50 else "high"
+
+    @property
+    def auto_ended(self):
+        return any(e.get("type") == "auto_ended" for e in (self.integrity_events or []))
 
     class Meta:
         ordering = ["-created_at"]
@@ -269,3 +295,25 @@ class MockInterviewScore(models.Model):
 
     def __str__(self):
         return f"{self.session} - question {self.question_number}: {self.score}/5"
+
+
+class MockQuestion(models.Model):
+    EASY, MEDIUM, HARD = "easy", "medium", "hard"
+    DIFFICULTY_CHOICES = [(EASY, "Easy"), (MEDIUM, "Medium"), (HARD, "Hard")]
+    CONCEPT, CODING = "concept", "coding"
+    KIND_CHOICES = [(CONCEPT, "Concept (spoken)"), (CODING, "Coding")]
+    LANGUAGE_CHOICES = [("", "Topic default"), ("python", "Python"), ("sql", "SQL"), ("pyspark", "PySpark")]
+
+    topic = models.CharField(max_length=120)
+    difficulty = models.CharField(max_length=10, choices=DIFFICULTY_CHOICES, default=MEDIUM)
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES, default=CONCEPT)
+    language = models.CharField(max_length=10, choices=LANGUAGE_CHOICES, blank=True)
+    text = models.TextField()
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["topic", "difficulty", "id"]
+
+    def __str__(self):
+        return f"{self.topic} [{self.difficulty}] {self.text[:50]}"

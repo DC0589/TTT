@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Mock question bank{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">MOCK INTERVIEWS</p><h1>Question bank</h1><p>{{ total }} question{{ total|pluralize }}. Each mock session draws from the matching topic and level, and the AI fills any gaps.</p></div>
+  <a class="button button-primary" href="{% url 'admin_question_add' %}"><span class="button-plus" aria-hidden="true">+</span> Add question</a>
+</section>
+<section class="panel mock-review-browser">
+  <form class="mock-review-filters" method="get">
+    <div class="form-field"><label for="q-topic">Topic</label><select class="form-control" id="q-topic" name="topic"><option value="">All topics</option>{% for t in topics %}<option value="{{ t }}"{% if t == selected_topic %} selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+    <div class="form-field"><label for="q-level">Level</label><select class="form-control" id="q-level" name="difficulty"><option value="">All levels</option><option value="easy"{% if selected_difficulty == "easy" %} selected{% endif %}>Easy</option><option value="medium"{% if selected_difficulty == "medium" %} selected{% endif %}>Medium</option><option value="hard"{% if selected_difficulty == "hard" %} selected{% endif %}>Hard</option></select></div>
+    <div class="form-field"><label for="q-type">Type</label><select class="form-control" id="q-type" name="type"><option value="">All types</option><option value="concept"{% if selected_type == "concept" %} selected{% endif %}>Concept</option><option value="coding"{% if selected_type == "coding" %} selected{% endif %}>Coding</option></select></div>
+    <div class="form-field"><label for="q-search">Search</label><input class="form-control" id="q-search" name="q" value="{{ search }}" placeholder="Text contains..."></div>
+    <button class="button button-primary" type="submit">Apply filters</button>
+    <a class="button button-quiet" href="{% url 'admin_questions' %}">Clear</a>
+  </form>
+</section>
+<section class="panel">
+  <form class="mock-review-filters" method="post" action="{% url 'admin_questions_import' %}" enctype="multipart/form-data">{% csrf_token %}
+    <div class="form-field"><label for="q-file">Import from CSV</label><input class="form-control" id="q-file" type="file" name="file" accept=".csv,text/csv" required><p class="field-help">Columns: topic, difficulty (easy/medium/hard), type (concept/coding), text, language (optional). Duplicates are skipped.</p></div>
+    <button class="button button-primary" type="submit">Import</button>
+    <a class="button button-quiet" href="{% url 'admin_questions_export' %}">Export CSV</a>
+  </form>
+</section>
+<section class="content-section">
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>Topic</th><th>Level</th><th>Type</th><th>Question</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for q in page_obj.object_list %}
+    <tr>
+      <td>{{ q.topic }}</td><td>{{ q.get_difficulty_display }}</td>
+      <td>{{ q.get_kind_display }}{% if q.language %} · {{ q.get_language_display }}{% endif %}</td>
+      <td>{{ q.text|truncatechars:160 }}</td>
+      <td>{% if q.is_active %}Active{% else %}Hidden{% endif %}</td>
+      <td class="actions-cell">
+        <a class="button button-quiet" href="{% url 'admin_question_edit' q.pk %}">Edit</a>
+        <form method="post" action="{% url 'admin_question_delete' q.pk %}" style="display:inline" onsubmit="return confirm('Delete this question?');">{% csrf_token %}<button class="button button-quiet" type="submit">Delete</button></form>
+      </td>
+    </tr>
+    {% empty %}<tr><td colspan="6" class="table-empty"><strong>No questions match.</strong></td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+  {% if page_obj.paginator.num_pages > 1 %}
+  <p class="section-meta">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    {% if page_obj.has_previous %}<a class="button button-quiet" href="?{{ base_query }}{% if base_query %}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+    {% if page_obj.has_next %}<a class="button button-quiet" href="?{{ base_query }}{% if base_query %}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>{% endif %}</p>
+  {% endif %}
+</section>
+{% endblock %}

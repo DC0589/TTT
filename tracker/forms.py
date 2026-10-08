@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from .models import (
     Group, GroupMembership, Interview, InterviewRound, InterviewStatus, LearningCourse,
-    StudentRegistrationRequest, User,
+    MockQuestion, StudentRegistrationRequest, User,
 )
 
 INPUT = "form-control"
@@ -286,3 +286,26 @@ class StudentPasswordResetForm(PasswordResetForm):
             super().send_mail(*args, **kwargs)
         except Exception:
             logging.getLogger(__name__).exception("Password reset email failed")
+
+
+class MockQuestionForm(Styled, forms.ModelForm):
+    class Meta:
+        model = MockQuestion
+        fields = ("topic", "difficulty", "kind", "language", "text", "is_active")
+        widgets = {"text": forms.Textarea(attrs={"rows": 4})}
+        help_texts = {
+            "language": "Only used for coding questions. Leave as topic default unless needed.",
+            "text": "For SQL coding questions, describe the tables and expected output in words.",
+        }
+
+    def clean_topic(self):
+        return " ".join(self.cleaned_data["topic"].split())
+
+    def clean_text(self):
+        return self.cleaned_data["text"].strip()
+
+    def clean(self):
+        data = super().clean()
+        if data.get("kind") != MockQuestion.CODING:
+            data["language"] = ""
+        return data

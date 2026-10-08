@@ -34,6 +34,10 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21zM4 5.5v13M8 7h8M8 11h8"/></svg>
         <span>Courses &amp; questions</span>
       </a>
+      <a class="nav-link{% if request.resolver_match.url_name == 'admin_questions' or request.resolver_match.url_name == 'admin_question_add' or request.resolver_match.url_name == 'admin_question_edit' %} is-active{% endif %}" href="{% url 'admin_questions' %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 9a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1 1-1.1 1.8M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+        <span>Question bank</span>
+      </a>
       <a class="nav-link{% if request.resolver_match.url_name == 'admin_reports' %} is-active{% endif %}" href="{% url 'admin_reports' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5M4 19h16M8 16v-4M12 16V7M16 16v-6"/></svg>
         <span>Reports</span>
@@ -177,7 +181,7 @@
   });
 </script>
 {% if user.is_authenticated and user.is_admin %}<script>window.SIGNUP_POLL_URL="{% url 'registrations_pending_count' %}";</script>{% endif %}
-<script src="{% static 'js/app.js' %}?v=5" defer></script>
+<script src="{% static 'js/app.js' %}?v=6" defer></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

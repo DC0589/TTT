@@ -74,6 +74,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"  # Added for collectstatic
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+MOCK_MAX_INTEGRITY_FLAGS = int(os.environ.get("MOCK_MAX_INTEGRITY_FLAGS", "5"))
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
 GEMINI_PRIMARY_MODEL = os.environ.get("GEMINI_PRIMARY_MODEL", "gemini-3.5-flash-lite")

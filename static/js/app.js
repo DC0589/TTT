@@ -72,6 +72,7 @@
   let role = '';
   let difficulty = 'medium';
   let sessionId = null;
+  window.__mockEnd = message => endSession(message);
   window.__mockIntegrity = () => ({ sessionId, question: typeof questionNumber === 'number' ? questionNumber : null });
   let questions = [];
   let pendingFeedback = [];
@@ -302,6 +303,12 @@
 
   codeLanguage.addEventListener('change', updateCodeNote);
 
+  const blockEditorPaste = event => {
+    event.preventDefault();
+    setStatus(sessionStatus, 'Pasting is disabled in the code editor. Type your solution.', true);
+  };
+  codeEditor.addEventListener('paste', blockEditorPaste);
+  codeEditor.addEventListener('drop', blockEditorPaste);
   codeEditor.addEventListener('keydown', event => {
     if (event.key !== 'Tab') return;
     event.preventDefault();
@@ -669,6 +676,10 @@
         action: 'integrity', consent: true, session_id: state.sessionId,
         events: [{ type, detail: detail || '', question: state.question }],
       }),
+    }).then(r => r.json()).then(result => {
+      if (result && result.terminate && window.__mockEnd) {
+        window.__mockEnd('Session ended automatically: too many suspicious activities were flagged.');
+      }
     }).catch(() => {});
   };
 
@@ -677,7 +688,7 @@
     else if (leftAt) { leftAt = null; }
   });
   window.addEventListener('blur', () => {
-    if (!document.hidden) { leftAt = Date.now(); report('window_blur'); }
+    setTimeout(() => { if (!document.hidden) report('window_blur'); }, 400);
   });
   document.addEventListener('paste', event => {
     const text = (event.clipboardData && event.clipboardData.getData('text')) || '';

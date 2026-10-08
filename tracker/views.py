@@ -1,5 +1,7 @@
 from functools import wraps
 import base64
+import csv
+import io
 import hashlib
 import hmac
 import json
@@ -20,7 +22,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.core.paginator import Paginator
 from django.db import IntegrityError, transaction
 from django.db.models import Avg, Count, Max, Prefetch, Q
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -30,7 +32,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 from .forms import (
     AddMemberForm, FinalStatusForm, GroupForm, HRUserForm, InterviewForm, LearningCourseForm,
-    RegistrationOTPForm, RoundForm, RoundStatusForm, StudentForm,
+    MockQuestionForm, RegistrationOTPForm, RoundForm, RoundStatusForm, StudentForm,
     StudentRegistrationForm,
 )
 from .mock_bank import DIFFICULTY_GUIDE, normalise_difficulty, pick_seed_questions
@@ -38,7 +40,7 @@ from .mock_topics import MOCK_TOPICS, pick_focus_areas, topic_language
 from .ai_interview import GeminiAPIError, generate_json
 from .models import (
     Group, GroupMembership, Interview, InterviewRound, InterviewStatus,
-    LearningCourse, MockInterviewScore, MockInterviewSession,
+    LearningCourse, MockInterviewScore, MockInterviewSession, MockQuestion,
     StudentRegistrationRequest, User,
 )
 
@@ -547,9 +549,7 @@ def admin_reports(request):
     })
 
 
-@staff_required
-@require_GET
-def admin_mock_interviews(request):
+def _mock_review_filters(request):
     owner = request.user.created_by if request.user.is_hr else request.user
     groups = owner.groups_created.order_by("name")
     batch_value = request.GET.get("batch", "")
@@ -594,6 +594,20 @@ def admin_mock_interviews(request):
     if to_date:
         sessions = sessions.filter(created_at__date__lte=to_date)
 
+    return {
+        "owner": owner, "groups": groups, "students": students, "sessions": sessions,
+        "topics": topics, "selected_group": selected_group, "selected_student": selected_student,
+        "selected_topic": selected_topic, "from_date_value": from_date_value, "to_date_value": to_date_value,
+    }
+
+
+@staff_required
+@require_GET
+def admin_mock_interviews(request):
+    f = _mock_review_filters(request)
+    groups, students, sessions, topics = f["groups"], f["students"], f["sessions"], f["topics"]
+    selected_group, selected_student, selected_topic = f["selected_group"], f["selected_student"], f["selected_topic"]
+    from_date_value, to_date_value = f["from_date_value"], f["to_date_value"]
     paginator = Paginator(sessions.order_by("-created_at"), 25)
     page_obj = paginator.get_page(request.GET.get("page"))
 
@@ -615,6 +629,56 @@ def admin_mock_interviews(request):
         "previous_page_url": page_url(page_obj.previous_page_number()) if page_obj.has_previous() else None,
         "next_page_url": page_url(page_obj.next_page_number()) if page_obj.has_next() else None,
         "result_count": paginator.count,
+        "export_query": request.GET.urlencode(),
+    })
+
+
+def _csv_safe(value):
+    value = "" if value is None else str(value)
+    return "'" + value if value[:1] in ("=", "+", "-", "@", "\t", "\r") else value
+
+
+@staff_required
+@require_GET
+def admin_mock_interviews_export(request):
+    f = _mock_review_filters(request)
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="mock-interview-report.csv"'
+    writer = csv.writer(response)
+    writer.writerow([
+        "Date (IST)", "Student", "Topic", "Level", "Rating (out of 5)", "Answers submitted",
+        "Answers expected", "Integrity score", "Integrity flags", "Auto-ended", "Flag summary",
+    ])
+    for session in f["sessions"].order_by("-created_at"):
+        counts = {}
+        for event in session.integrity_events or []:
+            if event.get("type") != "auto_ended":
+                counts[event.get("type")] = counts.get(event.get("type"), 0) + 1
+        writer.writerow([_csv_safe(x) for x in [
+            timezone.localtime(session.created_at).strftime("%Y-%m-%d %H:%M"),
+            session.student.username, session.role, session.difficulty or "",
+            f"{session.rating:.1f}" if session.rating is not None else "",
+            len(session.scores.all()), session.expected_answers,
+            session.integrity_score, session.integrity_flag_count,
+            "yes" if session.auto_ended else "no",
+            "; ".join(f"{k}: {n}" for k, n in sorted(counts.items())),
+        ]])
+    return response
+
+
+@staff_required
+@require_GET
+def admin_mock_interviews_report(request):
+    f = _mock_review_filters(request)
+    sessions = list(f["sessions"].order_by("student__username", "-created_at")[:300])
+    return render(request, "tracker/admin/mock_report.html", {
+        "sessions": sessions,
+        "student": f["selected_student"],
+        "batch": f["selected_group"],
+        "topic": f["selected_topic"],
+        "from_date": f["from_date_value"],
+        "to_date": f["to_date_value"],
+        "generated_at": timezone.localtime(),
     })
 
 
@@ -996,7 +1060,9 @@ def student_dashboard(request):
 def student_mock_interview(request):
     return render(request, "tracker/student/mock_interview.html", {
         "ai_url": reverse("student_mock_interview_ai"),
-        "topics": list(MOCK_TOPICS),
+        "topics": list(MOCK_TOPICS) + sorted(
+            set(MockQuestion.objects.filter(is_active=True).values_list("topic", flat=True)) - set(MOCK_TOPICS)
+        ),
         "active_tab": "mock_interview",
         "recent_sessions": request.user.mock_interview_sessions.prefetch_related(
             "scores"
@@ -1043,8 +1109,19 @@ def student_mock_interview_ai(request):
                     "detail": detail[:80] if isinstance(detail, str) else "",
                 })
             session.integrity_events = stored
+            limit = settings.MOCK_MAX_INTEGRITY_FLAGS
+            terminate = bool(limit) and session.completed_at is None and not session.auto_ended \
+                and session.integrity_flag_count >= limit
+            if terminate:
+                session.integrity_events = stored + [{
+                    "type": "auto_ended", "at": timezone.localtime().isoformat(timespec="seconds"),
+                    "question": None, "detail": f"limit {limit}",
+                }]
             session.save(update_fields=["integrity_events"])
-            return JsonResponse({"ok": True})
+            return JsonResponse({
+                "ok": True, "flags": session.integrity_flag_count,
+                "limit": limit, "terminate": terminate,
+            })
 
         if action == "finish":
             expected_answers = data.get("expected_answers", 0)
@@ -1307,7 +1384,9 @@ def student_mock_interview_ai(request):
                 break
         if len(questions) != MOCK_QUESTION_COUNT:
             return JsonResponse({"error": "The AI returned invalid questions. Please try again."}, status=502)
-        session = MockInterviewSession.objects.create(student=request.user, role=role)
+        session = MockInterviewSession.objects.create(
+            student=request.user, role=role, difficulty=difficulty,
+        )
         return JsonResponse({"questions": questions, "session_id": session.pk})
 
     score = result.get("score", 3)
@@ -1505,3 +1584,138 @@ def round_update(request, pk):
         "final_status": rnd.interview.final_status,
         "final_label": rnd.interview.final_label,
     })
+
+
+QUESTION_CSV_COLUMNS = ["topic", "difficulty", "type", "text", "language"]
+
+
+@admin_required
+@require_GET
+def admin_questions(request):
+    questions = MockQuestion.objects.all()
+    topic = request.GET.get("topic", "")
+    difficulty = request.GET.get("difficulty", "")
+    kind = request.GET.get("type", "")
+    search = request.GET.get("q", "").strip()
+    if topic:
+        questions = questions.filter(topic=topic)
+    if difficulty in {"easy", "medium", "hard"}:
+        questions = questions.filter(difficulty=difficulty)
+    if kind in {"concept", "coding"}:
+        questions = questions.filter(kind=kind)
+    if search:
+        questions = questions.filter(text__icontains=search)
+    page_obj = Paginator(questions, 25).get_page(request.GET.get("page"))
+    query = request.GET.copy()
+    query.pop("page", None)
+    return render(request, "tracker/admin/questions.html", {
+        "page_obj": page_obj,
+        "topics": MockQuestion.objects.order_by().values_list("topic", flat=True).distinct().order_by("topic"),
+        "selected_topic": topic, "selected_difficulty": difficulty,
+        "selected_type": kind, "search": search,
+        "total": MockQuestion.objects.count(),
+        "base_query": query.urlencode(),
+    })
+
+
+def _question_form_page(request, form, title, label):
+    return render(request, "tracker/admin/question_form.html", {
+        "form": form, "page_title": title, "submit_label": label,
+        "topic_suggestions": sorted(
+            set(MOCK_TOPICS) | set(MockQuestion.objects.values_list("topic", flat=True))
+        ),
+    })
+
+
+@admin_required
+@require_http_methods(["GET", "POST"])
+def admin_question_add(request):
+    form = MockQuestionForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Question added to the bank.")
+        return redirect("admin_questions")
+    return _question_form_page(request, form, "Add a mock interview question", "Add question")
+
+
+@admin_required
+@require_http_methods(["GET", "POST"])
+def admin_question_edit(request, pk):
+    question = get_object_or_404(MockQuestion, pk=pk)
+    form = MockQuestionForm(request.POST or None, instance=question)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Question updated.")
+        return redirect("admin_questions")
+    return _question_form_page(request, form, "Edit question", "Save changes")
+
+
+@admin_required
+@require_POST
+def admin_question_delete(request, pk):
+    get_object_or_404(MockQuestion, pk=pk).delete()
+    messages.success(request, "Question deleted.")
+    return redirect("admin_questions")
+
+
+@admin_required
+@require_GET
+def admin_questions_export(request):
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="mock-question-bank.csv"'
+    writer = csv.writer(response)
+    writer.writerow(QUESTION_CSV_COLUMNS)
+    for q in MockQuestion.objects.all():
+        writer.writerow([_csv_safe(x) for x in [q.topic, q.difficulty, q.kind, q.text, q.language]])
+    return response
+
+
+@admin_required
+@require_POST
+def admin_questions_import(request):
+    upload = request.FILES.get("file")
+    if upload is None or upload.size > 1_000_000:
+        messages.error(request, "Choose a CSV file smaller than 1 MB.")
+        return redirect("admin_questions")
+    try:
+        text = upload.read().decode("utf-8-sig")
+    except UnicodeDecodeError:
+        messages.error(request, "The file must be UTF-8 encoded CSV.")
+        return redirect("admin_questions")
+    reader = csv.DictReader(io.StringIO(text))
+    headers = {(h or "").strip().lower() for h in (reader.fieldnames or [])}
+    if not {"topic", "difficulty", "text"} <= headers:
+        messages.error(request, "The CSV needs the columns: topic, difficulty, type, text, language.")
+        return redirect("admin_questions")
+    existing = {
+        (t.lower(), d, x.strip().lower())
+        for t, d, x in MockQuestion.objects.values_list("topic", "difficulty", "text")
+    }
+    created, skipped = [], 0
+    for index, raw in enumerate(reader):
+        if index >= 2000:
+            break
+        row = {(k or "").strip().lower(): (v or "").strip() for k, v in raw.items()}
+        topic = " ".join(row.get("topic", "").split())[:120]
+        difficulty = row.get("difficulty", "").lower() or "medium"
+        kind = (row.get("type") or row.get("kind") or "concept").lower()
+        language = row.get("language", "").lower()
+        body = row.get("text", "")
+        if kind == "code":
+            kind = "coding"
+        if (not topic or not body or difficulty not in {"easy", "medium", "hard"}
+                or kind not in {"concept", "coding"} or language not in {"", "python", "sql", "pyspark"}):
+            skipped += 1
+            continue
+        key = (topic.lower(), difficulty, body.lower())
+        if key in existing:
+            skipped += 1
+            continue
+        existing.add(key)
+        created.append(MockQuestion(
+            topic=topic, difficulty=difficulty, kind=kind, text=body,
+            language=language if kind == "coding" else "",
+        ))
+    MockQuestion.objects.bulk_create(created)
+    messages.success(request, f"Imported {len(created)} question(s); skipped {skipped} duplicate or invalid row(s).")
+    return redirect("admin_questions")

@@ -245,9 +245,24 @@ def normalise_difficulty(value):
     return value if value in DIFFICULTIES else DEFAULT_DIFFICULTY
 
 
+def _bank_items(topic):
+    """Return {difficulty: [prompt]} from the admin-managed bank, falling back to the built-in one."""
+    from .models import MockQuestion
+
+    rows = list(MockQuestion.objects.filter(topic__iexact=topic, is_active=True))
+    if not rows:
+        return QUESTION_BANK.get(topic)
+    bank = {}
+    for row in rows:
+        bank.setdefault(row.difficulty, []).append(
+            f"[code] {row.text}" if row.kind == MockQuestion.CODING else row.text
+        )
+    return bank
+
+
 def pick_seed_questions(topic, difficulty, exclude=(), count=6):
-    """Pick bank questions for the level; easy/medium use their own tier, hard mixes in medium."""
-    bank = QUESTION_BANK.get(topic)
+    """Pick bank questions for the level; easy/medium borrow a neighbouring tier if short."""
+    bank = _bank_items(topic)
     if not bank:
         return []
     pool = list(bank.get(difficulty, []))

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Mock interview report{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">PLACEMENT REPORT</p><h1>Mock interview report</h1>
+  <p>{% if student %}{{ student.username }}{% elif batch %}Batch {{ batch.name }}{% else %}All managed students{% endif %}{% if topic %} · {{ topic }}{% endif %}{% if from_date or to_date %} · {{ from_date|default:"start" }} to {{ to_date|default:"today" }}{% endif %} · Generated {{ generated_at|date:"M j, Y, H:i" }} IST</p></div>
+  <div class="no-print"><button class="button button-primary" type="button" onclick="window.print()">Print / Save as PDF</button> <a class="button button-quiet" href="{% url 'admin_mock_interviews' %}?{{ request.GET.urlencode }}">Back</a></div>
+</section>
+<section class="content-section">
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>Date</th><th>Student</th><th>Topic</th><th>Level</th><th>Rating</th><th>Answers</th><th>Integrity</th></tr></thead>
+    <tbody>
+    {% for s in sessions %}
+    <tr>
+      <td>{{ s.created_at|date:"M j, Y H:i" }}</td><td>{{ s.student.username }}</td><td>{{ s.role }}</td><td>{{ s.difficulty|default:"-"|title }}</td>
+      <td>{% if s.rating is not None %}{{ s.rating|floatformat:1 }}/5{% elif s.completed_at %}-{% else %}In progress{% endif %}</td>
+      <td>{{ s.scores.all|length }}{% if s.expected_answers %} / {{ s.expected_answers }}{% endif %}</td>
+      <td>{{ s.integrity_score }}/100 ({{ s.integrity_flag_count }} flag{{ s.integrity_flag_count|pluralize }}){% if s.auto_ended %} · auto-ended{% endif %}</td>
+    </tr>
+    {% empty %}<tr><td colspan="7" class="table-empty"><strong>No sessions match these filters.</strong></td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</section>
+<style>@media print { .sidebar, .topbar, .no-print, .nav { display: none !important; } .app-shell, main { margin: 0 !important; padding: 0 !important; } }</style>
+{% endblock %}

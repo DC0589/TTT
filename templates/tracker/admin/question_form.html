@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="{% url 'admin_questions' %}">Question bank</a><span aria-hidden="true">/</span><span>{{ page_title }}</span></div>
+<section class="page-heading"><div><p class="eyebrow">MOCK INTERVIEWS</p><h1>{{ page_title }}</h1></div></section>
+<section class="panel course-editor-panel">
+  <form method="post" class="stack-form">{% csrf_token %}{% include "tracker/_form.html" %}
+    <datalist id="topic-suggestions">{% for t in topic_suggestions %}<option value="{{ t }}">{% endfor %}</datalist>
+    <div class="course-card-actions"><button class="button button-primary" type="submit">{{ submit_label }}</button><a class="button button-quiet" href="{% url 'admin_questions' %}">Cancel</a></div>
+  </form>
+</section>
+<script>document.getElementById('id_topic').setAttribute('list', 'topic-suggestions');</script>
+{% endblock %}
