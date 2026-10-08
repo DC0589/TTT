@@ -13,6 +13,7 @@
     <input type="hidden" name="next" value="{{ next }}">
     <button class="button button-primary button-wide" type="submit">Log in <span aria-hidden="true">→</span></button>
   </form>
+  <p class="auth-switch"><a href="{% url 'password_reset' %}">Forgot your password?</a></p>
   <p class="auth-switch">New to Tweak Talent Technologies? <a href="{% url 'register' %}">Create a student account</a></p>
 </div>
 {% endblock %}

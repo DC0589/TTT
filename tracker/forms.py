@@ -1,5 +1,7 @@
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
+import logging
+
+from django.contrib.auth.forms import PasswordResetForm, UserCreationForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.validators import RegexValidator
 from django.utils import timezone
@@ -259,3 +261,14 @@ class FinalStatusForm(Styled, forms.ModelForm):
         if any(r.status == InterviewRound.PENDING for r in rounds):
             raise forms.ValidationError("Complete all rounds before setting the final result.")
         return self.cleaned_data["final_status"]
+
+
+class StudentPasswordResetForm(PasswordResetForm):
+    def get_users(self, email):
+        return (user for user in super().get_users(email) if user.is_student)
+
+    def send_mail(self, *args, **kwargs):
+        try:
+            super().send_mail(*args, **kwargs)
+        except Exception:
+            logging.getLogger(__name__).exception("Password reset email failed")
