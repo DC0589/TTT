@@ -111,6 +111,7 @@
       <div class="rv-who">
         <strong>{{ registration.username }}</strong>
         <span class="rv-email">{{ registration.email }}</span>
+        <span class="rv-email">{{ registration.mobile_number }}{% if registration.graduation %} · {{ registration.graduation }}{% endif %}{% if registration.department %} · {{ registration.department }}{% endif %}{% if registration.hometown %} · {{ registration.hometown }}{% endif %}</span>
         <span class="rv-when"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>Verified {{ registration.verified_at|date:"M j, Y" }} at {{ registration.verified_at|date:"g:i a" }}</span>
       </div>
       <div class="rv-actions">

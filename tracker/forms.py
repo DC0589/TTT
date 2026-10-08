@@ -79,6 +79,20 @@ class StudentRegistrationForm(Styled, forms.Form):
         max_length=150, validators=User._meta.get_field("username").validators
     )
     email = forms.EmailField()
+    referred_by = forms.CharField(label="Who referred you", max_length=150, required=False)
+    mobile_number = forms.CharField(label="Your mobile number", max_length=30)
+    graduation = forms.CharField(
+        label="Graduation", max_length=150,
+        help_text="Degree and graduation year, for example B.Tech 2024.",
+    )
+    department = forms.CharField(label="Department", max_length=150)
+    hometown = forms.CharField(label="Where are you from", max_length=150)
+    parent_name = forms.CharField(label="Parent name", max_length=150)
+    parent_mobile_number = forms.CharField(label="Parent mobile number", max_length=30)
+    skills = forms.CharField(
+        label="Skills", widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Separate skills with commas.",
+    )
     password1 = forms.CharField(
         label="Password", strip=False, widget=forms.PasswordInput
     )
