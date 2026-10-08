@@ -48,10 +48,17 @@
     <div id="rounds-empty" class="empty-state rounds-empty{% if iv.rounds.exists %} is-hidden{% endif %}"><span class="empty-icon">↗</span><strong>Every journey starts somewhere.</strong><p>Add your first round below to start tracking progress.</p></div>
     <form id="round-form" method="post" action="{% url 'round_add' iv.pk %}" class="round-form">{% csrf_token %}
       {% if edit_mode %}<input type="hidden" name="edit_mode" value="1">{% endif %}
-      <label class="visually-hidden" for="round-description">Round description</label>
-      <input id="round-description" name="description" maxlength="255" required placeholder="e.g. Technical interview" class="form-control">
-      <label class="visually-hidden" for="round-scheduled">Round date (optional)</label>
-      <input id="round-scheduled" name="scheduled_date" type="date" class="form-control" title="Round date (optional, used for reminders)">
+      <label class="visually-hidden" for="round-type">Round type</label>
+      <select id="round-type" name="round_type" required class="form-control">
+        <option value="">Select round type</option>
+        {% for val, label in round_type_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+      </select>
+      <label class="visually-hidden" for="round-description">Round details</label>
+      <input id="round-description" name="description" maxlength="255" placeholder="Details (required for Other)" class="form-control">
+      <label class="visually-hidden" for="round-scheduled">Round date</label>
+      <input id="round-scheduled" name="scheduled_date" type="date" class="form-control" title="Round date"{% if iv.rounds.exists %} required{% endif %}>
+      <label class="visually-hidden" for="round-time">Round time</label>
+      <input id="round-time" name="scheduled_time" type="time" class="form-control" title="Round time"{% if iv.rounds.exists %} required{% endif %}>
       <button class="button button-primary" type="submit"><span class="button-plus" aria-hidden="true">+</span> Add round</button>
       <p id="round-error" class="form-feedback is-hidden" role="alert"></p>
     </form>
@@ -93,7 +100,7 @@
     if (data && data.error) return data.error;
     const errors = data && data.errors;
     if (errors) {
-      const field = errors.description || errors.status;
+      const field = errors.round_type || errors.description || errors.scheduled_date || errors.scheduled_time || errors.status;
       if (field && field.length) return field[0].message;
     }
     return 'Something went wrong. Please try again.';
@@ -117,6 +124,10 @@
       document.getElementById('rounds-empty').classList.add('is-hidden');
       document.getElementById('round-description').value = '';
       document.getElementById('round-scheduled').value = '';
+      document.getElementById('round-time').value = '';
+      document.getElementById('round-type').value = '';
+      document.getElementById('round-scheduled').required = true;
+      document.getElementById('round-time').required = true;
       updateResultBadge('In progress', 'in-progress');
       const finalStatus = document.querySelector('[name=final_status]');
       if (finalStatus) finalStatus.value = '';

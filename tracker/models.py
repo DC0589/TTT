@@ -219,11 +219,20 @@ class InterviewRound(models.Model):
     PENDING, CLEARED, REJECTED = "pending", "cleared", "rejected"
     STATUS_CHOICES = [(PENDING, "Pending"), (CLEARED, "Cleared"), (REJECTED, "Rejected")]
 
+    TYPE_CHOICES = [
+        ("aptitude", "Aptitude / online test"), ("coding", "Coding round"),
+        ("technical", "Technical interview"), ("group_discussion", "Group discussion"),
+        ("managerial", "Managerial round"), ("hr", "HR round"),
+        ("assignment", "Assignment"), ("other", "Other"),
+    ]
+
     interview = models.ForeignKey(Interview, on_delete=models.CASCADE, related_name="rounds")
+    round_type = models.CharField(max_length=20, choices=TYPE_CHOICES, blank=True)
     round_number = models.PositiveIntegerField()
     description = models.CharField(max_length=255)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=PENDING)
     scheduled_date = models.DateField(blank=True, null=True)
+    scheduled_time = models.TimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -1229,6 +1229,7 @@ def _schedule_events(user, start, end):
             "date": rnd.scheduled_date, "kind": "round", "status": "round", "status_label": "Round",
             "title": f"{rnd.interview.company_name}: {rnd.description}",
             "detail": f"Round {rnd.round_number} - {rnd.get_status_display()}",
+            "time": rnd.scheduled_time,
             "url": reverse("student_interview_detail", args=[rnd.interview_id]),
             "done": rnd.status != InterviewRound.PENDING,
             "color": _batch_color(rnd.interview.group_id), "batch": rnd.interview.group.name,
@@ -1896,6 +1897,7 @@ def student_interview_detail(request, pk):
         "iv": iv, "round_form": RoundForm(),
         "status_form": FinalStatusForm(instance=getattr(iv, "status", None), interview=iv),
         "round_choices": InterviewRound.STATUS_CHOICES,
+        "round_type_choices": InterviewRound.TYPE_CHOICES,
         "editable": False,
         "edit_mode": False,
     })
@@ -1929,6 +1931,7 @@ def student_interview_progress(request, pk):
         "round_form": RoundForm(),
         "status_form": FinalStatusForm(instance=getattr(iv, "status", None), interview=iv),
         "round_choices": InterviewRound.STATUS_CHOICES,
+        "round_type_choices": InterviewRound.TYPE_CHOICES,
         "editable": True,
         "edit_mode": True,
     })
@@ -1977,14 +1980,16 @@ def round_add(request, pk):
     iv = _own_interview(request, pk)
     if iv.final_status != "in-progress" and request.POST.get("edit_mode") != "1":
         return JsonResponse({"error": "Open this interview in edit mode to change its rounds."}, status=409)
-    form = RoundForm(request.POST)
+    form = RoundForm(request.POST, interview=iv)
     if not form.is_valid():
         return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
     with transaction.atomic():
         nxt = (iv.rounds.aggregate(m=Max("round_number"))["m"] or 0) + 1
         rnd = InterviewRound.objects.create(
             interview=iv, round_number=nxt, description=form.cleaned_data["description"],
-            scheduled_date=form.cleaned_data.get("scheduled_date"))
+            round_type=form.cleaned_data["round_type"],
+            scheduled_date=form.cleaned_data.get("scheduled_date") or (iv.date_of_interview if nxt == 1 else None),
+            scheduled_time=form.cleaned_data.get("scheduled_time") or (iv.time_of_interview if nxt == 1 else None))
         InterviewStatus.objects.filter(interview=iv).delete()  # new round reopens the interview
     html = render_to_string("tracker/student/_round_row.html", {
         "r": rnd,

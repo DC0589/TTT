@@ -1347,12 +1347,18 @@ class ViewTests(Base):
     def test_ajax_add_rounds_and_validation(self):
         self.client.force_login(self.alice)
         url = reverse("round_add", args=[self.iv.pk])
-        response = self.client.post(url, {"description": "Coding test"})
+        response = self.client.post(url, {"round_type": "coding", "description": "Coding test"})
         self.assertEqual(response.status_code, 201)
         self.assertIn('class="form-control round-status"', response.json()["html"])
-        self.client.post(url, {"description": "HR"})
+        self.assertEqual(self.client.post(url, {"round_type": "hr"}).status_code, 400)
+        self.assertEqual(self.client.post(url, {"round_type": "hr", "scheduled_date": "2030-01-02"}).status_code, 400)
+        ok = self.client.post(url, {"round_type": "hr", "scheduled_date": "2030-01-02", "scheduled_time": "11:30"})
+        self.assertEqual(ok.status_code, 201)
+        self.assertEqual(self.iv.rounds.get(round_number=2).description, "HR round")
         self.assertEqual(list(self.iv.rounds.values_list("round_number", flat=True)), [1, 2])
         self.assertEqual(self.client.post(url, {"description": "  "}).status_code, 400)
+        self.assertEqual(self.client.post(url, {"round_type": "other", "scheduled_date": "2030-01-03",
+                                                "scheduled_time": "10:00"}).status_code, 400)
 
     def test_csrf_enforced_on_ajax(self):
         from django.test import Client

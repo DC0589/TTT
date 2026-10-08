@@ -274,14 +274,34 @@ class InterviewForm(Styled, forms.ModelForm):
 class RoundForm(Styled, forms.ModelForm):
     class Meta:
         model = InterviewRound
-        fields = ("description", "scheduled_date")
-        widgets = {"scheduled_date": forms.DateInput(attrs={"type": "date"})}
+        fields = ("round_type", "description", "scheduled_date", "scheduled_time")
+        widgets = {
+            "scheduled_date": forms.DateInput(attrs={"type": "date"}),
+            "scheduled_time": forms.TimeInput(attrs={"type": "time"}),
+        }
 
-    def clean_description(self):
-        d = self.cleaned_data["description"].strip()
-        if not d:
-            raise forms.ValidationError("Describe the round.")
-        return d
+    def __init__(self, *args, interview=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.interview = interview
+        self.fields["round_type"].required = True
+        self.fields["description"].required = False
+
+    def clean(self):
+        data = super().clean()
+        rtype = data.get("round_type")
+        desc = (data.get("description") or "").strip()
+        if rtype and not desc:
+            if rtype == "other":
+                self.add_error("description", "Describe the round.")
+            else:
+                desc = dict(InterviewRound.TYPE_CHOICES)[rtype]
+        data["description"] = desc
+        if self.interview is not None and self.interview.rounds.exists():
+            if not data.get("scheduled_date"):
+                self.add_error("scheduled_date", "Date is required for the next round.")
+            if not data.get("scheduled_time"):
+                self.add_error("scheduled_time", "Time is required for the next round.")
+        return data
 
 
 class RoundScheduleForm(forms.ModelForm):
