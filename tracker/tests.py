@@ -1019,7 +1019,8 @@ class ViewTests(Base):
     def test_student_adds_interview_only_for_own_group(self):
         outsider_group = Group.objects.create(name="Other", admin=self.admin)
         self.client.force_login(self.alice)
-        data = {"company_name": "Globex", "role": "QA", "date_of_interview": "2026-01-10"}
+        data = {"company_name": "Globex", "role": "QA", "date_of_interview": "2026-01-10",
+                "time_of_interview": "10:30", "hr_name": "Pat", "hr_contact_number": "555"}
         r = self.client.post(
             reverse("student_interview_add"),
             {**data, "group": outsider_group.pk},
@@ -1040,6 +1041,7 @@ class ViewTests(Base):
             "role": "QA",
             "job_posting_url": "https://example.com/jobs/qa",
             "date_of_interview": "2026-01-10",
+            "time_of_interview": "14:00",
             "hr_name": "Jordan Lee",
             "hr_contact_number": "+1 555 0123",
             "hr_email": "jordan@example.com",
@@ -1552,3 +1554,35 @@ class AdminDashboardBatchFilterTests(TestCase):
         self.assertNotContains(response, "otherbatch")
         self.assertContains(response, "Mock 4.0/5")
         self.assertContains(self.client.get("/admin/dashboard/"), "otherbatch")
+
+
+class InterviewTimeAndAdminCalendarTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user("adm7", password="pw", is_admin=True)
+        self.stu = User.objects.create_user("stu7", password="pw", is_student=True, created_by=self.admin)
+        self.group = Group.objects.create(name="B7", admin=self.admin)
+        GroupMembership.objects.create(group=self.group, student=self.stu)
+
+    def test_time_and_hr_details_required(self):
+        self.client.force_login(self.stu)
+        response = self.client.post(reverse("student_interview_add"), {
+            "group": self.group.pk, "company_name": "Acme", "role": "Dev",
+            "date_of_interview": "2026-01-10"})
+        self.assertEqual(response.status_code, 200)
+        for field in ("time_of_interview", "hr_name", "hr_contact_number"):
+            self.assertIn(field, response.context["form"].errors)
+        self.assertFalse(Interview.objects.exists())
+
+    def test_admin_calendar_shows_student_company_and_time(self):
+        import datetime
+        today = timezone.localdate()
+        Interview.objects.create(
+            student=self.stu, group=self.group, company_name="Initech", role="Dev",
+            date_of_interview=today, time_of_interview=datetime.time(15, 30))
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("admin_calendar"))
+        self.assertContains(response, "stu7 · Initech")
+        self.assertContains(response, "03:30 PM")
+        other = Group.objects.create(name="B8", admin=self.admin)
+        self.assertNotContains(
+            self.client.get(reverse("admin_calendar") + f"?batch={other.pk}"), "Initech")

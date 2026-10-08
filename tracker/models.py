@@ -160,6 +160,7 @@ class Interview(models.Model):
     role = models.CharField(max_length=150)
     job_posting_url = models.URLField(blank=True)
     date_of_interview = models.DateField()
+    time_of_interview = models.TimeField(blank=True, null=True)
     hr_name = models.CharField(max_length=150, blank=True)
     hr_contact_number = models.CharField(max_length=30, blank=True)
     hr_email = models.EmailField(blank=True)

@@ -8,7 +8,7 @@
 <section class="panel reminder-panel">
   <div class="section-heading"><div><p class="eyebrow">REMINDERS</p><h2>Next 14 days</h2></div></div>
   <ul class="reminder-list">
-    {% for item in reminders %}<li class="reminder-item{% if item.urgent %} is-urgent{% endif %}"><span class="reminder-when">{{ item.when }}</span><a href="{{ item.url }}"><strong>{{ item.title }}</strong><small>{{ item.date|date:"D, d M" }} · {{ item.detail }}</small></a></li>{% endfor %}
+    {% for item in reminders %}<li class="reminder-item{% if item.urgent %} is-urgent{% endif %}"><span class="reminder-when">{{ item.when }}</span><a href="{{ item.url }}"><strong>{{ item.title }}</strong><small>{{ item.date|date:"D, d M" }}{% if item.time %} · {{ item.time|time:"h:i A" }}{% endif %} · {{ item.detail }}</small></a></li>{% endfor %}
   </ul>
 </section>
 {% endif %}
@@ -23,7 +23,7 @@
     {% for week in grid %}{% for day in week %}
     <div class="calendar-day{% if not day.in_month %} is-outside{% endif %}{% if day.today %} is-today{% endif %}">
       <span class="calendar-date">{{ day.date.day }}</span>
-      {% for event in day.events %}<a class="calendar-event calendar-event-{{ event.kind }}{% if event.done %} is-done{% endif %}" href="{{ event.url }}" title="{{ event.title }} - {{ event.detail }}">{{ event.title }}</a>{% endfor %}
+      {% for event in day.events %}<a class="calendar-event calendar-event-{{ event.kind }}{% if event.done %} is-done{% endif %}" href="{{ event.url }}" title="{{ event.title }} - {{ event.detail }}">{% if event.time %}{{ event.time|time:"h:i A" }} {% endif %}{{ event.title }}</a>{% endfor %}
     </div>
     {% endfor %}{% endfor %}
   </div>

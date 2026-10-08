@@ -9,7 +9,7 @@ import logging
 import re
 import secrets
 import calendar as pycalendar
-from datetime import date, timedelta
+from datetime import date, time, timedelta
 from decimal import Decimal
 from smtplib import SMTPException
 
@@ -1073,6 +1073,7 @@ def _schedule_events(user, start, end):
         events.append({
             "date": iv.date_of_interview, "kind": "interview",
             "title": f"{iv.company_name} interview", "detail": iv.role,
+            "time": iv.time_of_interview,
             "url": reverse("student_interview_detail", args=[iv.pk]),
         })
     rounds = InterviewRound.objects.filter(
@@ -1086,7 +1087,7 @@ def _schedule_events(user, start, end):
             "url": reverse("student_interview_detail", args=[rnd.interview_id]),
             "done": rnd.status != InterviewRound.PENDING,
         })
-    events.sort(key=lambda e: (e["date"], e["title"]))
+    events.sort(key=lambda e: (e["date"], e.get("time") or time.min, e["title"]))
     return events
 
 
@@ -1126,6 +1127,43 @@ def student_calendar(request):
         "prev_month": previous_month.strftime("%Y-%m"), "next_month": next_month.strftime("%Y-%m"),
         "reminders": _reminders(request.user, 14),
         "active_tab": "calendar",
+    })
+
+
+@staff_required
+@require_GET
+def admin_calendar(request):
+    owner = request.user.created_by if request.user.is_hr else request.user
+    today = timezone.localdate()
+    try:
+        year, month = (int(part) for part in request.GET.get("month", "").split("-"))
+        first = date(year, month, 1)
+    except (ValueError, TypeError):
+        first = today.replace(day=1)
+    batches = list(Group.objects.filter(admin=owner).order_by("name"))
+    selected = next((b for b in batches if str(b.pk) == request.GET.get("batch", "")), None)
+    weeks = pycalendar.Calendar(firstweekday=0).monthdatescalendar(first.year, first.month)
+    interviews = Interview.objects.filter(
+        group__admin=owner, date_of_interview__range=(weeks[0][0], weeks[-1][-1]),
+    ).select_related("student", "group")
+    if selected:
+        interviews = interviews.filter(group=selected)
+    by_day = {}
+    for iv in interviews.order_by("time_of_interview", "company_name"):
+        by_day.setdefault(iv.date_of_interview, []).append(iv)
+    grid = [[{"date": day, "in_month": day.month == first.month, "today": day == today,
+              "events": by_day.get(day, [])} for day in week] for week in weeks]
+    upcoming = Interview.objects.filter(group__admin=owner, date_of_interview__gte=today).select_related(
+        "student", "group").order_by("date_of_interview", "time_of_interview", "company_name")
+    if selected:
+        upcoming = upcoming.filter(group=selected)
+    previous_month = (first - timedelta(days=1)).replace(day=1)
+    next_month = (first + timedelta(days=32)).replace(day=1)
+    return render(request, "tracker/admin/calendar.html", {
+        "grid": grid, "month_label": first.strftime("%B %Y"),
+        "month": first.strftime("%Y-%m"),
+        "prev_month": previous_month.strftime("%Y-%m"), "next_month": next_month.strftime("%Y-%m"),
+        "batches": batches, "selected_batch": selected, "upcoming": upcoming[:15],
     })
 
 

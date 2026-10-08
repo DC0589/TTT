@@ -219,14 +219,16 @@ class InterviewForm(Styled, forms.ModelForm):
         model = Interview
         fields = (
             "group", "company_name", "role", "job_posting_url", "date_of_interview",
-            "hr_name", "hr_contact_number", "hr_email", "prep_notes",
+            "time_of_interview", "hr_name", "hr_contact_number", "hr_email", "prep_notes",
         )
         widgets = {
             "date_of_interview": forms.DateInput(attrs={"type": "date"}),
+            "time_of_interview": forms.TimeInput(attrs={"type": "time"}, format="%H:%M"),
             "prep_notes": forms.Textarea(attrs={"rows": 4}),
         }
         labels = {
             "group": "Batch",
+            "time_of_interview": "Interview time",
             "hr_name": "HR contact name",
             "hr_contact_number": "HR contact number",
             "hr_email": "HR email address",
@@ -239,6 +241,8 @@ class InterviewForm(Styled, forms.ModelForm):
         super().__init__(*a, **k)
         self.fields["group"].queryset = Group.objects.filter(memberships__student=student)
         self.fields["group"].empty_label = "Select a batch"
+        for name in ("time_of_interview", "hr_name", "hr_contact_number"):
+            self.fields[name].required = True
 
 
 class RoundForm(Styled, forms.ModelForm):

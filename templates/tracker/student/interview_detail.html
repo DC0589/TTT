@@ -4,7 +4,7 @@
 <div class="breadcrumb"><a href="{% url 'student_interviews' %}">My interviews</a><span aria-hidden="true">/</span><span>{{ iv.company_name }}</span></div>
 <section class="interview-hero">
   <div class="interview-company-mark" aria-hidden="true">{{ iv.company_name|slice:":1"|upper }}</div>
-  <div class="interview-hero-copy"><p class="eyebrow">INTERVIEW DETAILS</p><h1>{{ iv.company_name }}</h1><p>{{ iv.role }} <span class="meta-divider">·</span> {{ iv.date_of_interview|date:"d M Y" }} <span class="meta-divider">·</span> {{ iv.group.name }}</p></div>
+  <div class="interview-hero-copy"><p class="eyebrow">INTERVIEW DETAILS</p><h1>{{ iv.company_name }}</h1><p>{{ iv.role }} <span class="meta-divider">·</span> {{ iv.date_of_interview|date:"d M Y" }}{% if iv.time_of_interview %} at {{ iv.time_of_interview|time:"h:i A" }}{% endif %} <span class="meta-divider">·</span> {{ iv.group.name }}</p></div>
   <div class="interview-hero-actions"><span id="final-result-badge" class="status-badge {{ iv.badge }}">{{ iv.final_label }}</span>
     {% if edit_mode %}
     <a class="button button-quiet" href="{% url 'student_interview_detail' iv.pk %}">Back to details</a>

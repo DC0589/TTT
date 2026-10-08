@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Interview calendar{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">SCHEDULE</p><h1>Interview calendar</h1><p>See which student has an interview with which company, and when.</p></div>
+</section>
+<section class="panel calendar-panel">
+  <form method="get" class="progress-filter">
+    <input type="hidden" name="month" value="{{ month }}">
+    <label for="cal-batch">Batch</label>
+    <select id="cal-batch" name="batch" onchange="this.form.submit()">
+      <option value="">All batches</option>
+      {% for b in batches %}<option value="{{ b.pk }}"{% if selected_batch and selected_batch.pk == b.pk %} selected{% endif %}>{{ b.name }}</option>{% endfor %}
+    </select>
+    <noscript><button class="button button-quiet" type="submit">Filter</button></noscript>
+  </form>
+  <div class="calendar-nav">
+    <a class="button button-quiet" href="?month={{ prev_month }}{% if selected_batch %}&batch={{ selected_batch.pk }}{% endif %}">&larr; Prev</a>
+    <h2>{{ month_label }}</h2>
+    <a class="button button-quiet" href="?month={{ next_month }}{% if selected_batch %}&batch={{ selected_batch.pk }}{% endif %}">Next &rarr;</a>
+  </div>
+  <div class="calendar-grid" role="grid">
+    <div class="calendar-head">Mon</div><div class="calendar-head">Tue</div><div class="calendar-head">Wed</div><div class="calendar-head">Thu</div><div class="calendar-head">Fri</div><div class="calendar-head">Sat</div><div class="calendar-head">Sun</div>
+    {% for week in grid %}{% for day in week %}
+    <div class="calendar-day{% if not day.in_month %} is-outside{% endif %}{% if day.today %} is-today{% endif %}">
+      <span class="calendar-date">{{ day.date.day }}</span>
+      {% for iv in day.events %}<a class="calendar-event calendar-event-interview" href="{% url 'admin_interview_detail' iv.pk %}" title="{{ iv.student.username }} - {{ iv.company_name }} ({{ iv.role }})">{% if iv.time_of_interview %}{{ iv.time_of_interview|time:"h:i A" }} {% endif %}{{ iv.student.username }} · {{ iv.company_name }}</a>{% endfor %}
+    </div>
+    {% endfor %}{% endfor %}
+  </div>
+</section>
+<section class="panel">
+  <div class="section-heading"><div><p class="eyebrow">UPCOMING</p><h2>Who is interviewing where</h2></div></div>
+  {% if upcoming %}
+  <div class="table-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Time</th><th>Student</th><th>Company</th><th>Role</th><th>Batch</th><th>HR contact</th></tr></thead><tbody>
+  {% for iv in upcoming %}<tr><td>{{ iv.date_of_interview|date:"D, d M Y" }}</td><td>{% if iv.time_of_interview %}{{ iv.time_of_interview|time:"h:i A" }}{% else %}-{% endif %}</td><td>{{ iv.student.username }}</td><td><a href="{% url 'admin_interview_detail' iv.pk %}">{{ iv.company_name }}</a></td><td>{{ iv.role }}</td><td>{{ iv.group.name }}</td><td>{{ iv.hr_name|default:"-" }}{% if iv.hr_contact_number %} · {{ iv.hr_contact_number }}{% endif %}</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% else %}<p class="muted">No upcoming interviews.</p>{% endif %}
+</section>
+{% endblock %}

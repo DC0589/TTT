@@ -32,6 +32,7 @@ urlpatterns = [
     path("admin/dashboard/", v.admin_dashboard, name="admin_dashboard"),
     path("admin/hr-users/add/", v.admin_hr_user_add, name="admin_hr_user_add"),
     path("admin/students/add/", v.admin_student_add, name="admin_student_add"),
+    path("admin/calendar/", v.admin_calendar, name="admin_calendar"),
     path("admin/interviews/", v.admin_interviews, name="admin_interviews"),
     path("admin/courses/", v.admin_courses, name="admin_courses"),
     path("admin/courses/new/", v.admin_course_add, name="admin_course_add"),
