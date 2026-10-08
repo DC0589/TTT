@@ -885,3 +885,15 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
 .mock-integrity-flags summary { color: #b42318; font-weight: 700; }
 .mock-integrity-flags ul { margin: 8px 0 0 18px; font-size: 13px; }
 .mock-integrity-clean { margin: 8px 0 0; color: #1a7f4b; font-size: 13px; font-weight: 600; }
+
+.sidebar > nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.25) transparent; padding-right: 4px; }
+.sidebar > nav::-webkit-scrollbar { width: 6px; }
+.sidebar > nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); border-radius: 6px; }
+.sidebar-spacer { flex: 0 0 auto; min-height: 12px; }
+.sidebar-note, .profile { flex: 0 0 auto; }
+@media (max-height: 760px) { .sidebar-note { display: none; } }
+.topbar-right { display: inline-flex; align-items: center; gap: 18px; }
+.topbar-logout { margin: 0; }
+.logout-pill { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; }
+.logout-pill svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+@media (max-width: 600px) { .logout-pill span, .topbar-user span:last-child { display: none; } .logout-pill { padding: 0 10px; } }
