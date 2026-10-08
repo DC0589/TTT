@@ -1055,10 +1055,47 @@ def student_dashboard(request):
     })
 
 
+def _mock_progress(user):
+    rated = list(user.mock_interview_sessions.filter(rating__isnull=False).order_by("created_at"))
+    topics = {}
+    for session in rated:
+        topics.setdefault(session.role, []).append(float(session.rating))
+    rows = []
+    for topic, ratings in topics.items():
+        average = sum(ratings) / len(ratings)
+        rows.append({
+            "topic": topic, "count": len(ratings), "average": round(average, 2),
+            "percent": round(average / 5 * 100), "latest": ratings[-1],
+            "weak": average < 3,
+        })
+    rows.sort(key=lambda row: row["average"])
+    levels = []
+    for level in ("easy", "medium", "hard"):
+        values = [float(x.rating) for x in rated if x.difficulty == level]
+        if values:
+            average = sum(values) / len(values)
+            levels.append({"level": level.title(), "average": round(average, 2),
+                           "percent": round(average / 5 * 100), "count": len(values)})
+    trend = [{"label": x.created_at.strftime("%b %d"), "topic": x.role,
+              "rating": float(x.rating), "percent": round(float(x.rating) / 5 * 100)}
+             for x in rated[-12:]]
+    attempted = {row["topic"].lower() for row in rows}
+    suggestion = None
+    if rows and rows[0]["weak"]:
+        suggestion = {"topic": rows[0]["topic"], "reason": "your lowest average so far"}
+    else:
+        for topic in MOCK_TOPICS:
+            if topic.lower() not in attempted:
+                suggestion = {"topic": topic, "reason": "you haven't tried it yet"}
+                break
+    return {"topics": rows, "levels": levels, "trend": trend, "suggestion": suggestion}
+
+
 @student_required
 @require_GET
 def student_mock_interview(request):
     return render(request, "tracker/student/mock_interview.html", {
+        "progress": _mock_progress(request.user),
         "ai_url": reverse("student_mock_interview_ai"),
         "topics": list(MOCK_TOPICS) + sorted(
             set(MockQuestion.objects.filter(is_active=True).values_list("topic", flat=True)) - set(MOCK_TOPICS)

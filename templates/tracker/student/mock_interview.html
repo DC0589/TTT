@@ -82,6 +82,19 @@
     <div class="mock-results-list" data-results-list></div>
     <button class="button button-primary" type="button" data-results-close>Close results</button>
   </dialog>
+  {% if progress.trend %}
+  <section class="panel mock-progress">
+    <div class="section-heading"><div><p class="eyebrow">YOUR PROGRESS</p><h2>Scores over time</h2></div></div>
+    {% if progress.suggestion %}<p class="progress-suggest">Suggested next topic: <strong>{{ progress.suggestion.topic }}</strong> ({{ progress.suggestion.reason }}).</p>{% endif %}
+    <div class="progress-trend">
+      {% for point in progress.trend %}<div class="trend-col" title="{{ point.topic }} · {{ point.rating }}/5"><span class="trend-val">{{ point.rating }}</span><div class="trend-bar" style="height: {{ point.percent }}%"></div><span class="trend-label">{{ point.label }}</span></div>{% endfor %}
+    </div>
+    <h3>By topic</h3>
+    {% for row in progress.topics %}<div class="progress-row{% if row.weak %} weak{% endif %}"><span class="progress-name">{{ row.topic }}{% if row.weak %} <em>needs work</em>{% endif %}</span><div class="progress-track"><div class="progress-fill" style="width: {{ row.percent }}%"></div></div><span class="progress-num">{{ row.average }}/5 · {{ row.count }}</span></div>{% endfor %}
+    {% if progress.levels %}<h3>By difficulty</h3>
+    {% for row in progress.levels %}<div class="progress-row"><span class="progress-name">{{ row.level }}</span><div class="progress-track"><div class="progress-fill" style="width: {{ row.percent }}%"></div></div><span class="progress-num">{{ row.average }}/5 · {{ row.count }}</span></div>{% endfor %}{% endif %}
+  </section>
+  {% endif %}
   <section class="panel mock-rating-history">
     <div class="section-heading"><div><p class="eyebrow">PAST PRACTICE</p><h2>Recent interview ratings</h2></div></div>
     {% if recent_sessions %}
