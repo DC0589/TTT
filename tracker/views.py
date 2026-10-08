@@ -446,13 +446,14 @@ def admin_student_add(request):
     })
 
 
-@admin_required
+@staff_required
 def admin_interviews(request):
+    owner = request.user.created_by if request.user.is_hr else request.user
     view_mode = request.GET.get("view", "cards")
     if view_mode not in {"cards", "table", "list"}:
         view_mode = "cards"
     interviews = (
-        Interview.objects.filter(group__admin=request.user)
+        Interview.objects.filter(group__admin=owner)
         .select_related("student", "group", "status")
         .prefetch_related("rounds")
     )
@@ -535,17 +536,18 @@ def admin_reports(request):
     })
 
 
-@admin_required
+@staff_required
 @require_GET
 def admin_mock_interviews(request):
-    groups = request.user.groups_created.order_by("name")
+    owner = request.user.created_by if request.user.is_hr else request.user
+    groups = owner.groups_created.order_by("name")
     batch_value = request.GET.get("batch", "")
     selected_group = groups.filter(pk=int(batch_value)).first() if batch_value.isdigit() else None
 
     students = User.objects.filter(is_student=True).filter(
-        Q(created_by=request.user)
-        | Q(created_by__created_by=request.user)
-        | Q(memberships__group__admin=request.user)
+        Q(created_by=owner)
+        | Q(created_by__created_by=owner)
+        | Q(memberships__group__admin=owner)
     )
     if selected_group:
         students = students.filter(memberships__group=selected_group)
@@ -556,9 +558,9 @@ def admin_mock_interviews(request):
     sessions = MockInterviewSession.objects.filter(
         student__is_student=True,
     ).filter(
-        Q(student__created_by=request.user)
-        | Q(student__created_by__created_by=request.user)
-        | Q(student__memberships__group__admin=request.user)
+        Q(student__created_by=owner)
+        | Q(student__created_by__created_by=owner)
+        | Q(student__memberships__group__admin=owner)
     ).select_related("student").prefetch_related("scores").distinct()
     if selected_group:
         sessions = sessions.filter(student__memberships__group=selected_group)
@@ -605,12 +607,13 @@ def admin_mock_interviews(request):
     })
 
 
-@admin_required
+@staff_required
 def admin_interview_detail(request, pk):
+    owner = request.user.created_by if request.user.is_hr else request.user
     interview = get_object_or_404(
         Interview.objects.select_related("student", "group", "status").prefetch_related("rounds"),
         pk=pk,
-        group__admin=request.user,
+        group__admin=owner,
     )
     return render(request, "tracker/admin/interview_detail.html", {
         "iv": interview,

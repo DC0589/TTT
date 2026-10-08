@@ -20,7 +20,7 @@
   {% for session in page_obj.object_list %}
   <article class="mock-admin-session">
     <header class="mock-admin-session-heading">
-      <div><a href="{% url 'admin_student_detail' session.student.pk %}">{{ session.student.username }}</a><span>{{ session.role }} · {{ session.created_at|date:"M j, Y, H:i" }}</span></div>
+      <div>{% if user.is_admin %}<a href="{% url 'admin_student_detail' session.student.pk %}">{{ session.student.username }}</a>{% else %}<strong>{{ session.student.username }}</strong>{% endif %}<span>{{ session.role }} · {{ session.created_at|date:"M j, Y, H:i" }}</span></div>
       <div class="mock-admin-session-result">
         {% if session.rating is not None %}<span class="mock-score">{{ session.rating|floatformat:1 }}/5</span>{% elif session.completed_at %}<span class="mock-rating-pending">No completed rating</span>{% else %}<span class="mock-rating-pending">In progress</span>{% endif %}
         <span>{% if session.expected_answers %}{{ session.scores.all|length }} of {{ session.expected_answers }} submitted{% else %}{{ session.scores.all|length }} saved answers{% endif %}</span>
