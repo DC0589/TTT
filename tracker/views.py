@@ -33,6 +33,7 @@ from .forms import (
     RegistrationOTPForm, RoundForm, RoundStatusForm, StudentForm,
     StudentRegistrationForm,
 )
+from .mock_topics import MOCK_TOPICS, pick_focus_areas, topic_language
 from .ai_interview import GeminiAPIError, generate_json
 from .models import (
     Group, GroupMembership, Interview, InterviewRound, InterviewStatus,
@@ -46,6 +47,7 @@ OTP_MAX_ATTEMPTS = 5
 OTP_RESEND_COOLDOWN = timedelta(seconds=60)
 OTP_MAX_RESENDS = 3
 MOCK_QUESTION_COUNT = 10
+MOCK_CODING_QUESTION_COUNT = 3
 
 
 def _registration_code_hash(registration_id, code):
@@ -969,6 +971,7 @@ def student_dashboard(request):
 def student_mock_interview(request):
     return render(request, "tracker/student/mock_interview.html", {
         "ai_url": reverse("student_mock_interview_ai"),
+        "topics": list(MOCK_TOPICS),
         "active_tab": "mock_interview",
         "recent_sessions": request.user.mock_interview_sessions.prefetch_related(
             "scores"
@@ -1056,11 +1059,38 @@ def student_mock_interview_ai(request):
 
     session = None
     if action == "question":
-        parts = [{"text": (
+        previous_questions = list(
+            MockInterviewScore.objects.filter(
+                session__student=request.user, session__role=role,
+            ).exclude(question="").order_by("-id").values_list("question", flat=True)[:40]
+        )
+        focus_areas = pick_focus_areas(role)
+        default_language = topic_language(role)
+        prompt = (
             f"Create exactly {MOCK_QUESTION_COUNT} distinct, concise mock interview questions "
-            f"for the role '{role}'. Return JSON with one field, questions, containing an array "
-            f"of exactly {MOCK_QUESTION_COUNT} strings. Do not include answers or commentary."
-        )}]
+            f"on the topic '{role}'. Mix conceptual, scenario-based and practical questions of "
+            "varying difficulty and put them in a varied order. "
+            f"Exactly {MOCK_CODING_QUESTION_COUNT} of them must be hands-on coding questions that "
+            "the candidate answers by writing code; the rest are spoken questions. "
+        )
+        if focus_areas:
+            prompt += f"Draw from these focus areas for this session: {', '.join(focus_areas)}. "
+        if previous_questions:
+            prompt += (
+                "The candidate has already been asked the questions below in earlier sessions. "
+                "Do not repeat or lightly reword any of them:\n- "
+                + "\n- ".join(question[:150] for question in previous_questions) + "\n"
+            )
+        prompt += (
+            f"Variation token: {secrets.token_hex(4)}. "
+            "Return JSON with one field, questions, an array of exactly "
+            f"{MOCK_QUESTION_COUNT} objects. Each object has: text (the question), type "
+            "('concept' or 'coding'), and for coding questions only: language ('python', 'sql' or "
+            f"'pyspark'; prefer '{default_language}' for this topic) and starter (a short starter "
+            "code snippet; for SQL include the CREATE TABLE and INSERT statements for small sample "
+            "data so the query can be run). Do not include answers or commentary."
+        )
+        parts = [{"text": prompt}]
     else:
         session = MockInterviewSession.objects.filter(
             pk=session_id, student=request.user
@@ -1081,34 +1111,61 @@ def student_mock_interview_ai(request):
             session.save(update_fields=["expected_answers"])
         audio = data.get("audio", "")
         frames = data.get("frames", {})
-        audio_match = re.fullmatch(
-            r"data:(audio/(?:webm|mp4|ogg|wav|mpeg|mp3|aac|flac|opus|aiff|m4a))"
-            r"(?:;codecs=[A-Za-z0-9.-]+)?;base64,([A-Za-z0-9+/=]+)",
-            audio,
-        ) if isinstance(audio, str) else None
-        if not audio_match or len(audio_match.group(2)) > 600_000:
-            return JsonResponse({"error": "Record a valid answer up to 60 seconds long."}, status=400)
-        try:
-            audio_bytes = base64.b64decode(audio_match.group(2), validate=True)
-        except ValueError:
-            return JsonResponse({"error": "The recorded answer is invalid."}, status=400)
-        if not audio_bytes:
-            return JsonResponse({"error": "The recording is empty. Record your answer again."}, status=400)
+        code = data.get("code")
+        audio_match = None
+        audio_bytes = b""
+        if code is not None:
+            language = data.get("language")
+            code_output = data.get("code_output", "")
+            if (
+                not isinstance(code, str) or not code.strip() or len(code) > 20_000
+                or language not in {"python", "sql", "pyspark"}
+                or not isinstance(code_output, str)
+            ):
+                return JsonResponse({"error": "Write your code before submitting."}, status=400)
+        else:
+            audio_match = re.fullmatch(
+                r"data:(audio/(?:webm|mp4|ogg|wav|mpeg|mp3|aac|flac|opus|aiff|m4a))"
+                r"(?:;codecs=[A-Za-z0-9.-]+)?;base64,([A-Za-z0-9+/=]+)",
+                audio,
+            ) if isinstance(audio, str) else None
+            if not audio_match or len(audio_match.group(2)) > 600_000:
+                return JsonResponse({"error": "Record a valid answer up to 60 seconds long."}, status=400)
+            try:
+                audio_bytes = base64.b64decode(audio_match.group(2), validate=True)
+            except ValueError:
+                return JsonResponse({"error": "The recorded answer is invalid."}, status=400)
+            if not audio_bytes:
+                return JsonResponse({"error": "The recording is empty. Record your answer again."}, status=400)
         if not isinstance(frames, dict):
             return JsonResponse({"error": "Camera and screen snapshots are required."}, status=400)
 
-        parts = [{"text": (
-            "Evaluate this recorded mock interview answer. Transcribe the speech verbatim and assess "
-            "relevance, correctness, completeness, structure, clarity, and verbal delivery. "
-            "Keep each feedback field to one concise sentence of at most 20 words. Do not judge "
-            "accent or infer identity, age, gender, race, health, or personality. Use the camera image "
-            "only for framing, lighting, and visibility. Use the screen image only for readability and "
-            "relevance to the role. Return JSON with answer_transcript, integer score from 1 to 5, "
-            "and strings answer_feedback, camera_feedback, and screen_feedback.\n"
-            f"Role: {role}\nQuestion {question_number}: {question[:500]}"
-        )}, {
-            "inlineData": {"mimeType": audio_match.group(1), "data": audio_match.group(2)},
-        }]
+        if code is not None:
+            parts = [{"text": (
+                "Evaluate this coding answer from a mock interview. Assess correctness, edge cases, "
+                "efficiency, readability and whether the output matches the question. "
+                "Keep each feedback field to one concise sentence of at most 20 words. Do not infer "
+                "identity, age, gender, race, health, or personality. Use the camera image only for "
+                "framing, lighting, and visibility. Use the screen image only for readability and "
+                "relevance to the role. Return JSON with integer score from 1 to 5, "
+                "and strings answer_feedback, camera_feedback, and screen_feedback.\n"
+                f"Topic: {role}\nQuestion {question_number}: {question[:500]}\n"
+                f"Language: {language}\nCandidate code:\n{code}\n"
+                f"Output from the candidate's last run:\n{code_output[:2000] or '(not run)'}"
+            )}]
+        else:
+            parts = [{"text": (
+                "Evaluate this recorded mock interview answer. Transcribe the speech verbatim and assess "
+                "relevance, correctness, completeness, structure, clarity, and verbal delivery. "
+                "Keep each feedback field to one concise sentence of at most 20 words. Do not judge "
+                "accent or infer identity, age, gender, race, health, or personality. Use the camera image "
+                "only for framing, lighting, and visibility. Use the screen image only for readability and "
+                "relevance to the role. Return JSON with answer_transcript, integer score from 1 to 5, "
+                "and strings answer_feedback, camera_feedback, and screen_feedback.\n"
+                f"Role: {role}\nQuestion {question_number}: {question[:500]}"
+            )}, {
+                "inlineData": {"mimeType": audio_match.group(1), "data": audio_match.group(2)},
+            }]
         for frame_name, label in (("camera", "Camera snapshot"), ("screen", "Shared-screen snapshot")):
             frame = frames.get(frame_name, "")
             match = re.fullmatch(
@@ -1158,11 +1215,32 @@ def student_mock_interview_ai(request):
         return JsonResponse({"error": str(error)}, status=status)
 
     if action == "question":
-        questions = result.get("questions")
-        if not isinstance(questions, list) or len(questions) < MOCK_QUESTION_COUNT:
+        raw_questions = result.get("questions")
+        if not isinstance(raw_questions, list) or len(raw_questions) < MOCK_QUESTION_COUNT:
             return JsonResponse({"error": "The AI did not return ten questions. Please try again."}, status=502)
-        questions = [question.strip()[:500] for question in questions[:MOCK_QUESTION_COUNT]
-                     if isinstance(question, str) and question.strip()]
+        questions = []
+        for item in raw_questions:
+            if isinstance(item, str):
+                item = {"text": item}
+            if not isinstance(item, dict) or not isinstance(item.get("text"), str):
+                continue
+            text = item["text"].strip()[:500]
+            if not text:
+                continue
+            question = {"text": text, "type": "concept"}
+            if item.get("type") == "coding":
+                language = item.get("language")
+                if language not in {"python", "sql", "pyspark"}:
+                    language = topic_language(role)
+                starter = item.get("starter")
+                question.update({
+                    "type": "coding",
+                    "language": language,
+                    "starter": starter[:2000] if isinstance(starter, str) else "",
+                })
+            questions.append(question)
+            if len(questions) == MOCK_QUESTION_COUNT:
+                break
         if len(questions) != MOCK_QUESTION_COUNT:
             return JsonResponse({"error": "The AI returned invalid questions. Please try again."}, status=502)
         session = MockInterviewSession.objects.create(student=request.user, role=role)

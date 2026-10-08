@@ -2,14 +2,21 @@
 {% block title %}AI Mock Interview{% endblock %}
 {% block content %}
 <section class="page-heading">
-  <div><p class="eyebrow">PRACTICE SESSION</p><h1>AI Mock Interview</h1><p>Answer ten role-specific questions. Your results load when you finish.</p></div>
+  <div><p class="eyebrow">PRACTICE SESSION</p><h1>AI Mock Interview</h1><p>Pick a topic and answer ten questions, including hands-on coding questions. Your results load when you finish.</p></div>
 </section>
 <div class="mock-interview" data-mock-interview data-ai-url="{{ ai_url }}">
   <p class="mock-privacy-note"><strong>Privacy:</strong> Your recorded answer and one camera and screen snapshot are sent to Google Gemini for feedback. Your interview rating, per-question scores, and written feedback are saved and visible to your administrator. Audio, transcripts, and images are not saved. Do not show private information on your screen.</p>
   <section class="panel mock-setup" data-interview-setup>
     <div class="panel-heading"><div><p class="eyebrow">GET READY</p><h2>Set up your session</h2><p>Choose a role, then allow camera and screen sharing when prompted.</p></div></div>
     <form class="stack-form" data-interview-start method="post">{% csrf_token %}
-      <div class="form-field"><label for="mock-role">Role to practise</label><input class="form-control" id="mock-role" name="role" maxlength="120" placeholder="For example, Data Analyst" required></div>
+      <div class="form-field"><label for="mock-topic">Topic to practise</label>
+        <select class="form-control" id="mock-topic" name="topic" data-topic-select required>
+          {% for topic in topics %}<option value="{{ topic }}">{{ topic }}</option>{% endfor %}
+          <option value="__other__">Other (type your own)</option>
+        </select>
+        <input class="form-control mock-other-topic" name="other_topic" maxlength="120" placeholder="For example, Data Analyst" data-other-topic hidden>
+        <p class="field-help">Questions are shuffled for every session and avoid ones you have already been asked on this topic. Some are coding questions with a built-in editor.</p>
+      </div>
       <label class="mock-consent"><input type="checkbox" name="consent" required><span>I agree to send recorded answers and camera and screen snapshots to Google Gemini. My ratings and written feedback will be saved and shared with my administrator; recordings, transcripts, and images will not be saved.</span></label>
       <button class="button button-primary" type="submit">Start interview</button>
     </form>
@@ -25,7 +32,22 @@
         <div class="mock-question-meta"><p class="eyebrow">QUESTION <span data-question-number>1</span> OF 10</p><span data-question-state>Preparing your questions</span><span class="mock-score" data-session-rating hidden></span></div>
         <h2 data-interview-question aria-live="polite">Your first question will appear here.</h2>
         <form class="stack-form" data-answer-form method="post">{% csrf_token %}
-          <div class="mock-recorder">
+          <div class="mock-code" data-code-panel hidden>
+            <div class="mock-code-toolbar">
+              <label for="mock-code-language">Language</label>
+              <select class="form-control" id="mock-code-language" data-code-language>
+                <option value="python">Python</option>
+                <option value="sql">SQL</option>
+                <option value="pyspark">PySpark</option>
+              </select>
+              <button class="button button-quiet" type="button" data-code-run>Run code</button>
+            </div>
+            <textarea class="form-control mock-code-editor" data-code-editor spellcheck="false" autocomplete="off" autocapitalize="off" rows="14" aria-label="Code editor"></textarea>
+            <p class="field-help" data-code-note></p>
+            <pre class="mock-code-output" data-code-output aria-live="polite">Output will appear here.</pre>
+            <div class="mock-session-actions"><button class="button button-primary" type="submit" data-code-submit>Submit code</button></div>
+          </div>
+          <div class="mock-recorder" data-voice-panel>
             <p class="field-help">Record up to 60 seconds. Send each answer and continue; feedback loads after you end the session. Recordings are not saved.</p>
             <div class="mock-session-actions">
               <button class="button button-quiet" type="button" data-record-start>Start recording</button>

@@ -50,6 +50,16 @@
   const resultsRating = interview.querySelector('[data-results-rating]');
   const resultsList = interview.querySelector('[data-results-list]');
   const csrfToken = interview.querySelector('[name="csrfmiddlewaretoken"]').value;
+  const topicSelect = interview.querySelector('[data-topic-select]');
+  const otherTopic = interview.querySelector('[data-other-topic]');
+  const codePanel = interview.querySelector('[data-code-panel]');
+  const voicePanel = interview.querySelector('[data-voice-panel]');
+  const codeLanguage = interview.querySelector('[data-code-language]');
+  const codeEditor = interview.querySelector('[data-code-editor]');
+  const codeRunButton = interview.querySelector('[data-code-run]');
+  const codeSubmitButton = interview.querySelector('[data-code-submit]');
+  const codeOutput = interview.querySelector('[data-code-output]');
+  const codeNote = interview.querySelector('[data-code-note]');
   const maxQuestions = 10;
   let cameraStream;
   let screenStream;
@@ -68,6 +78,10 @@
   let ending = false;
   let questionNumber = 1;
   let currentQuestion = '';
+  let currentQuestionData = null;
+  let lastRunOutput = '';
+  let pythonWorker = null;
+  let sqlEngine = null;
   let history = [];
   let busy = false;
 
@@ -177,10 +191,145 @@
     clearRecording();
     interview.querySelector('[data-capture-grid]').hidden = true;
     answerForm.hidden = true;
+    if (pythonWorker) {
+      pythonWorker.terminate();
+      pythonWorker = null;
+    }
     interview.querySelector('[data-session-finished]').hidden = false;
     interview.querySelector('[data-question-state]').textContent = 'Complete';
     setStatus(sessionStatus, message);
   };
+
+  const PYODIDE_URL = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js';
+  const SQLJS_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/';
+  const WORKER_SOURCE = `
+    importScripts('${PYODIDE_URL}');
+    let py;
+    self.onmessage = async event => {
+      let out = '';
+      try {
+        if (!py) py = await loadPyodide();
+        py.setStdout({ batched: line => { out += line + '\\n'; } });
+        py.setStderr({ batched: line => { out += line + '\\n'; } });
+        await py.runPythonAsync(event.data.code, { globals: py.globals.get('dict')() });
+        self.postMessage({ output: out });
+      } catch (error) {
+        self.postMessage({ output: out + String(error.message || error), failed: true });
+      }
+    };
+  `;
+
+  const loadScript = src => new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = src;
+    script.addEventListener('load', resolve);
+    script.addEventListener('error', () => reject(new Error('Could not load the code runner. Check your connection.')));
+    document.head.append(script);
+  });
+
+  const runPython = code => new Promise(resolve => {
+    if (!pythonWorker) {
+      pythonWorker = new Worker(URL.createObjectURL(new Blob([WORKER_SOURCE], { type: 'text/javascript' })));
+    }
+    const worker = pythonWorker;
+    const timer = window.setTimeout(() => {
+      worker.terminate();
+      if (pythonWorker === worker) pythonWorker = null;
+      resolve('Stopped: the code took longer than 30 seconds to run.');
+    }, 30000);
+    worker.onmessage = event => {
+      window.clearTimeout(timer);
+      resolve(event.data.output || '(no output)');
+    };
+    worker.onerror = () => {
+      window.clearTimeout(timer);
+      worker.terminate();
+      if (pythonWorker === worker) pythonWorker = null;
+      resolve('The Python runner failed to start. Check your connection and try again.');
+    };
+    worker.postMessage({ code });
+  });
+
+  const runSql = async code => {
+    if (!sqlEngine) {
+      await loadScript(`${SQLJS_BASE}sql-wasm.js`);
+      sqlEngine = await window.initSqlJs({ locateFile: file => `${SQLJS_BASE}${file}` });
+    }
+    const db = new sqlEngine.Database();
+    try {
+      const results = db.exec(code);
+      if (!results.length) return 'Statements ran successfully (no rows returned).';
+      return results.map(table => [
+        table.columns.join(' | '),
+        ...table.values.map(row => row.map(value => (value === null ? 'NULL' : value)).join(' | ')),
+      ].join('\n')).join('\n\n');
+    } catch (error) {
+      return `Error: ${error.message}`;
+    } finally {
+      db.close();
+    }
+  };
+
+  const updateCodeNote = () => {
+    const language = codeLanguage.value;
+    codeRunButton.disabled = language === 'pyspark';
+    codeNote.textContent = {
+      python: 'Runs in your browser (first run takes a few seconds to load). Standard library only.',
+      sql: 'Runs on a fresh in-browser SQLite database each time, so keep the CREATE TABLE and INSERT statements in your code.',
+      pyspark: 'PySpark cannot run in the browser. Write your solution and submit it for review.',
+    }[language];
+  };
+
+  const showQuestion = number => {
+    const data = questions[number - 1];
+    currentQuestionData = data;
+    currentQuestion = data.text;
+    questionNumberLabel.textContent = number;
+    questionText.textContent = data.text;
+    const isCoding = data.type === 'coding';
+    codePanel.hidden = !isCoding;
+    voicePanel.hidden = isCoding;
+    if (isCoding) {
+      codeLanguage.value = data.language || 'python';
+      codeEditor.value = data.starter || '';
+      codeOutput.textContent = 'Output will appear here.';
+      lastRunOutput = '';
+      updateCodeNote();
+    }
+  };
+
+  codeLanguage.addEventListener('change', updateCodeNote);
+
+  codeEditor.addEventListener('keydown', event => {
+    if (event.key !== 'Tab') return;
+    event.preventDefault();
+    const { selectionStart, selectionEnd, value } = codeEditor;
+    codeEditor.value = `${value.slice(0, selectionStart)}    ${value.slice(selectionEnd)}`;
+    codeEditor.selectionStart = codeEditor.selectionEnd = selectionStart + 4;
+  });
+
+  codeRunButton.addEventListener('click', async () => {
+    const code = codeEditor.value;
+    if (!code.trim()) {
+      codeOutput.textContent = 'Write some code first.';
+      return;
+    }
+    codeRunButton.disabled = true;
+    codeOutput.textContent = 'Running...';
+    try {
+      lastRunOutput = codeLanguage.value === 'sql' ? await runSql(code) : await runPython(code);
+    } catch (error) {
+      lastRunOutput = error.message || 'The code could not be run.';
+    }
+    codeOutput.textContent = lastRunOutput;
+    updateCodeNote();
+  });
+
+  topicSelect.addEventListener('change', () => {
+    const isOther = topicSelect.value === '__other__';
+    otherTopic.hidden = !isOther;
+    otherTopic.required = isOther;
+  });
 
   const wait = milliseconds => new Promise(resolve => window.setTimeout(resolve, milliseconds));
 
@@ -340,7 +489,7 @@
       setStatus(setupStatus, 'This browser does not support camera, screen sharing, and audio recording.', true);
       return;
     }
-    role = startForm.elements.role.value.trim();
+    role = (topicSelect.value === '__other__' ? otherTopic.value : topicSelect.value).trim();
     if (!role || !startForm.elements.consent.checked) return;
     busy = true;
     startForm.querySelector('button[type="submit"]').disabled = true;
@@ -365,9 +514,7 @@
       const result = await requestAI({ action: 'question' });
       questions = result.questions;
       sessionId = result.session_id;
-      currentQuestion = questions[0];
-      questionText.textContent = currentQuestion;
-      questionNumberLabel.textContent = questionNumber;
+      showQuestion(1);
       pendingFeedback = [];
       failedQuestionNumbers = [];
       submittedAnswers = 0;
@@ -387,11 +534,19 @@
 
   answerForm.addEventListener('submit', async event => {
     event.preventDefault();
-    if (busy || ending || !recordingBlob || !currentQuestion || !sessionId) return;
+    const isCoding = currentQuestionData?.type === 'coding';
+    if (busy || ending || !currentQuestion || !sessionId || (!isCoding && !recordingBlob)) return;
+    if (isCoding && !codeEditor.value.trim()) {
+      setStatus(sessionStatus, 'Write your code before submitting.', true);
+      return;
+    }
     busy = true;
     answerButton.disabled = true;
+    codeSubmitButton.disabled = true;
     try {
-      const audio = await blobToDataUrl(recordingBlob);
+      const answerPayload = isCoding
+        ? { code: codeEditor.value, language: codeLanguage.value, code_output: lastRunOutput }
+        : { audio: await blobToDataUrl(recordingBlob) };
       const questionBeingAnswered = questionNumber;
       const questionFailureList = failedQuestionNumbers;
       const feedbackRequest = requestAI({
@@ -399,7 +554,7 @@
         session_id: sessionId,
         question_number: questionBeingAnswered,
         question: currentQuestion,
-        audio,
+        ...answerPayload,
         frames: { camera: captureFrame(cameraPreview), screen: captureFrame(screenPreview) },
       }).then(() => null).catch(error => {
         questionFailureList.push(questionBeingAnswered);
@@ -412,15 +567,14 @@
         await endSession('All ten answers are submitted. Results are loading.');
       } else {
         questionNumber += 1;
-        currentQuestion = questions[questionNumber - 1];
-        questionNumberLabel.textContent = questionNumber;
-        questionText.textContent = currentQuestion;
+        showQuestion(questionNumber);
         setStatus(sessionStatus, 'Answer sent. Continue when you are ready; feedback will load at the end.');
       }
     } catch (error) {
       setStatus(sessionStatus, error.message || 'Could not get feedback. Please try again.', true);
       answerButton.disabled = !recordingBlob;
     } finally {
+      codeSubmitButton.disabled = false;
       busy = false;
     }
   });
@@ -444,6 +598,7 @@
     submittedAnswers = 0;
     questionNumber = 1;
     currentQuestion = '';
+    currentQuestionData = null;
     ending = false;
     sessionRating.hidden = true;
     answerForm.hidden = false;
