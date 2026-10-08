@@ -1206,6 +1206,10 @@ def _schedule_events(user, start, end):
         interview__student=user, scheduled_date__range=(start, end),
     ).select_related("interview__group")
     for rnd in rounds:
+        iv = rnd.interview
+        if (rnd.round_number == 1 and rnd.scheduled_date == iv.date_of_interview
+                and rnd.scheduled_time == iv.time_of_interview):
+            continue
         events.append({
             "date": rnd.scheduled_date, "kind": "round", "status": "round", "status_label": "Round",
             "title": f"{rnd.interview.company_name}: {rnd.description}",

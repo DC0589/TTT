@@ -1597,6 +1597,14 @@ class PrepTrackerTests(TestCase):
         self.assertEqual(self.client.get(reverse("student_calendar") + "?month=bad").status_code, 200)
         self.assertContains(self.client.get(reverse("student_dashboard")), "Coming up this week")
 
+    def test_first_round_on_interview_date_is_not_duplicated(self):
+        from tracker.views import _schedule_events
+        self.rnd.scheduled_date = self.iv.date_of_interview
+        self.rnd.save()
+        events = _schedule_events(
+            self.student, self.iv.date_of_interview, self.iv.date_of_interview)
+        self.assertEqual([e["kind"] for e in events], ["interview"])
+
 
 class RetentionTests(TestCase):
     def setUp(self):
