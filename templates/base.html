@@ -88,6 +88,11 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5v-1.2a5.5 5.5 0 0 1 11 0v1.2zM16 5.2a3.2 3.2 0 0 1 0 6.2M17 14a4.7 4.7 0 0 1 3.5 4.5v1"/></svg>
         <span>Batches</span>
       </a>
+      <a class="nav-link{% if request.resolver_match.url_name == 'admin_registrations' %} is-active{% endif %}" href="{% url 'admin_registrations' %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 7l8 6 8-6"/><path d="m15.5 16 2 2 3.5-4"/></svg>
+        <span>Sign-up requests</span>
+        <span class="nav-badge" data-signup-badge hidden></span>
+      </a>
       {% else %}
       <a class="nav-link{% if request.resolver_match.url_name == 'student_courses' %} is-active{% endif %}" href="{% url 'student_courses' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21zM4 5.5v13M8 7h8M8 11h8"/></svg>
@@ -204,7 +209,7 @@
     if (mainContent) mainContent.scrollTop = 0;
   });
 </script>
-{% if user.is_authenticated and user.is_admin %}<script>window.SIGNUP_POLL_URL="{% url 'registrations_pending_count' %}";</script>{% endif %}
+{% if user.is_authenticated and user.is_admin or user.is_authenticated and user.is_hr %}<script>window.SIGNUP_POLL_URL="{% url 'registrations_pending_count' %}";</script>{% endif %}
 <script src="{% static 'js/app.js' %}?v=8" defer></script>
 {% block scripts %}{% endblock %}
 </body>

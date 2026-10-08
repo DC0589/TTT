@@ -327,7 +327,7 @@ def verify_registration(request, pk):
 
 
 # ---------- Admin ----------
-@admin_required
+@staff_required
 def admin_dashboard(request):
     interviews = (Interview.objects.filter(group__admin=request.user)
                   .select_related("student", "group", "status").prefetch_related("rounds"))
@@ -404,7 +404,7 @@ def admin_dashboard(request):
     })
 
 
-@admin_required
+@staff_required
 def admin_hr_user_add(request):
     form = HRUserForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -574,7 +574,7 @@ def interview_quick(request, pk):
     return _quick_redirect(request, reverse("student_interviews"))
 
 
-@admin_required
+@staff_required
 @require_POST
 def admin_interview_quick(request, pk):
     iv = get_object_or_404(Interview, pk=pk, group__admin=request.user)
@@ -586,7 +586,7 @@ def admin_interview_quick(request, pk):
     return _quick_redirect(request, reverse("admin_interviews"))
 
 
-@admin_required
+@staff_required
 @require_POST
 def admin_interview_notes(request, pk):
     iv = get_object_or_404(Interview, pk=pk, group__admin=request.user)
@@ -827,7 +827,7 @@ def admin_interview_detail(request, pk):
     })
 
 
-@admin_required
+@staff_required
 def registrations_pending_count(request):
     count = StudentRegistrationRequest.objects.filter(
         status=StudentRegistrationRequest.AWAITING_APPROVAL
@@ -835,7 +835,7 @@ def registrations_pending_count(request):
     return JsonResponse({"count": count})
 
 
-@admin_required
+@staff_required
 def admin_registrations(request):
     registrations = Paginator(
         StudentRegistrationRequest.objects.filter(
@@ -850,7 +850,7 @@ def admin_registrations(request):
     })
 
 
-@admin_required
+@staff_required
 @require_POST
 def registration_approve(request, pk):
     with transaction.atomic():
@@ -916,7 +916,7 @@ def registration_approve(request, pk):
     return redirect("admin_registrations")
 
 
-@admin_required
+@staff_required
 @require_POST
 def registration_reject(request, pk):
     with transaction.atomic():

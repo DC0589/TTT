@@ -701,6 +701,43 @@ class PermissionTests(Base):
             hr_students(request)
         self.assertEqual(mock_render.call_args.args[1], "tracker/hr/students.html")
 
+    def test_hr_can_review_and_approve_student_registrations(self):
+        hr = User.objects.create_user(
+            "hr-reviewer", is_hr=True, created_by=self.admin
+        )
+        registration = StudentRegistrationRequest.objects.create(
+            username="pending-for-hr",
+            email="pending-for-hr@example.com",
+            password_hash="unused",
+            verification_code_hash="",
+            verification_expires_at=timezone.now(),
+            status=StudentRegistrationRequest.AWAITING_APPROVAL,
+            verified_at=timezone.now(),
+        )
+        request = RequestFactory().get(reverse("admin_registrations"))
+        request.user = hr
+        with patch("tracker.views.render") as render_mock:
+            from .views import admin_registrations
+
+            admin_registrations(request)
+        self.assertEqual(render_mock.call_args.args[2]["pending_count"], 1)
+
+        self.client.force_login(hr)
+        self.assertEqual(
+            self.client.get(reverse("registrations_pending_count")).json()["count"],
+            1,
+        )
+        with patch("tracker.views._send_notification", return_value=True):
+            response = self.client.post(
+                reverse("registration_approve", args=[registration.pk])
+            )
+
+        self.assertEqual(response.status_code, 302)
+        student = User.objects.get(username="pending-for-hr")
+        self.assertEqual(student.created_by, hr)
+        registration.refresh_from_db()
+        self.assertEqual(registration.status, StudentRegistrationRequest.APPROVED)
+
     def test_student_cannot_see_others_interview(self):
         self.client.force_login(self.bob)
         url = reverse("student_interview_detail", args=[self.iv.pk])
