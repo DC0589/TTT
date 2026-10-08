@@ -56,6 +56,13 @@ class ModelTests(Base):
         self.assertTrue(User.objects.create_superuser("root", password="x").is_admin)
 
 
+PROFILE = {
+    "mobile_number": "9876543210", "graduation": "B.Tech", "department": "CSE",
+    "hometown": "Hyderabad", "parent_name": "Parent", "parent_mobile_number": "9876543211",
+    "skills": "Python",
+}
+
+
 class AuthTests(Base):
     def test_login_redirects_by_role(self):
         r = self.client.post(reverse("login"), {"username": "admin", "password": "pw12345!"})
@@ -80,7 +87,7 @@ class AuthTests(Base):
     def test_external_registration_requires_verification_and_admin_approval(self):
         self.admin.email = "admin@example.com"
         self.admin.save(update_fields=["email"])
-        r = self.client.post(reverse("register"), {
+        r = self.client.post(reverse("register"), {**PROFILE,
             "username": "dave", "email": "d@example.com",
             "password1": "S7rong-pass-99", "password2": "S7rong-pass-99"})
         registration = StudentRegistrationRequest.objects.get(username="dave")
@@ -161,7 +168,7 @@ class AuthTests(Base):
         )
 
     def test_unverified_request_cannot_be_approved(self):
-        self.client.post(reverse("register"), {
+        self.client.post(reverse("register"), {**PROFILE,
             "username": "eve", "email": "eve@example.com",
             "password1": "S7rong-pass-99", "password2": "S7rong-pass-99"})
         registration = StudentRegistrationRequest.objects.get(username="eve")
@@ -176,7 +183,7 @@ class AuthTests(Base):
         self.assertEqual(registration.status, StudentRegistrationRequest.AWAITING_VERIFICATION)
 
     def test_registration_otp_rejects_incorrect_codes_and_locks_after_five_attempts(self):
-        self.client.post(reverse("register"), {
+        self.client.post(reverse("register"), {**PROFILE,
             "username": "otp-student",
             "email": "otp@example.com",
             "password1": "S7rong-pass-99",
@@ -299,7 +306,7 @@ class AuthTests(Base):
             username="direct-student").exists())
 
     def test_expired_registration_can_be_retried(self):
-        self.client.post(reverse("register"), {
+        self.client.post(reverse("register"), {**PROFILE,
             "username": "expired-student",
             "email": "expired@example.com",
             "password1": "T7rong-pass-99",
@@ -309,7 +316,7 @@ class AuthTests(Base):
         registration.verification_expires_at = timezone.now() - timedelta(minutes=1)
         registration.save(update_fields=["verification_expires_at"])
 
-        response = self.client.post(reverse("register"), {
+        response = self.client.post(reverse("register"), {**PROFILE,
             "username": "expired-student",
             "email": "expired@example.com",
             "password1": "T7rong-pass-99",
@@ -1379,3 +1386,26 @@ class ViewTests(Base):
             "final_label": "In progress",
         })
         self.assertFalse(InterviewStatus.objects.filter(interview=self.iv).exists())
+
+
+class MockProgressTests(TestCase):
+    def test_progress_summarises_topics_levels_and_suggestion(self):
+        from tracker.models import MockInterviewSession
+        from tracker.views import _mock_progress
+
+        student = User.objects.create_user("prog", password="pw12345!", is_student=True)
+        for topic, rating, level in [("Python", 2, "easy"), ("SQL", 4, "medium")]:
+            MockInterviewSession.objects.create(
+                student=student, role=topic, rating=rating, difficulty=level)
+        progress = _mock_progress(student)
+        self.assertEqual(progress["topics"][0]["topic"], "Python")
+        self.assertTrue(progress["topics"][0]["weak"])
+        self.assertEqual(progress["suggestion"]["topic"], "Python")
+        self.assertEqual([x["level"] for x in progress["levels"]], ["Easy", "Medium"])
+
+    def test_integrity_score_and_level(self):
+        from tracker.models import MockInterviewSession
+
+        session = MockInterviewSession(integrity_events=[{"type": "paste"}] * 3)
+        self.assertEqual(session.integrity_score, 70)
+        self.assertEqual(session.integrity_level, "medium")
