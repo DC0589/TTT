@@ -54,6 +54,11 @@
   const otherTopic = interview.querySelector('[data-other-topic]');
   const codePanel = interview.querySelector('[data-code-panel]');
   const voicePanel = interview.querySelector('[data-voice-panel]');
+  const textPanel = interview.querySelector('[data-text-panel]');
+  const textEditor = interview.querySelector('[data-text-editor]');
+  const textSubmitButton = interview.querySelector('[data-text-submit]');
+  const captureGrid = interview.querySelector('[data-capture-grid]');
+  let liteMode = false;
   const codeLanguage = interview.querySelector('[data-code-language]');
   const codeEditor = interview.querySelector('[data-code-editor]');
   const codeRunButton = interview.querySelector('[data-code-run]');
@@ -181,6 +186,7 @@
       const section = document.createElement('section');
       const labelElement = document.createElement('strong');
       labelElement.textContent = label;
+      if (!text) return;
       const content = document.createElement('p');
       content.textContent = text;
       section.append(labelElement, content);
@@ -291,7 +297,9 @@
     questionText.textContent = data.text;
     const isCoding = data.type === 'coding';
     codePanel.hidden = !isCoding;
-    voicePanel.hidden = isCoding;
+    voicePanel.hidden = isCoding || liteMode;
+    textPanel.hidden = isCoding || !liteMode;
+    if (liteMode && !isCoding) textEditor.value = '';
     if (isCoding) {
       codeLanguage.value = data.language || 'python';
       codeEditor.value = data.starter || '';
@@ -494,7 +502,8 @@
   startForm.addEventListener('submit', async event => {
     event.preventDefault();
     if (busy) return;
-    if (!navigator.mediaDevices?.getUserMedia || !navigator.mediaDevices?.getDisplayMedia || !window.MediaRecorder) {
+    liteMode = Boolean(startForm.elements.lite && startForm.elements.lite.checked);
+    if (!liteMode && (!navigator.mediaDevices?.getUserMedia || !navigator.mediaDevices?.getDisplayMedia || !window.MediaRecorder)) {
       setStatus(setupStatus, 'This browser does not support camera, screen sharing, and audio recording.', true);
       return;
     }
@@ -503,14 +512,17 @@
     if (!role || !startForm.elements.consent.checked) return;
     busy = true;
     startForm.querySelector('button[type="submit"]').disabled = true;
-    setStatus(setupStatus, 'Requesting camera, microphone, and screen access...');
+    setStatus(setupStatus, liteMode ? 'Starting practice mode...' : 'Requesting camera, microphone, and screen access...');
     try {
-      cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      cameraPreview.srcObject = cameraStream;
-      await cameraPreview.play();
-      screenStream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 5 }, audio: false });
-      screenPreview.srcObject = screenStream;
-      await screenPreview.play();
+      captureGrid.hidden = liteMode;
+      if (!liteMode) {
+        cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        cameraPreview.srcObject = cameraStream;
+        await cameraPreview.play();
+        screenStream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 5 }, audio: false });
+        screenPreview.srcObject = screenStream;
+        await screenPreview.play();
+      }
       setup.hidden = true;
       session.hidden = false;
       questionNumber = 1;
@@ -529,8 +541,8 @@
       failedQuestionNumbers = [];
       submittedAnswers = 0;
       ending = false;
-      setStatus(sessionStatus, 'Camera and screen are live. Ten questions are ready.');
-      screenStream.getVideoTracks()[0].addEventListener('ended', () => endSession('Screen sharing stopped. Session ended.'));
+      setStatus(sessionStatus, liteMode ? 'Practice mode is on. Ten questions are ready.' : 'Camera and screen are live. Ten questions are ready.');
+      if (!liteMode) screenStream.getVideoTracks()[0].addEventListener('ended', () => endSession('Screen sharing stopped. Session ended.'));
     } catch (error) {
       stopCapture();
       session.hidden = true;
@@ -545,7 +557,12 @@
   answerForm.addEventListener('submit', async event => {
     event.preventDefault();
     const isCoding = currentQuestionData?.type === 'coding';
-    if (busy || ending || !currentQuestion || !sessionId || (!isCoding && !recordingBlob)) return;
+    const isText = liteMode && !isCoding;
+    if (busy || ending || !currentQuestion || !sessionId || (!isCoding && !isText && !recordingBlob)) return;
+    if (isText && !textEditor.value.trim()) {
+      setStatus(sessionStatus, 'Type your answer before sending.', true);
+      return;
+    }
     if (isCoding && !codeEditor.value.trim()) {
       setStatus(sessionStatus, 'Write your code before submitting.', true);
       return;
@@ -553,9 +570,11 @@
     busy = true;
     answerButton.disabled = true;
     codeSubmitButton.disabled = true;
+    textSubmitButton.disabled = true;
     try {
       const answerPayload = isCoding
         ? { code: codeEditor.value, language: codeLanguage.value, code_output: lastRunOutput }
+        : isText ? { text: textEditor.value }
         : { audio: await blobToDataUrl(recordingBlob) };
       const questionBeingAnswered = questionNumber;
       const questionFailureList = failedQuestionNumbers;
@@ -565,7 +584,7 @@
         question_number: questionBeingAnswered,
         question: currentQuestion,
         ...answerPayload,
-        frames: { camera: captureFrame(cameraPreview), screen: captureFrame(screenPreview) },
+        ...(liteMode ? { lite: true } : { frames: { camera: captureFrame(cameraPreview), screen: captureFrame(screenPreview) } }),
       }).then(() => null).catch(error => {
         questionFailureList.push(questionBeingAnswered);
         return error;
@@ -585,6 +604,7 @@
       answerButton.disabled = !recordingBlob;
     } finally {
       codeSubmitButton.disabled = false;
+      textSubmitButton.disabled = false;
       busy = false;
     }
   });

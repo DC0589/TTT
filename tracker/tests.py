@@ -1409,3 +1409,32 @@ class MockProgressTests(TestCase):
         session = MockInterviewSession(integrity_events=[{"type": "paste"}] * 3)
         self.assertEqual(session.integrity_score, 70)
         self.assertEqual(session.integrity_level, "medium")
+
+
+class MockLiteModeTests(TestCase):
+    def setUp(self):
+        self.student = User.objects.create_user("lite", password="pw12345!", is_student=True)
+        self.client.force_login(self.student)
+        from tracker.models import MockInterviewSession
+        self.session = MockInterviewSession.objects.create(student=self.student, role="Python")
+        self.url = reverse("student_mock_interview_ai")
+
+    def post(self, **extra):
+        payload = {"action": "feedback", "consent": True, "role": "Python", "session_id": self.session.pk,
+                   "question_number": 1, "question": "What is a list?", **extra}
+        return self.client.post(self.url, payload, content_type="application/json")
+
+    @patch("tracker.views.generate_json", return_value={"score": 4, "answer_feedback": "Good."})
+    def test_text_answer_without_camera_is_scored(self, mock_ai):
+        response = self.post(text="A list is an ordered, mutable sequence.", lite=True)
+        self.assertEqual(response.status_code, 200)
+        score = self.session.scores.get(question_number=1)
+        self.assertEqual(score.score, 4)
+        self.assertEqual(score.camera_feedback, "")
+        self.assertEqual(len(mock_ai.call_args.args[0]), 1)
+
+    def test_text_answer_requires_lite_flag(self):
+        self.assertEqual(self.post(text="answer").status_code, 400)
+
+    def test_empty_text_is_rejected(self):
+        self.assertEqual(self.post(text="  ", lite=True).status_code, 400)

@@ -1290,6 +1290,8 @@ def student_mock_interview_ai(request):
         audio = data.get("audio", "")
         frames = data.get("frames", {})
         code = data.get("code")
+        text_answer = data.get("text")
+        lite = data.get("lite") is True
         audio_match = None
         audio_bytes = b""
         if code is not None:
@@ -1301,6 +1303,12 @@ def student_mock_interview_ai(request):
                 or not isinstance(code_output, str)
             ):
                 return JsonResponse({"error": "Write your code before submitting."}, status=400)
+        elif text_answer is not None:
+            if (
+                not lite or not isinstance(text_answer, str)
+                or not text_answer.strip() or len(text_answer) > 3000
+            ):
+                return JsonResponse({"error": "Type your answer before sending."}, status=400)
         else:
             audio_match = re.fullmatch(
                 r"data:(audio/(?:webm|mp4|ogg|wav|mpeg|mp3|aac|flac|opus|aiff|m4a))"
@@ -1315,7 +1323,7 @@ def student_mock_interview_ai(request):
                 return JsonResponse({"error": "The recorded answer is invalid."}, status=400)
             if not audio_bytes:
                 return JsonResponse({"error": "The recording is empty. Record your answer again."}, status=400)
-        if not isinstance(frames, dict):
+        if not lite and not isinstance(frames, dict):
             return JsonResponse({"error": "Camera and screen snapshots are required."}, status=400)
 
         if code is not None:
@@ -1331,6 +1339,15 @@ def student_mock_interview_ai(request):
                 f"Language: {language}\nCandidate code:\n{code}\n"
                 f"Output from the candidate's last run:\n{code_output[:2000] or '(not run)'}"
             )}]
+        elif text_answer is not None:
+            parts = [{"text": (
+                "Evaluate this typed mock interview answer. Assess relevance, correctness, "
+                "completeness, structure and clarity. Keep answer_feedback to one concise sentence "
+                "of at most 20 words. Do not infer identity, age, gender, race, health, or personality. "
+                "Return JSON with integer score from 1 to 5 and string answer_feedback.\n"
+                f"Topic: {role}\nQuestion {question_number}: {question[:500]}\n"
+                f"Candidate answer:\n{text_answer}"
+            )}]
         else:
             parts = [{"text": (
                 "Evaluate this recorded mock interview answer. Transcribe the speech verbatim and assess "
@@ -1344,7 +1361,7 @@ def student_mock_interview_ai(request):
             )}, {
                 "inlineData": {"mimeType": audio_match.group(1), "data": audio_match.group(2)},
             }]
-        for frame_name, label in (("camera", "Camera snapshot"), ("screen", "Shared-screen snapshot")):
+        for frame_name, label in (() if lite else (("camera", "Camera snapshot"), ("screen", "Shared-screen snapshot"))):
             frame = frames.get(frame_name, "")
             match = re.fullmatch(
                 r"data:image/jpeg;base64,([A-Za-z0-9+/=]+)", frame
@@ -1431,8 +1448,11 @@ def student_mock_interview_ai(request):
         score = 3
     score = max(1, min(score, 5))
     answer_feedback = str(result.get("answer_feedback", "Review your answer and try again."))[:800]
-    camera_feedback = str(result.get("camera_feedback", "No camera feedback available."))[:500]
-    screen_feedback = str(result.get("screen_feedback", "No screen feedback available."))[:500]
+    if data.get("lite") is True:
+        camera_feedback = screen_feedback = ""
+    else:
+        camera_feedback = str(result.get("camera_feedback", "No camera feedback available."))[:500]
+        screen_feedback = str(result.get("screen_feedback", "No screen feedback available."))[:500]
     score_record.status = MockInterviewScore.COMPLETE
     score_record.score = score
     score_record.answer_feedback = answer_feedback

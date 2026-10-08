@@ -24,6 +24,7 @@
           <option value="hard">Hard - senior-level, in depth</option>
         </select>
       </div>
+      <label class="mock-lite"><input type="checkbox" name="lite" data-lite-mode><span><strong>Practice mode (no camera)</strong> - answer by typing or coding. No camera, screen sharing or microphone is used, so it works on weak connections.</span></label>
       <label class="mock-consent"><input type="checkbox" name="consent" required><span>I agree to send recorded answers and camera and screen snapshots to Google Gemini. My ratings and written feedback will be saved and shared with my administrator; recordings, transcripts, and images will not be saved.</span></label>
       <button class="button button-primary" type="submit">Start interview</button>
     </form>
@@ -53,6 +54,11 @@
             <p class="field-help" data-code-note></p>
             <pre class="mock-code-output" data-code-output aria-live="polite">Output will appear here.</pre>
             <div class="mock-session-actions"><button class="button button-primary" type="submit" data-code-submit>Submit code</button></div>
+          </div>
+          <div class="mock-text-answer" data-text-panel hidden>
+            <label for="mock-text-answer">Your answer</label>
+            <textarea class="form-control" id="mock-text-answer" data-text-editor rows="8" maxlength="3000" placeholder="Type your answer as you would say it in an interview."></textarea>
+            <div class="mock-session-actions"><button class="button button-primary" type="submit" data-text-submit>Send answer</button></div>
           </div>
           <div class="mock-recorder" data-voice-panel>
             <p class="field-help">Record up to 60 seconds. Send each answer and continue; feedback loads after you end the session. Recordings are not saved.</p>
