@@ -993,3 +993,8 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
 .round-feedback-text { flex: 1 1 100%; font-size: 13px; color: var(--muted, #667085); }
 
 .form-field input[type="checkbox"] { width: 20px; height: 20px; min-height: 0; padding: 0; margin: 4px 0 0; accent-color: #4f46e5; display: block; }
+
+.note-history-title { margin: 22px 0 8px; font-size: 15px; }
+.note-item { border-top: 1px solid #e5e7ef; padding: 10px 0; }
+.note-item small { color: #667085; }
+.note-item p { margin: 4px 0 0; }

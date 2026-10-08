@@ -1660,13 +1660,13 @@ class InterviewManagementTests(TestCase):
     def test_trainer_note_visibility(self):
         self.client.force_login(self.admin)
         self.client.post(reverse("admin_interview_notes", args=[self.iv.pk]),
-                         {"admin_notes": "Practice system design"})
+                         {"text": "Practice system design"})
         self.client.force_login(self.stu)
         detail = reverse("student_interview_detail", args=[self.iv.pk])
         self.assertNotContains(self.client.get(detail), "Practice system design")
         self.client.force_login(self.admin)
         self.client.post(reverse("admin_interview_notes", args=[self.iv.pk]),
-                         {"admin_notes": "Practice system design", "notes_visible_to_student": "on"})
+                         {"text": "Practice system design", "visible_to_student": "on"})
         self.client.force_login(self.stu)
         self.assertContains(self.client.get(detail), "Practice system design")
 

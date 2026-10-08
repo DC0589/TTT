@@ -174,8 +174,6 @@ class Interview(models.Model):
     prep_notes = models.TextField(blank=True)
     interview_type = models.CharField(max_length=20, choices=TYPE_CHOICES, blank=True)
     attendance = models.CharField(max_length=15, choices=ATTENDANCE_CHOICES, blank=True)
-    admin_notes = models.TextField(blank=True)
-    notes_visible_to_student = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -200,6 +198,10 @@ class Interview(models.Model):
         return BADGES[self.final_status]
 
     @property
+    def visible_trainer_notes(self):
+        return self.trainer_notes.filter(visible_to_student=True)
+
+    @property
     def calendar_status(self):
         final = self.final_status
         if final == "selected":
@@ -213,6 +215,17 @@ class Interview(models.Model):
     def progress(self):
         rounds = list(self.rounds.all())
         return f"{sum(r.status == 'cleared' for r in rounds)}/{len(rounds)} cleared"
+
+
+class InterviewNote(models.Model):
+    interview = models.ForeignKey(Interview, on_delete=models.CASCADE, related_name="trainer_notes")
+    author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    text = models.TextField()
+    visible_to_student = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
 
 
 class InterviewRound(models.Model):

@@ -42,7 +42,7 @@ from .mock_bank import DIFFICULTY_GUIDE, normalise_difficulty, pick_seed_questio
 from .mock_topics import MOCK_TOPICS, pick_focus_areas, topic_language
 from .ai_interview import GeminiAPIError, generate_json
 from .models import (
-    Group, GroupMembership, Interview, InterviewRound, InterviewStatus,
+    Group, GroupMembership, Interview, InterviewNote, InterviewRound, InterviewStatus,
     LearningCourse, MockInterviewScore, MockInterviewSession, MockQuestion,
     StudentRegistrationRequest, User,
 )
@@ -619,10 +619,15 @@ def admin_interview_quick(request, pk):
 @require_POST
 def admin_interview_notes(request, pk):
     iv = get_object_or_404(Interview, pk=pk, group__admin=request.user)
-    form = InterviewAdminNotesForm(request.POST, instance=iv)
+    form = InterviewAdminNotesForm(request.POST)
     if form.is_valid():
-        form.save()
+        note = form.save(commit=False)
+        note.interview = iv
+        note.author = request.user
+        note.save()
         messages.success(request, "Trainer note saved.")
+    else:
+        messages.error(request, "Write a note before saving.")
     return redirect("admin_interview_detail", pk=pk)
 
 
@@ -842,7 +847,8 @@ def admin_interview_detail(request, pk):
     )
     return render(request, "tracker/admin/interview_detail.html", {
         "iv": interview,
-        "notes_form": InterviewAdminNotesForm(instance=interview) if request.user.is_admin else None,
+        "notes_form": InterviewAdminNotesForm() if request.user.is_admin else None,
+        "trainer_notes": interview.trainer_notes.select_related("author") if request.user.is_admin else None,
     })
 
 

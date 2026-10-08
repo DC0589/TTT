@@ -7,7 +7,7 @@ from django.core.validators import RegexValidator
 from django.utils import timezone
 
 from .models import (
-    Group, GroupMembership, Interview, InterviewRound, InterviewStatus, LearningCourse,
+    Group, GroupMembership, Interview, InterviewNote, InterviewRound, InterviewStatus, LearningCourse,
     MockQuestion, StudentRegistrationRequest, User,
 )
 
@@ -400,7 +400,13 @@ class MockQuestionForm(Styled, forms.ModelForm):
 
 class InterviewAdminNotesForm(Styled, forms.ModelForm):
     class Meta:
-        model = Interview
-        fields = ("admin_notes", "notes_visible_to_student")
-        widgets = {"admin_notes": forms.Textarea(attrs={"rows": 4})}
-        labels = {"admin_notes": "Trainer note", "notes_visible_to_student": "Show this note to the student"}
+        model = InterviewNote
+        fields = ("text", "visible_to_student")
+        widgets = {"text": forms.Textarea(attrs={"rows": 4})}
+        labels = {"text": "Add a trainer note", "visible_to_student": "Show this note to the student"}
+
+    def clean_text(self):
+        text = self.cleaned_data["text"].strip()
+        if not text:
+            raise forms.ValidationError("Write a note first.")
+        return text

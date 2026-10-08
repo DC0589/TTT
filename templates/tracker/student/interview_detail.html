@@ -17,9 +17,11 @@
     </form>
   </div>
 </section>
-{% if iv.notes_visible_to_student and iv.admin_notes %}
-<section class="panel trainer-note"><div class="section-heading"><div><p class="eyebrow">FROM YOUR TRAINER</p><h2>Trainer note</h2></div></div><p>{{ iv.admin_notes|linebreaksbr }}</p></section>
-{% endif %}
+{% with notes=iv.visible_trainer_notes %}{% if notes %}
+<section class="panel trainer-note"><div class="section-heading"><div><p class="eyebrow">FROM YOUR TRAINER</p><h2>Trainer notes</h2></div></div>
+  {% for n in notes %}<div class="note-item"><small>{{ n.created_at|date:"d M Y, h:i A" }}</small><p>{{ n.text|linebreaksbr }}</p></div>{% endfor %}
+</section>
+{% endif %}{% endwith %}
 <section class="panel hr-contact-panel">
   <div class="panel-heading"><span class="panel-icon" aria-hidden="true">↗</span><div><p class="eyebrow">YOUR POINT OF CONTACT</p><h2>HR contact details</h2><p>Recruiter information for this opportunity.</p></div></div>
   <div class="hr-contact-grid">
