@@ -5,7 +5,7 @@
   <div><p class="eyebrow">PRACTICE SESSION</p><h1>AI Mock Interview</h1><p>Pick a topic and answer ten questions, including hands-on coding questions. Your results load when you finish.</p></div>
 </section>
 <div class="mock-interview" data-mock-interview data-ai-url="{{ ai_url }}">
-  <p class="mock-privacy-note"><strong>Privacy:</strong> Your recorded answer and one camera and screen snapshot are sent to Google Gemini for feedback. Your interview rating, per-question scores, and written feedback are saved and visible to your administrator. Audio, transcripts, and images are not saved. Detailed activity logs are deleted after 30 days; your scores are kept. Do not show private information on your screen.</p>
+  <p class="mock-privacy-note"><strong>Privacy:</strong> Your recorded answer and one camera and screen snapshot are sent to Google Gemini for feedback. Your rating, per-question scores, written feedback, and transcripts of recorded answers are saved and visible to your administrator. Audio and images are not saved. Detailed activity logs are deleted after 30 days; your scores and transcripts are kept. Do not show private information on your screen.</p>
   <section class="panel mock-setup" data-interview-setup>
     <div class="panel-heading"><div><p class="eyebrow">GET READY</p><h2>Set up your session</h2><p>Choose a role, then allow camera and screen sharing when prompted.</p></div></div>
     <form class="stack-form" data-interview-start method="post">{% csrf_token %}
@@ -25,7 +25,7 @@
         </select>
       </div>
       <label class="mock-lite"><input type="checkbox" name="lite" data-lite-mode><span><strong>Practice mode (no camera)</strong> - answer by typing or coding. No camera, screen sharing or microphone is used, so it works on weak connections.</span></label>
-      <label class="mock-consent"><input type="checkbox" name="consent" required><span>I agree to send recorded answers and camera and screen snapshots to Google Gemini. My ratings and written feedback will be saved and shared with my administrator; recordings, transcripts, and images will not be saved.</span></label>
+      <label class="mock-consent"><input type="checkbox" name="consent" required><span>I agree to send recorded answers and camera and screen snapshots to Google Gemini. My ratings, written feedback, and transcripts of recorded answers will be saved and shared with my administrator. Recordings and images will not be saved.</span></label>
       <button class="button button-primary" type="submit">Start interview</button>
     </form>
     <p class="mock-status" data-interview-status role="status" aria-live="polite"></p>
@@ -72,7 +72,7 @@
           </div>
           <div class="mock-session-actions"><button class="button button-quiet" type="button" data-end-session>End and load results</button></div>
         </form>
-        <div class="mock-session-finished" data-session-finished hidden><strong>Session complete</strong><p>Your ratings and feedback are loading. Audio, transcripts, and snapshots are not saved.</p><button class="button button-quiet" type="button" data-restart-session>Start another session</button></div>
+        <div class="mock-session-finished" data-session-finished hidden><strong>Session complete</strong><p>Your ratings and feedback are loading. Transcripts are saved for your administrator; audio and snapshots are not saved.</p><button class="button button-quiet" type="button" data-restart-session>Start another session</button></div>
         <p class="mock-status" data-session-status role="status" aria-live="polite"></p>
       </article>
     </div>

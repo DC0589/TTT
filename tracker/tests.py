@@ -529,6 +529,10 @@ class MockInterviewTests(Base):
         self.assertIsNotNone(session.completed_at)
         self.assertEqual(session.scores.get().score, 4)
         saved_score = session.scores.get()
+        self.assertEqual(
+            saved_score.answer_transcript,
+            "I check ranges and missing values.",
+        )
         self.assertEqual(saved_score.answer_feedback, "Clear answer.")
         self.assertEqual(saved_score.camera_feedback, "Good framing.")
         self.assertEqual(saved_score.screen_feedback, "Readable screen.")
@@ -552,6 +556,7 @@ class MockInterviewTests(Base):
         self.assertTrue(results_response.json()["ready"])
         self.assertEqual(results_response.json()["session_rating"], 4.0)
         self.assertEqual(results_response.json()["scores"][0]["question"], "How do you validate data?")
+        self.assertNotIn("answer_transcript", results_response.json()["scores"][0])
 
     def test_results_poll_reports_pending_answers(self):
         self.client.force_login(self.alice)

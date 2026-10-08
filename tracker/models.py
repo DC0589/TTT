@@ -357,6 +357,7 @@ class MockInterviewScore(models.Model):
     question = models.TextField(blank=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=PENDING)
     score = models.PositiveSmallIntegerField(blank=True, null=True)
+    answer_transcript = models.TextField(blank=True)
     answer_feedback = models.TextField(blank=True)
     camera_feedback = models.TextField(blank=True)
     screen_feedback = models.TextField(blank=True)

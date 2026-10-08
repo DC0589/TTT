@@ -50,6 +50,7 @@
         <section class="mock-admin-question">
           <div class="mock-admin-question-heading"><h3>Question {{ score.question_number }}</h3>{% if score.status == "complete" %}<span class="mock-score">{{ score.score }}/5</span>{% else %}<span class="mock-rating-pending">{{ score.get_status_display }}</span>{% endif %}</div>
           {% if score.question %}<p><strong>Question asked</strong>{{ score.question }}</p>{% endif %}
+          {% if score.answer_transcript %}<p class="mock-admin-transcript"><strong>Recorded answer transcript</strong>{{ score.answer_transcript }}</p>{% endif %}
           {% if score.status == "complete" %}<p><strong>Answer feedback</strong>{{ score.answer_feedback|default:"No answer feedback saved." }}</p><p><strong>Camera feedback</strong>{{ score.camera_feedback|default:"No camera feedback saved." }}</p><p><strong>Screen feedback</strong>{{ score.screen_feedback|default:"No screen feedback saved." }}</p>{% elif score.status == "failed" %}<p>{{ score.answer_feedback|default:"Feedback could not be loaded." }}</p>{% else %}<p>Feedback is still processing.</p>{% endif %}
         </section>
         {% empty %}<p class="mock-feedback-empty">No answers have been submitted yet.</p>{% endfor %}

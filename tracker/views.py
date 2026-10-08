@@ -1787,6 +1787,7 @@ def student_mock_interview_ai(request):
                 "question": question[:500],
                 "status": MockInterviewScore.PENDING,
                 "score": None,
+                "answer_transcript": "",
                 "answer_feedback": "",
                 "camera_feedback": "",
                 "screen_feedback": "",
@@ -1842,6 +1843,12 @@ def student_mock_interview_ai(request):
         score = 3
     score = max(1, min(score, 5))
     answer_feedback = str(result.get("answer_feedback", "Review your answer and try again."))[:800]
+    transcript_value = result.get("answer_transcript", "") if audio_match else ""
+    answer_transcript = (
+        transcript_value.strip()[:5000]
+        if isinstance(transcript_value, str)
+        else ""
+    )
     if data.get("lite") is True:
         camera_feedback = screen_feedback = ""
     else:
@@ -1849,11 +1856,13 @@ def student_mock_interview_ai(request):
         screen_feedback = str(result.get("screen_feedback", "No screen feedback available."))[:500]
     score_record.status = MockInterviewScore.COMPLETE
     score_record.score = score
+    score_record.answer_transcript = answer_transcript
     score_record.answer_feedback = answer_feedback
     score_record.camera_feedback = camera_feedback
     score_record.screen_feedback = screen_feedback
     score_record.save(update_fields=[
-        "status", "score", "answer_feedback", "camera_feedback", "screen_feedback",
+        "status", "score", "answer_transcript", "answer_feedback",
+        "camera_feedback", "screen_feedback",
     ])
     average_score = session.scores.filter(
         status=MockInterviewScore.COMPLETE, score__isnull=False
