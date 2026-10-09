@@ -81,3 +81,62 @@ def generate_json(parts):
     if not isinstance(result, dict):
         raise GeminiAPIError("The AI service returned an unreadable response.")
     return result
+
+HEALTH_CACHE_KEY = "ai_interview_health"
+HEALTH_CACHE_SECONDS = 60
+
+
+def _probe_model(model, api_key):
+    request = Request(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+        data=json.dumps({
+            "contents": [{"parts": [{"text": "Reply with the word ok."}]}],
+            "generationConfig": {"maxOutputTokens": 8},
+        }).encode(),
+        headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
+        method="POST",
+    )
+    started = time.monotonic()
+    try:
+        with urlopen(request, timeout=8) as response:
+            json.loads(response.read().decode())
+    except HTTPError as error:
+        return {"model": model, "ok": False, "detail": f"HTTP {error.code}"}
+    except (URLError, TimeoutError) as error:
+        return {"model": model, "ok": False, "detail": str(getattr(error, "reason", error))}
+    except json.JSONDecodeError:
+        return {"model": model, "ok": False, "detail": "unreadable response"}
+    return {"model": model, "ok": True, "latency_ms": int((time.monotonic() - started) * 1000)}
+
+
+def check_health(force=False):
+    from django.core.cache import cache
+
+    if not force:
+        cached = cache.get(HEALTH_CACHE_KEY)
+        if cached:
+            return cached
+    api_key = settings.GEMINI_API_KEY
+    if not api_key:
+        result = {"status": "down", "message": "AI is not configured.", "models": []}
+    else:
+        models = list(dict.fromkeys((
+            settings.GEMINI_PRIMARY_MODEL, settings.GEMINI_FALLBACK_MODEL,
+        )))
+        checks = []
+        for model in models:
+            check = _probe_model(model, api_key)
+            checks.append(check)
+            if check["ok"]:
+                break
+        if checks[0]["ok"]:
+            result = {"status": "ok", "message": "AI is working.", "models": checks}
+        elif checks[-1]["ok"]:
+            result = {"status": "degraded", "message": "AI is running on the backup model.", "models": checks}
+        else:
+            result = {"status": "down", "message": "AI is not responding right now. Please try again shortly.", "models": checks}
+    for check in result["models"]:
+        if not check["ok"]:
+            logger.warning("AI health check: %s failed (%s)", check["model"], check["detail"])
+    cache.set(HEALTH_CACHE_KEY, result, HEALTH_CACHE_SECONDS)
+    return result

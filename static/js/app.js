@@ -499,6 +499,32 @@
     if (recorder?.state === 'recording') recorder.stop();
   });
 
+  const healthBox = interview.querySelector('[data-ai-health]');
+  const healthRetry = interview.querySelector('[data-ai-health-retry]');
+  const startButton = startForm.querySelector('button[type="submit"]');
+  const checkHealth = async refresh => {
+    if (!healthBox || !interview.dataset.healthUrl) return;
+    healthBox.className = 'mock-health';
+    healthBox.firstChild.textContent = 'Checking AI status... ';
+    healthRetry.hidden = true;
+    let status = 'down';
+    let message = 'Could not check AI status. Check your connection.';
+    try {
+      const response = await fetch(interview.dataset.healthUrl + (refresh ? '?refresh=1' : ''), {
+        credentials: 'same-origin', headers: { 'Accept': 'application/json' },
+      });
+      const result = await response.json();
+      status = result.status;
+      message = result.message;
+    } catch (error) { /* keep the default down state */ }
+    healthBox.className = `mock-health is-${status}`;
+    healthBox.firstChild.textContent = `${message} `;
+    healthRetry.hidden = status === 'ok';
+    startButton.disabled = status === 'down';
+  };
+  if (healthRetry) healthRetry.addEventListener('click', () => checkHealth(true));
+  checkHealth(false);
+
   startForm.addEventListener('submit', async event => {
     event.preventDefault();
     if (busy) return;

@@ -1031,3 +1031,8 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
 .reply-alert li a { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 8px 10px; background: #fff; border-radius: 8px; color: inherit; }
 .reply-alert li a span { color: #667085; flex: 1 1 200px; }
 .reply-alert li a small { color: #98a2b3; }
+
+.mock-health { margin: 0 0 14px; padding: 10px 12px; border-radius: 8px; background: #eef1f6; color: #596579; font-size: 13px; }
+.mock-health.is-ok { background: #e6f5ec; color: #1f6b3b; }
+.mock-health.is-degraded { background: #fdf4e3; color: #8a5a00; }
+.mock-health.is-down { background: #fbe9ec; color: #a33f4e; }

@@ -40,7 +40,7 @@ from .forms import (
 )
 from .mock_bank import DIFFICULTY_GUIDE, normalise_difficulty, pick_seed_questions
 from .mock_topics import MOCK_TOPICS, pick_focus_areas, topic_language
-from .ai_interview import GeminiAPIError, generate_json
+from .ai_interview import GeminiAPIError, check_health, generate_json
 from .models import (
     Group, GroupMembership, Interview, InterviewNote, InterviewNoteReply, InterviewRound, InterviewStatus,
     LearningCourse, MockInterviewScore, MockInterviewSession, MockQuestion,
@@ -1495,6 +1495,7 @@ def student_mock_interview(request):
     return render(request, "tracker/student/mock_interview.html", {
         "progress": _mock_progress(request.user),
         "ai_url": reverse("student_mock_interview_ai"),
+        "health_url": reverse("student_mock_interview_health"),
         "topics": list(MOCK_TOPICS) + sorted(
             set(MockQuestion.objects.filter(is_active=True).values_list("topic", flat=True)) - set(MOCK_TOPICS)
         ),
@@ -1503,6 +1504,13 @@ def student_mock_interview(request):
             "scores"
         )[:8],
     })
+
+
+@student_required
+def student_mock_interview_health(request):
+    result = check_health(force=request.GET.get("refresh") == "1")
+    public = {"status": result["status"], "message": result["message"]}
+    return JsonResponse(public, status=200 if result["status"] != "down" else 503)
 
 
 @student_required
