@@ -395,3 +395,17 @@ class MockQuestion(models.Model):
 
     def __str__(self):
         return f"{self.topic} [{self.difficulty}] {self.text[:50]}"
+
+
+class PlacedStudent(models.Model):
+    name = models.CharField(max_length=150)
+    batch = models.CharField(max_length=40, blank=True)
+    company = models.CharField(max_length=150)
+    year = models.PositiveSmallIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-year", "name"]
+
+    def __str__(self):
+        return f"{self.name} - {self.company}"

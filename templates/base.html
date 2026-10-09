@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=17">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=18">
 </head>
 <body class="{% if user.is_authenticated %}app-body{% else %}auth-body{% endif %}">
 {% if user.is_authenticated %}
@@ -41,6 +41,10 @@
       <a class="nav-link{% if request.resolver_match.url_name == 'admin_questions' or request.resolver_match.url_name == 'admin_question_add' or request.resolver_match.url_name == 'admin_question_edit' %} is-active{% endif %}" href="{% url 'admin_questions' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 9a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1 1-1.1 1.8M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
         <span>Question bank</span>
+      </a>
+      <a class="nav-link{% if request.resolver_match.url_name == 'admin_placed_students' %} is-active{% endif %}" href="{% url 'admin_placed_students' %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="7.5" width="17" height="12" rx="2"/><path d="M9 7.5v-2a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5.500v2M3.5 13h17"/></svg>
+        <span>Placed students</span>
       </a>
       <a class="nav-link{% if request.resolver_match.url_name == 'admin_reports' %} is-active{% endif %}" href="{% url 'admin_reports' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5M4 19h16M8 16v-4M12 16V7M16 16v-6"/></svg>
@@ -151,6 +155,31 @@
         </form>
       </div>
     </header>
+    {% if placed_companies or recent_selections %}
+    <div class="ticker-wrap">
+      {% if placed_companies %}
+      <div class="ticker ticker-placed" aria-label="Where our students work">
+        <span class="ticker-label">🏢 Placed</span>
+        <div class="ticker-track"><div class="ticker-move">
+          {% for i in "12" %}<span class="ticker-group"{% if i == "2" %} aria-hidden="true"{% endif %}>
+            <span class="ticker-item">Our students are working in</span>
+            {% for c in placed_companies %}<span class="ticker-item"><strong>{{ c }}</strong></span>{% endfor %}
+          </span>{% endfor %}
+        </div></div>
+      </div>
+      {% endif %}
+      {% if recent_selections %}
+      <div class="ticker ticker-selected" aria-label="Recent selections">
+        <span class="ticker-label">🎉 Selected</span>
+        <div class="ticker-track"><div class="ticker-move">
+          {% for i in "12" %}<span class="ticker-group"{% if i == "2" %} aria-hidden="true"{% endif %}>
+            {% for s in recent_selections %}<span class="ticker-item">🎊 Congratulations <strong>{{ s.student }}</strong> — selected at <strong>{{ s.company }}</strong>{% if s.role %} as {{ s.role }}{% endif %}!</span>{% endfor %}
+          </span>{% endfor %}
+        </div></div>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
     <main class="page-content" id="main-content">
 {% else %}
 <main class="auth-shell" id="main-content">

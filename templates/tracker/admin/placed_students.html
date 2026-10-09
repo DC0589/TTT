@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Placed students{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">PLACEMENTS</p><h1>Placed students</h1><p>{{ total }} placement{{ total|pluralize }}. The companies here appear in the "Our students are working in" banner.</p></div>
+</section>
+<section class="panel">
+  <form class="question-bank-import" method="post" action="{% url 'admin_placed_import' %}" enctype="multipart/form-data">{% csrf_token %}
+    <div class="form-field"><label for="p-file">Import from Excel or CSV</label><input class="form-control" id="p-file" type="file" name="file" accept=".xlsx,.csv" required><p class="field-help">Headings: Name, Batch, Company, Year. The Company column next to Year is used; several companies in one cell can be separated by commas. Duplicates are skipped.</p></div>
+    <button class="button button-primary" type="submit">Import</button>
+  </form>
+</section>
+<section class="content-section">
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>Name</th><th>Batch</th><th>Company</th><th>Year</th><th></th></tr></thead>
+    <tbody>
+    {% for p in page_obj.object_list %}
+    <tr>
+      <td>{{ p.name }}</td><td>{{ p.batch|default:"—" }}</td><td>{{ p.company }}</td><td>{{ p.year|default:"—" }}</td>
+      <td class="actions-cell"><form method="post" action="{% url 'admin_placed_delete' p.pk %}" style="display:inline" onsubmit="return confirm('Remove this placement?');">{% csrf_token %}<button class="button button-quiet" type="submit">Delete</button></form></td>
+    </tr>
+    {% empty %}<tr><td colspan="5" class="table-empty"><strong>No placements imported yet.</strong></td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+  {% if page_obj.paginator.num_pages > 1 %}
+  <p class="section-meta">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    {% if page_obj.has_previous %}<a class="button button-quiet" href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+    {% if page_obj.has_next %}<a class="button button-quiet" href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}</p>
+  {% endif %}
+</section>
+{% endblock %}
