@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Attendance{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">ACTIVE BATCHES</p><h1>Attendance</h1><p>In and out times for students in active batches. Mark a batch inactive from Batches to hide it here.</p></div>
+  <a class="button button-secondary" href="{% url 'staff_leaves' %}">Leave requests{% if pending_leave_count %} ({{ pending_leave_count }}){% endif %}</a>
+</section>
+<section class="panel">
+  <form method="get" class="question-bank-filters">
+    <div class="question-bank-filter-fields">
+      <div class="form-field"><label for="a-date">Date</label><input class="form-control" id="a-date" type="date" name="date" value="{{ day|date:'Y-m-d' }}"></div>
+      <div class="form-field"><label for="a-batch">Batch</label><select class="form-control" id="a-batch" name="batch"><option value="">All active batches</option>{% for b in batches %}<option value="{{ b.pk }}"{% if selected_batch == b.pk|stringformat:"s" %} selected{% endif %}>{{ b.name }}</option>{% endfor %}</select></div>
+    </div>
+    <div class="question-bank-filter-actions"><button class="button button-primary" type="submit">Apply</button><a class="button button-quiet" href="{% url 'staff_attendance' %}">Today</a></div>
+  </form>
+</section>
+<section class="student-detail-stats">
+  <article class="student-metric"><span class="metric-icon">◎</span><span><strong>{{ total }}</strong><small>Students</small></span></article>
+  <article class="student-metric"><span class="metric-icon metric-icon-blue">✓</span><span><strong>{{ counts.Present }}</strong><small>Present</small></span></article>
+  <article class="student-metric"><span class="metric-icon metric-icon-red">✕</span><span><strong>{{ counts.Absent }}</strong><small>{% if is_today %}Not in yet{% else %}Absent{% endif %}</small></span></article>
+  <article class="student-metric"><span class="metric-icon">☾</span><span><strong>{{ counts.On_leave }}</strong><small>On leave</small></span></article>
+</section>
+<section class="content-section">
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>Student</th><th>Batch</th><th>Status</th><th>In</th><th>Out</th><th>Hours</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+    <tr>
+      <td><a href="{% url 'admin_student_detail' r.student.pk %}">{{ r.student.get_full_name|default:r.student.username }}</a></td>
+      <td>{{ r.group.name }}</td>
+      <td><span class="status-badge {% if r.status == 'Present' %}status-selected{% elif r.status == 'On leave' %}status-in-progress{% else %}status-not-selected{% endif %}">{% if r.status == 'Absent' and is_today %}Not in yet{% else %}{{ r.status }}{% endif %}</span></td>
+      <td>{% if r.record %}{{ r.record.check_in|time:"h:i A" }}{% else %}—{% endif %}</td>
+      <td>{% if r.record.check_out %}{{ r.record.check_out|time:"h:i A" }}{% elif r.record %}<span class="status-badge status-pending">Not out</span>{% else %}—{% endif %}</td>
+      <td>{{ r.record.duration|default:"—" }}</td>
+    </tr>
+    {% empty %}<tr><td colspan="6" class="table-empty"><strong>No students in active batches.</strong></td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endblock %}

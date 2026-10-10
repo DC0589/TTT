@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=22">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=23">
 </head>
 <body class="{% if user.is_authenticated %}app-body{% else %}auth-body{% endif %}">
 {% if user.is_authenticated %}
@@ -25,6 +25,17 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>
         <span>Overview</span>
       </a>
+      {% if user.is_admin or user.is_hr %}
+      <a class="nav-link{% if request.resolver_match.url_name == 'staff_attendance' %} is-active{% endif %}" href="{% url 'staff_attendance' %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.500"/><path d="M12 7.500V12l3 2"/></svg>
+        <span>Attendance</span>
+      </a>
+      <a class="nav-link{% if request.resolver_match.url_name == 'staff_leaves' %} is-active{% endif %}" href="{% url 'staff_leaves' %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3.500v3M16 3.500v3M4 9.500h16M9 14l2 2 4-4"/></svg>
+        <span>Leaves</span>
+        {% if pending_leave_count %}<span class="nav-badge">{{ pending_leave_count }}</span>{% endif %}
+      </a>
+      {% endif %}
       {% if user.is_admin or user.is_hr %}
       <a class="nav-link{% if request.resolver_match.url_name == 'staff_selections' %} is-active{% endif %}" href="{% url 'staff_selections' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.250 4.100 1 5.800L12 16.900 6.750 19.600l1-5.800L3.500 9.700l5.900-.9z"/></svg>
@@ -104,6 +115,10 @@
         <span class="nav-badge" data-signup-badge hidden></span>
       </a>
       {% else %}
+      <a class="nav-link{% if request.resolver_match.url_name == 'student_attendance' %} is-active{% endif %}" href="{% url 'student_attendance' %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.500"/><path d="M12 7.500V12l3 2"/></svg>
+        <span>Attendance</span>
+      </a>
       <a class="nav-link{% if request.resolver_match.url_name == 'student_courses' %} is-active{% endif %}" href="{% url 'student_courses' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21zM4 5.5v13M8 7h8M8 11h8"/></svg>
         <span>Courses</span>

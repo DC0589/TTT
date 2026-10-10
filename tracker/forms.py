@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from .models import (
     Group, GroupMembership, Interview, InterviewNote, InterviewRound, InterviewStatus, LearningCourse,
-    MockQuestion, PlacedStudent, Selection, StudentRegistrationRequest, User,
+    LeaveRequest, MockQuestion, PlacedStudent, Selection, StudentRegistrationRequest, User,
 )
 
 INPUT = "form-control"
@@ -169,8 +169,13 @@ class RegistrationOTPForm(Styled, forms.Form):
 class GroupForm(Styled, forms.ModelForm):
     class Meta:
         model = Group
-        fields = ("name", "description")
-        widgets = {"description": forms.Textarea(attrs={"rows": 3})}
+        fields = ("name", "description", "is_active")
+        labels = {"is_active": "Active batch"}
+        help_texts = {"is_active": "Only students in active batches mark attendance."}
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 3}),
+            "is_active": forms.CheckboxInput(attrs={"class": "form-check"}),
+        }
 
     def clean_name(self):
         name = self.cleaned_data["name"].strip()
@@ -483,3 +488,43 @@ class PlacedStudentForm(Styled, forms.ModelForm):
 
     def clean_company(self):
         return " ".join(self.cleaned_data["company"].split())
+
+
+class LeaveRequestForm(Styled, forms.ModelForm):
+    MAX_DAYS = 30
+
+    class Meta:
+        model = LeaveRequest
+        fields = ("start_date", "end_date", "reason")
+        widgets = {
+            "start_date": forms.DateInput(attrs={"type": "date"}),
+            "end_date": forms.DateInput(attrs={"type": "date"}),
+            "reason": forms.Textarea(attrs={"rows": 3, "maxlength": 1000}),
+        }
+
+    def __init__(self, *args, student=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.student = student
+
+    def clean(self):
+        data = super().clean()
+        start, end = data.get("start_date"), data.get("end_date")
+        if start and start < timezone.localdate():
+            self.add_error("start_date", "Leave can't start in the past.")
+        if start and end:
+            if end < start:
+                self.add_error("end_date", "End date can't be before the start date.")
+            elif (end - start).days + 1 > self.MAX_DAYS:
+                self.add_error("end_date", f"Leave can be at most {self.MAX_DAYS} days.")
+            elif self.student and LeaveRequest.objects.filter(
+                student=self.student, status__in=[LeaveRequest.PENDING, LeaveRequest.APPROVED],
+                start_date__lte=end, end_date__gte=start,
+            ).exists():
+                self.add_error(None, "You already have a leave request covering some of these dates.")
+        return data
+
+    def clean_reason(self):
+        reason = self.cleaned_data["reason"].strip()
+        if len(reason) < 5:
+            raise forms.ValidationError("Please give a short reason.")
+        return reason

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Attendance{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">YOUR BATCH</p><h1>Attendance</h1><p>Check in when you start and check out when you finish. Planning to be away? Apply for leave in advance.</p></div>
+</section>
+{% if not eligible %}
+<section class="panel"><div class="empty-state"><strong>No active batch yet.</strong><p>Attendance is available once you are part of an active batch. Ask your administrator to add you.</p></div></section>
+{% else %}
+<section class="att-today panel">
+  <div class="att-today-head">
+    <div><p class="eyebrow">TODAY</p><h2>{{ today|date:"l, d M Y" }}</h2></div>
+    {% if leave_today %}<span class="status-badge status-in-progress">On approved leave</span>
+    {% elif record and record.check_out %}<span class="status-badge status-selected">Day complete</span>
+    {% elif record %}<span class="status-badge status-selected">Checked in</span>
+    {% else %}<span class="status-badge status-pending">Not checked in</span>{% endif %}
+  </div>
+  <div class="att-times">
+    <div class="att-time"><small>IN TIME</small><strong>{% if record %}{{ record.check_in|time:"h:i A" }}{% else %}—{% endif %}</strong></div>
+    <div class="att-time"><small>OUT TIME</small><strong>{% if record.check_out %}{{ record.check_out|time:"h:i A" }}{% else %}—{% endif %}</strong></div>
+    <div class="att-time"><small>HOURS</small><strong>{{ record.duration|default:"—" }}</strong></div>
+  </div>
+  {% if not leave_today %}
+  <div class="att-actions">
+    <form method="post" action="{% url 'student_attendance_mark' 'in' %}">{% csrf_token %}<button class="button button-primary" type="submit"{% if record %} disabled{% endif %}>Check in</button></form>
+    <form method="post" action="{% url 'student_attendance_mark' 'out' %}">{% csrf_token %}<button class="button button-secondary" type="submit"{% if not record or record.check_out %} disabled{% endif %}>Check out</button></form>
+  </div>
+  {% endif %}
+</section>
+
+<div class="att-grid">
+  <section class="panel">
+    <div class="section-heading section-heading-panel"><div><p class="eyebrow">TIME AWAY</p><h2>Apply for leave</h2></div></div>
+    <form method="post" action="{% url 'student_leave_apply' %}" class="stack-form">{% csrf_token %}{% include "tracker/_form.html" with form=leave_form %}
+      <button class="button button-primary" type="submit">Send request</button>
+    </form>
+  </section>
+  <section class="panel">
+    <div class="section-heading section-heading-panel"><div><p class="eyebrow">YOUR REQUESTS</p><h2>Leave status</h2></div></div>
+    {% for l in leaves %}
+    <div class="leave-item">
+      <div><strong>{{ l.start_date|date:"d M" }}{% if l.end_date != l.start_date %} – {{ l.end_date|date:"d M" }}{% endif %}</strong> <small>({{ l.days }} day{{ l.days|pluralize }})</small>
+        <p>{{ l.reason }}</p>
+        {% if l.review_note %}<small>Note: {{ l.review_note }}</small>{% endif %}</div>
+      <div class="leave-side"><span class="status-badge {{ l.badge }}">{{ l.get_status_display }}</span>
+        {% if l.status == "pending" %}<form method="post" action="{% url 'student_leave_cancel' l.pk %}" onsubmit="return confirm('Cancel this leave request?');">{% csrf_token %}<button class="button button-quiet" type="submit">Cancel</button></form>{% endif %}</div>
+    </div>
+    {% empty %}<div class="empty-state"><strong>No leave requests.</strong></div>{% endfor %}
+  </section>
+</div>
+
+<section class="content-section">
+  <div class="section-heading"><div><p class="eyebrow">LAST 30 DAYS</p><h2>Attendance history</h2></div></div>
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>Date</th><th>In</th><th>Out</th><th>Hours</th></tr></thead>
+    <tbody>
+    {% for a in history %}<tr><td>{{ a.date|date:"D, d M Y" }}</td><td>{{ a.check_in|time:"h:i A" }}</td><td>{% if a.check_out %}{{ a.check_out|time:"h:i A" }}{% else %}<span class="status-badge status-pending">Not checked out</span>{% endif %}</td><td>{{ a.duration|default:"—" }}</td></tr>
+    {% empty %}<tr><td colspan="4" class="table-empty"><strong>No attendance yet.</strong></td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endif %}
+{% endblock %}

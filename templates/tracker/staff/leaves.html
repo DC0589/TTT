@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Leave requests{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">ATTENDANCE</p><h1>Leave requests</h1><p>Review leave applied by students. Approved leave shows as "On leave" in attendance.</p></div>
+  <a class="button button-secondary" href="{% url 'staff_attendance' %}">Attendance</a>
+</section>
+<nav class="leave-tabs" aria-label="Filter leave requests">
+  <a class="{% if status == 'pending' %}is-active{% endif %}" href="?status=pending">Pending{% if pending_total %} <span class="nav-badge">{{ pending_total }}</span>{% endif %}</a>
+  <a class="{% if status == 'approved' %}is-active{% endif %}" href="?status=approved">Approved</a>
+  <a class="{% if status == 'rejected' %}is-active{% endif %}" href="?status=rejected">Rejected</a>
+  <a class="{% if status == 'cancelled' %}is-active{% endif %}" href="?status=cancelled">Cancelled</a>
+  <a class="{% if status == 'all' %}is-active{% endif %}" href="?status=all">All</a>
+</nav>
+<section class="content-section">
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>Student</th><th>Dates</th><th>Reason</th><th>Status</th><th>Decision</th></tr></thead>
+    <tbody>
+    {% for l in page_obj.object_list %}
+    <tr>
+      <td><a href="{% url 'admin_student_detail' l.student.pk %}">{{ l.student.get_full_name|default:l.student.username }}</a><br><small>Applied {{ l.created_at|date:"d M, h:i A" }}</small></td>
+      <td>{{ l.start_date|date:"d M Y" }}{% if l.end_date != l.start_date %} – {{ l.end_date|date:"d M Y" }}{% endif %}<br><small>{{ l.days }} day{{ l.days|pluralize }}</small></td>
+      <td>{{ l.reason }}</td>
+      <td><span class="status-badge {{ l.badge }}">{{ l.get_status_display }}</span>{% if l.reviewed_by %}<br><small>by {{ l.reviewed_by.username }}</small>{% endif %}{% if l.review_note %}<br><small>{{ l.review_note }}</small>{% endif %}</td>
+      <td class="actions-cell">
+        {% if l.status == "pending" %}
+        <form method="post" class="leave-review" action="{% url 'staff_leave_review' l.pk 'approve' %}">{% csrf_token %}
+          <input class="form-control" name="note" maxlength="300" placeholder="Note (optional)" aria-label="Note">
+          <button class="button button-primary" type="submit">Approve</button>
+          <button class="button button-quiet" type="submit" formaction="{% url 'staff_leave_review' l.pk 'reject' %}">Reject</button>
+        </form>
+        {% else %}—{% endif %}
+      </td>
+    </tr>
+    {% empty %}<tr><td colspan="5" class="table-empty"><strong>No leave requests here.</strong></td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+  {% if page_obj.paginator.num_pages > 1 %}
+  <p class="section-meta">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    {% if page_obj.has_previous %}<a class="button button-quiet" href="?status={{ status }}&page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+    {% if page_obj.has_next %}<a class="button button-quiet" href="?status={{ status }}&page={{ page_obj.next_page_number }}">Next</a>{% endif %}</p>
+  {% endif %}
+</section>
+{% endblock %}

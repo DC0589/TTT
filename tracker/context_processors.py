@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from .models import InterviewStatus, PlacedStudent, Selection
+from .models import GroupMembership, InterviewStatus, LeaveRequest, PlacedStudent, Selection
 
 CELEBRATION_DAYS = 7
 MIN_ITEMS_PER_LOOP = 12
@@ -53,7 +53,16 @@ def celebration_banners(request):
     ]
     recent = [item for _, item in sorted(recent, key=lambda x: x[0], reverse=True)[:20]]
 
+    pending_leaves = 0
+    if user.is_admin or user.is_hr:
+        owner = user.created_by if user.is_hr else user
+        pending_leaves = LeaveRequest.objects.filter(
+            status=LeaveRequest.PENDING,
+            student__in=GroupMembership.objects.filter(group__admin=owner).values("student"),
+        ).count()
+
     return {
+        "pending_leave_count": pending_leaves,
         "placed_companies": placed,
         "placed_loop": _loop(len(placed) + 1, PLACED_SECONDS_PER_ITEM),
         "recent_selections": recent,
