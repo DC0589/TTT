@@ -422,17 +422,49 @@ class InterviewAdminNotesForm(Styled, forms.ModelForm):
         return text
 
 
+class BatchAwareSelect(forms.Select):
+    batches_by_student = {}
+
+    def create_option(self, name, value, *args, **kwargs):
+        option = super().create_option(name, value, *args, **kwargs)
+        pk = str(getattr(value, "value", value))
+        if pk in self.batches_by_student:
+            option["attrs"]["data-batches"] = " ".join(
+                str(g) for g in self.batches_by_student[pk]
+            )
+        return option
+
+
 class SelectionForm(Styled, forms.ModelForm):
+    batch = forms.ModelChoiceField(
+        queryset=Group.objects.none(), required=False, empty_label="All batches",
+        label="Batch", help_text="Pick a batch to narrow the student list.",
+    )
+
     class Meta:
         model = Selection
-        fields = ("student", "company", "role")
+        fields = ("batch", "student", "company", "role")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["batch"].queryset = Group.objects.order_by("name")
+        batches = {}
+        for student_id, group_id in GroupMembership.objects.values_list("student_id", "group_id"):
+            batches.setdefault(student_id, []).append(group_id)
+        widget = BatchAwareSelect(attrs={"class": INPUT})
+        widget.batches_by_student = {str(k): v for k, v in batches.items()}
+        self.fields["student"].widget = widget
         self.fields["student"].queryset = User.objects.filter(is_student=True).order_by("username")
         self.fields["student"].label_from_instance = lambda u: (
             f"{u.get_full_name()} ({u.username})" if u.get_full_name() else u.username
         )
+
+    def clean(self):
+        data = super().clean()
+        batch, student = data.get("batch"), data.get("student")
+        if batch and student and not batch.memberships.filter(student=student).exists():
+            self.add_error("student", "This student is not in the selected batch.")
+        return data
 
     def clean_company(self):
         return " ".join(self.cleaned_data["company"].split())

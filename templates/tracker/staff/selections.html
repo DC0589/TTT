@@ -7,6 +7,7 @@
 <section class="panel">
   <form method="post" class="question-bank-import">{% csrf_token %}
     {{ form.non_field_errors }}
+    <div class="form-field"><label for="{{ form.batch.id_for_label }}">Batch</label>{{ form.batch }}<p class="field-help">{{ form.batch.help_text }}</p>{{ form.batch.errors }}</div>
     <div class="form-field"><label for="{{ form.student.id_for_label }}">Student</label>{{ form.student }}{{ form.student.errors }}</div>
     <div class="form-field"><label for="{{ form.company.id_for_label }}">Company</label>{{ form.company }}{{ form.company.errors }}</div>
     <div class="form-field"><label for="{{ form.role.id_for_label }}">Role</label>{{ form.role }}{{ form.role.errors }}</div>
@@ -33,4 +34,23 @@
     {% if page_obj.has_next %}<a class="button button-quiet" href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}</p>
   {% endif %}
 </section>
+<script>
+(function () {
+  var batch = document.getElementById("{{ form.batch.id_for_label }}");
+  var student = document.getElementById("{{ form.student.id_for_label }}");
+  if (!batch || !student) return;
+  function filter() {
+    var id = batch.value;
+    Array.prototype.forEach.call(student.options, function (o) {
+      if (!o.value) return;
+      var show = !id || (o.dataset.batches || "").split(" ").indexOf(id) !== -1;
+      o.hidden = !show;
+      o.disabled = !show;
+    });
+    if (student.selectedOptions[0] && student.selectedOptions[0].disabled) student.value = "";
+  }
+  batch.addEventListener("change", filter);
+  filter();
+})();
+</script>
 {% endblock %}
