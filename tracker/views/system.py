@@ -43,3 +43,14 @@ def cron_purge_mock_data(request):
         raise PermissionDenied
     from ..retention import purge_old_mock_data
     return JsonResponse({"purged": purge_old_mock_data()})
+
+
+@require_GET
+def cron_score_mock(request):
+    secret = settings.CRON_SECRET
+    supplied = request.headers.get("Authorization", "")
+    expected = "Bearer " + secret
+    if not secret or not hmac.compare_digest(supplied, expected):
+        raise PermissionDenied
+    from ..services import mock_scoring
+    return JsonResponse({"scored": mock_scoring.process_pending(max_items=8, time_budget=45)})

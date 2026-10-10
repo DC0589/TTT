@@ -557,13 +557,25 @@ class MockInterviewTests(Base):
         }, content_type="application/json")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["status"], "complete")
+        self.assertEqual(response.json()["status"], "queued")
+        queued = session.scores.get()
+        self.assertEqual(queued.status, MockInterviewScore.PENDING)
+        self.assertIsNotNone(queued.payload)
+        mock_urlopen.assert_not_called()
+
+        results_response = self.client.post(reverse("student_mock_interview_ai"), {
+            "action": "results",
+            "consent": True,
+            "session_id": session.pk,
+        }, content_type="application/json")
+        self.assertTrue(results_response.json()["ready"])
         session.refresh_from_db()
         self.assertEqual(str(session.rating), "4.00")
         self.assertEqual(session.expected_answers, 1)
         self.assertIsNotNone(session.completed_at)
         self.assertEqual(session.scores.get().score, 4)
         saved_score = session.scores.get()
+        self.assertIsNone(saved_score.payload)
         self.assertEqual(
             saved_score.answer_transcript,
             "I check ranges and missing values.",
@@ -583,12 +595,6 @@ class MockInterviewTests(Base):
         self.assertEqual(parts[1]["inlineData"]["data"], audio.split(",", 1)[1])
         self.assertEqual(sum("inlineData" in part for part in parts), 3)
 
-        results_response = self.client.post(reverse("student_mock_interview_ai"), {
-            "action": "results",
-            "consent": True,
-            "session_id": session.pk,
-        }, content_type="application/json")
-        self.assertTrue(results_response.json()["ready"])
         self.assertEqual(results_response.json()["session_rating"], 4.0)
         self.assertEqual(results_response.json()["scores"][0]["question"], "How do you validate data?")
         self.assertNotIn("answer_transcript", results_response.json()["scores"][0])
@@ -1575,10 +1581,12 @@ class MockLiteModeTests(TestCase):
                    "question_number": 1, "question": "What is a list?", **extra}
         return self.client.post(self.url, payload, content_type="application/json")
 
-    @patch("tracker.views.mock.generate_json", return_value={"score": 4, "answer_feedback": "Good."})
+    @patch("tracker.services.mock_scoring.generate_json", return_value={"score": 4, "answer_feedback": "Good."})
     def test_text_answer_without_camera_is_scored(self, mock_ai):
         response = self.post(text="A list is an ordered, mutable sequence.", lite=True)
         self.assertEqual(response.status_code, 200)
+        from tracker.services import mock_scoring
+        mock_scoring.process_pending()
         score = self.session.scores.get(question_number=1)
         self.assertEqual(score.score, 4)
         self.assertEqual(score.camera_feedback, "")

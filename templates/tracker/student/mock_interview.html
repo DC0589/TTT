@@ -97,7 +97,7 @@
         {% for saved_session in recent_sessions %}
           <div class="mock-rating-row">
             <div><strong>{{ saved_session.role }}</strong><span>{{ saved_session.created_at|date:"M j, Y" }} · {{ saved_session.scores.all|length }} answers</span></div>
-            {% if saved_session.rating is not None %}<span class="mock-score">{{ saved_session.rating|floatformat:1 }}/5</span>{% else %}<span class="mock-rating-pending">No score yet</span>{% endif %}
+            {% if saved_session.rating is not None %}<span class="mock-score">{{ saved_session.rating|floatformat:1 }}/5</span>{% else %}<span class="mock-rating-pending"{% if saved_session.completed_at %} data-pending-session="{{ saved_session.pk }}"{% endif %}>{% if saved_session.completed_at %}Feedback being prepared{% else %}No score yet{% endif %}</span>{% endif %}
           </div>
         {% endfor %}
       </div>

@@ -423,7 +423,7 @@
       resultsRating.hidden = false;
     }
     if (result.pending_count) {
-      resultsStatus.textContent = `Results received for ${result.finished_answers} of ${result.expected_answers} answers. Loading the rest...`;
+      resultsStatus.textContent = `${result.finished_answers} of ${result.expected_answers} answers reviewed. The rest are being reviewed and can take a few minutes.`;
     } else if (result.failed_answers) {
       resultsStatus.textContent = `${result.failed_answers} answer${result.failed_answers === 1 ? '' : 's'} could not be scored. The rating uses completed answers.`;
     } else {
@@ -441,7 +441,7 @@
     restartButton.disabled = true;
     finishSession(message);
     resultsTitle.textContent = 'Your results are loading';
-    resultsStatus.textContent = 'Your recordings have been sent. Feedback and your rating will appear here as they finish.';
+    resultsStatus.textContent = 'Your answers are saved. Feedback is prepared in the background and appears here as it finishes.';
     resultsRating.hidden = true;
     resultsList.replaceChildren();
     resultsDialog.showModal();
@@ -456,7 +456,7 @@
       Promise.all(endedFeedbackRequests).then(() => {
         feedbackRequestsSettled = true;
       });
-      const timeoutAt = Date.now() + 240000;
+      const timeoutAt = Date.now() + 90000;
       while (Date.now() < timeoutAt) {
         const result = await requestAI({
           action: 'results',
@@ -469,9 +469,11 @@
           restartButton.disabled = false;
           return;
         }
-        await wait(1500);
+        await wait(4000);
       }
-      resultsStatus.textContent = 'Some feedback is taking longer than expected. Reload this page later to view saved results.';
+      resultsTitle.textContent = 'Your answers are saved';
+      resultsStatus.textContent = 'Feedback is still being prepared. You can close this window and open this page again in a few minutes to see it under Recent sessions.';
+      restartButton.disabled = false;
     } catch (error) {
       resultsTitle.textContent = 'Results could not be loaded';
       resultsStatus.textContent = error.message || 'Please try again later.';
@@ -718,6 +720,29 @@
     startForm.querySelector('button[type="submit"]').disabled = false;
     setStatus(setupStatus, '');
   });
+
+  // Finish scoring earlier sessions whose feedback is still queued.
+  const queuedRows = [...document.querySelectorAll('[data-pending-session]')];
+  const drainQueued = async () => {
+    const stopAt = Date.now() + 5 * 60000;
+    for (const row of queuedRows) {
+      while (Date.now() < stopAt) {
+        let result;
+        try {
+          result = await requestAI({ action: 'results', session_id: Number(row.dataset.pendingSession) });
+        } catch (error) {
+          return;
+        }
+        if (result.ready) {
+          row.textContent = result.session_rating === null ? 'No score yet' : `${result.session_rating.toFixed(1)}/5`;
+          row.className = 'mock-score';
+          break;
+        }
+        await wait(6000);
+      }
+    }
+  };
+  if (queuedRows.length) drainQueued();
 })();
 
 (function () {

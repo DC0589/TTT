@@ -99,4 +99,4 @@ from .students import (  # noqa: F401
     hr_students,
     student_delete,
 )
-from .system import cron_close_attendance, cron_purge_mock_data, csrf_failure  # noqa: F401
+from .system import cron_close_attendance, cron_purge_mock_data, cron_score_mock, csrf_failure  # noqa: F401

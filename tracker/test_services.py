@@ -3,6 +3,7 @@ from unittest.mock import patch
 from django.test import TestCase, override_settings
 
 from tracker import tasks
+from tracker.ai_interview import GeminiAPIError
 from tracker.models import Company, PlacedStudent
 from tracker.services.placements import placed_company_names
 
@@ -62,28 +63,134 @@ class StorageTests(TestCase):
             self.assertEqual(self.client.get(reverse("storage_usage")).status_code, 403)
 
 
-class MockOutOfOrderTests(TestCase):
-    @patch("tracker.views.mock.generate_json", return_value={"score": 4, "answer_feedback": "Good."})
-    def test_answers_arriving_out_of_order_are_all_recorded(self, _generate):
+class MockQueueTests(TestCase):
+    def setUp(self):
+        from tracker.models import MockInterviewSession, User
+
+        self.student = User.objects.create_user("mock1", password="pw-12345", is_student=True)
+        self.session = MockInterviewSession.objects.create(student=self.student, role="Python")
+        self.client.force_login(self.student)
+
+    def submit(self, number):
         import json
 
         from django.urls import reverse
 
-        from tracker.models import MockInterviewScore, MockInterviewSession, User
+        return self.client.post(
+            reverse("student_mock_interview_ai"),
+            json.dumps({
+                "action": "feedback", "consent": True, "role": "Python", "lite": True,
+                "session_id": self.session.pk, "question_number": number,
+                "question": f"Question {number}?", "text": "My answer",
+            }),
+            content_type="application/json",
+        )
 
-        student = User.objects.create_user("mock1", password="pw-12345", is_student=True)
-        session = MockInterviewSession.objects.create(student=student, role="Python")
-        self.client.force_login(student)
+    @patch("tracker.services.mock_scoring.generate_json", return_value={"score": 4, "answer_feedback": "Good."})
+    def test_answers_are_queued_without_calling_the_ai_then_scored(self, generate):
+        from tracker.models import MockInterviewScore
+        from tracker.services import mock_scoring
+
         for number in (3, 1, 2, 10, 5):
-            response = self.client.post(
-                reverse("student_mock_interview_ai"),
-                json.dumps({
-                    "action": "feedback", "consent": True, "role": "Python", "lite": True,
-                    "session_id": session.pk, "question_number": number,
-                    "question": f"Question {number}?", "text": "My answer",
-                }),
-                content_type="application/json",
-            )
-            self.assertEqual(response.status_code, 200, (number, response.content))
-        done = MockInterviewScore.objects.filter(session=session, status="complete")
+            self.assertEqual(self.submit(number).json()["status"], "queued")
+        generate.assert_not_called()
+        self.assertEqual(self.submit(3).status_code, 409)
+
+        self.assertEqual(mock_scoring.process_pending(max_items=10), 5)
+        done = MockInterviewScore.objects.filter(session=self.session, status="complete")
         self.assertEqual(sorted(done.values_list("question_number", flat=True)), [1, 2, 3, 5, 10])
+        self.assertFalse(MockInterviewScore.objects.filter(payload__isnull=False).exists())
+        self.session.refresh_from_db()
+        self.assertEqual(float(self.session.rating), 4.0)
+
+    @override_settings(MOCK_SCORING_PER_MINUTE=2)
+    @patch("tracker.services.mock_scoring.generate_json", return_value={"score": 3, "answer_feedback": "ok"})
+    def test_scoring_respects_the_per_minute_budget(self, generate):
+        from tracker.services import mock_scoring
+
+        for number in range(1, 6):
+            self.submit(number)
+        self.assertEqual(mock_scoring.process_pending(max_items=10), 2)
+        self.assertEqual(mock_scoring.process_pending(max_items=10), 0)
+        self.assertEqual(generate.call_count, 2)
+
+    @patch("tracker.services.mock_scoring.generate_json", side_effect=GeminiAPIError("busy"))
+    def test_failed_scoring_is_retried_later_then_marked_failed(self, _generate):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from tracker.models import MockInterviewScore
+        from tracker.services import mock_scoring
+
+        self.submit(1)
+        for expected_attempts in range(1, mock_scoring.MAX_ATTEMPTS + 1):
+            mock_scoring.process_pending()
+            score = MockInterviewScore.objects.get()
+            self.assertEqual(score.attempts, expected_attempts)
+            if expected_attempts < mock_scoring.MAX_ATTEMPTS:
+                self.assertEqual(score.status, "pending")
+                self.assertGreater(score.next_attempt_at, timezone.now())
+                MockInterviewScore.objects.update(
+                    next_attempt_at=timezone.now() - timedelta(seconds=1),
+                    last_attempt_at=timezone.now() - timedelta(minutes=5),
+                )
+        score.refresh_from_db()
+        self.assertEqual(score.status, "failed")
+        self.assertIsNone(score.payload)
+
+    @override_settings(MOCK_BANK_MIN_SETS=2)
+    def test_question_bank_is_served_once_it_has_enough_unseen_sets(self):
+        import json
+
+        from django.urls import reverse
+
+        from tracker.models import MockQuestionSet
+
+        questions = [{"text": f"Q{n}?", "type": "concept"} for n in range(10)]
+        for n in range(3):
+            MockQuestionSet.objects.create(
+                topic="Python", difficulty="medium",
+                questions=[{**q, "text": f"{q['text']} v{n}"} for q in questions],
+            )
+        served = set()
+        with patch("tracker.services.question_sets.generate_json") as generate:
+            for _ in range(2):
+                response = self.client.post(
+                    reverse("student_mock_interview_ai"),
+                    json.dumps({"action": "question", "consent": True, "role": "Python", "difficulty": "medium"}),
+                    content_type="application/json",
+                )
+                self.assertEqual(response.status_code, 200)
+                served.add(response.json()["questions"][0]["text"])
+            generate.assert_not_called()
+        self.assertEqual(len(served), 2)
+
+    @patch("tracker.services.question_sets.generate_json")
+    def test_generated_questions_are_stored_for_reuse(self, generate):
+        import json
+
+        from django.urls import reverse
+
+        from tracker.models import MockQuestionSet
+
+        generate.return_value = {"questions": [{"text": f"Q{n}?", "type": "concept"} for n in range(10)]}
+        response = self.client.post(
+            reverse("student_mock_interview_ai"),
+            json.dumps({"action": "question", "consent": True, "role": "Python", "difficulty": "medium"}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(MockQuestionSet.objects.filter(topic="Python").count(), 1)
+
+
+@override_settings(CRON_SECRET="cron-test-secret")
+class MockScoringCronTests(TestCase):
+    def test_requires_the_secret(self):
+        from django.urls import reverse
+
+        url = reverse("cron_score_mock")
+        self.assertEqual(self.client.get(url).status_code, 403)
+        ok = self.client.get(url, headers={"Authorization": "Bearer cron-test-secret"})
+        self.assertEqual(ok.status_code, 200)
+        self.assertEqual(ok.json(), {"scored": 0})

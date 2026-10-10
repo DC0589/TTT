@@ -42,6 +42,10 @@ class MockInterviewSession(models.Model):
     completed_at = models.DateTimeField(blank=True, null=True)
     integrity_events = models.JSONField(default=list, blank=True)
     difficulty = models.CharField(max_length=10, blank=True)
+    question_set = models.ForeignKey(
+        "MockQuestionSet", on_delete=models.SET_NULL, blank=True, null=True,
+        related_name="sessions",
+    )
     integrity_summary = models.JSONField(default=dict, blank=True)
     events_purged_at = models.DateTimeField(blank=True, null=True)
 
@@ -108,6 +112,12 @@ class MockInterviewScore(models.Model):
     answer_feedback = models.TextField(blank=True)
     camera_feedback = models.TextField(blank=True)
     screen_feedback = models.TextField(blank=True)
+    # Raw answer sent to the AI; cleared once scored so media does not fill the database.
+    payload = models.JSONField(blank=True, null=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    next_attempt_at = models.DateTimeField(blank=True, null=True)
+    last_attempt_at = models.DateTimeField(blank=True, null=True)
+    claimed_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         ordering = ["question_number"]
@@ -120,6 +130,22 @@ class MockInterviewScore(models.Model):
 
     def __str__(self):
         return f"{self.session} - question {self.question_number}: {self.score}/5"
+
+
+class MockQuestionSet(models.Model):
+    """A ready-made set of interview questions served without calling the AI."""
+    topic = models.CharField(max_length=120)
+    difficulty = models.CharField(max_length=10, default="medium")
+    questions = models.JSONField(default=list)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["topic", "difficulty", "-id"]
+        indexes = [models.Index(fields=["topic", "difficulty", "is_active"])]
+
+    def __str__(self):
+        return f"{self.topic} [{self.difficulty}] set {self.pk}"
 
 
 class MockQuestion(models.Model):

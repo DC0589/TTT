@@ -3,12 +3,10 @@ import csv
 import json
 import logging
 import re
-import secrets
-from decimal import Decimal
 
 from django.conf import settings
 from django.core.paginator import Paginator
-from django.db.models import Avg, Q
+from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.urls import reverse
@@ -16,9 +14,9 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_GET, require_POST
 
-from ..ai_interview import GeminiAPIError, check_health, generate_json
-from ..mock_bank import DIFFICULTY_GUIDE, normalise_difficulty, pick_seed_questions
-from ..mock_topics import MOCK_TOPICS, pick_focus_areas, topic_language
+from ..ai_interview import GeminiAPIError, check_health
+from ..mock_bank import normalise_difficulty
+from ..mock_topics import MOCK_TOPICS
 from ..models import (
     MockInterviewScore,
     MockInterviewSession,
@@ -29,6 +27,7 @@ from ..models import (
 logger = logging.getLogger(__name__)
 
 from ..permissions import staff_required, student_required
+from ..services import mock_scoring, question_sets
 
 MOCK_QUESTION_COUNT = 10
 
@@ -312,7 +311,7 @@ def student_mock_interview_ai(request):
                         "answer_feedback": "Feedback could not be loaded.",
                     },
                 )
-                if not created and score.status == MockInterviewScore.PENDING:
+                if not created and score.status == MockInterviewScore.PENDING and score.payload is None:
                     score.status = MockInterviewScore.FAILED
                     score.answer_feedback = "Feedback could not be loaded."
                     score.save(update_fields=["status", "answer_feedback"])
@@ -320,6 +319,9 @@ def student_mock_interview_ai(request):
         if action == "finish":
             return JsonResponse({"session_id": session.pk})
 
+        if action == "results":
+            mock_scoring.process_pending(max_items=1, session=session, time_budget=25)
+            session.refresh_from_db()
         scores = list(session.scores.values(
             "question_number", "question", "status", "score",
             "answer_feedback", "camera_feedback", "screen_feedback",
@@ -356,49 +358,21 @@ def student_mock_interview_ai(request):
             ).exclude(question="").order_by("-id").values_list("question", flat=True)[:40]
         )
         difficulty = normalise_difficulty(data.get("difficulty"))
-        seeds = pick_seed_questions(role, difficulty, exclude=previous_questions)
-        focus_areas = pick_focus_areas(role)
-        default_language = topic_language(role)
-        prompt = (
-            f"Create exactly {MOCK_QUESTION_COUNT} distinct, concise mock interview questions "
-            f"on the topic '{role}'. Mix conceptual, scenario-based and practical questions of "
-            "and put them in a varied order. "
-            f"{DIFFICULTY_GUIDE[difficulty]} Every question must match this difficulty level. "
-            f"Exactly {MOCK_CODING_QUESTION_COUNT} of them must be hands-on coding questions that "
-            "the candidate answers by writing code; the rest are spoken questions. "
-            "Coding questions must test logic implementation: problem solving with loops, "
-            "conditions, string/list/dictionary manipulation, algorithms, pattern printing, "
-            "step-by-step data transformation, or SQL queries built from clear business logic. "
-            "Do not ask for memorised syntax, library trivia or setup/configuration code. Each "
-            "must be solvable with plain language features (and small sample data) in a few "
-            "minutes, with a clearly stated input and expected output. "
+        bank_set = question_sets.serve(request.user, role, difficulty)
+        if bank_set is None:
+            try:
+                questions = question_sets.generate(role, difficulty, previous_questions)
+            except GeminiAPIError as error:
+                status = 503 if "not configured" in str(error) else 502
+                return JsonResponse({"error": str(error)}, status=status)
+            except question_sets.InvalidQuestions as error:
+                return JsonResponse({"error": str(error)}, status=502)
+            bank_set = question_sets.store(role, difficulty, questions)
+        session = MockInterviewSession.objects.create(
+            student=request.user, role=role, difficulty=difficulty,
+            question_set=bank_set,
         )
-        if focus_areas:
-            prompt += f"Draw from these focus areas for this session: {', '.join(focus_areas)}. "
-        if seeds:
-            prompt += (
-                "Real interview questions to include in this session. Use them as questions "
-                "(lightly clean the wording, and write any missing sample data for coding ones). "
-                "Items starting with [code] are coding questions. Fill the remaining slots with "
-                "new questions of the same style and level:\n- "
-                + "\n- ".join(seeds) + "\n"
-            )
-        if previous_questions:
-            prompt += (
-                "The candidate has already been asked the questions below in earlier sessions. "
-                "Do not repeat or lightly reword any of them:\n- "
-                + "\n- ".join(question[:150] for question in previous_questions) + "\n"
-            )
-        prompt += (
-            f"Variation token: {secrets.token_hex(4)}. "
-            "Return JSON with one field, questions, an array of exactly "
-            f"{MOCK_QUESTION_COUNT} objects. Each object has: text (the question), type "
-            "('concept' or 'coding'), and for coding questions only: language ('python', 'sql' or "
-            f"'pyspark'; prefer '{default_language}' for this topic) and starter (a short starter "
-            "code snippet; for SQL include the CREATE TABLE and INSERT statements for small sample "
-            "data so the query can be run). Do not include answers or commentary."
-        )
-        parts = [{"text": prompt}]
+        return JsonResponse({"questions": bank_set.questions, "session_id": session.pk})
     else:
         session = MockInterviewSession.objects.filter(
             pk=session_id, student=request.user
@@ -525,83 +499,13 @@ def student_mock_interview_ai(request):
                 "answer_feedback": "",
                 "camera_feedback": "",
                 "screen_feedback": "",
+                "payload": None,
+                "attempts": 0,
+                "next_attempt_at": None,
+                "claimed_at": None,
             },
         )
 
-    try:
-        result = generate_json(parts)
-    except GeminiAPIError as error:
-        if action == "feedback":
-            score_record.status = MockInterviewScore.FAILED
-            score_record.answer_feedback = "Feedback could not be generated. Please try again later."
-            score_record.save(update_fields=["status", "answer_feedback"])
-        status = 503 if "not configured" in str(error) else 502
-        return JsonResponse({"error": str(error)}, status=status)
-
-    if action == "question":
-        raw_questions = result.get("questions")
-        if not isinstance(raw_questions, list) or len(raw_questions) < MOCK_QUESTION_COUNT:
-            return JsonResponse({"error": "The AI did not return ten questions. Please try again."}, status=502)
-        questions = []
-        for item in raw_questions:
-            if isinstance(item, str):
-                item = {"text": item}
-            if not isinstance(item, dict) or not isinstance(item.get("text"), str):
-                continue
-            text = item["text"].strip()[:500]
-            if not text:
-                continue
-            question = {"text": text, "type": "concept"}
-            if item.get("type") == "coding":
-                language = item.get("language")
-                if language not in {"python", "sql", "pyspark"}:
-                    language = topic_language(role)
-                starter = item.get("starter")
-                question.update({
-                    "type": "coding",
-                    "language": language,
-                    "starter": starter[:2000] if isinstance(starter, str) else "",
-                })
-            questions.append(question)
-            if len(questions) == MOCK_QUESTION_COUNT:
-                break
-        if len(questions) != MOCK_QUESTION_COUNT:
-            return JsonResponse({"error": "The AI returned invalid questions. Please try again."}, status=502)
-        session = MockInterviewSession.objects.create(
-            student=request.user, role=role, difficulty=difficulty,
-        )
-        return JsonResponse({"questions": questions, "session_id": session.pk})
-
-    score = result.get("score", 3)
-    if type(score) is not int:
-        score = 3
-    score = max(1, min(score, 5))
-    answer_feedback = str(result.get("answer_feedback", "Review your answer and try again."))[:800]
-    transcript_value = result.get("answer_transcript", "") if audio_match else ""
-    answer_transcript = (
-        transcript_value.strip()[:5000]
-        if isinstance(transcript_value, str)
-        else ""
-    )
-    if data.get("lite") is True:
-        camera_feedback = screen_feedback = ""
-    else:
-        camera_feedback = str(result.get("camera_feedback", "No camera feedback available."))[:500]
-        screen_feedback = str(result.get("screen_feedback", "No screen feedback available."))[:500]
-    score_record.status = MockInterviewScore.COMPLETE
-    score_record.score = score
-    score_record.answer_transcript = answer_transcript
-    score_record.answer_feedback = answer_feedback
-    score_record.camera_feedback = camera_feedback
-    score_record.screen_feedback = screen_feedback
-    score_record.save(update_fields=[
-        "status", "score", "answer_transcript", "answer_feedback",
-        "camera_feedback", "screen_feedback",
-    ])
-    average_score = session.scores.filter(
-        status=MockInterviewScore.COMPLETE, score__isnull=False
-    ).aggregate(average=Avg("score"))["average"]
-    if average_score is not None:
-        session.rating = Decimal(str(average_score)).quantize(Decimal("0.01"))
-        session.save(update_fields=["rating"])
-    return JsonResponse({"status": MockInterviewScore.COMPLETE, "question_number": question_number})
+    score_record.payload = {"parts": parts, "audio": audio_match is not None, "lite": lite}
+    score_record.save(update_fields=["payload"])
+    return JsonResponse({"status": "queued", "question_number": question_number})
