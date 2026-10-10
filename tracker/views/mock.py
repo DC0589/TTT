@@ -30,6 +30,7 @@ from ..permissions import staff_required, student_required
 from ..services import mock_scoring, question_sets
 
 MOCK_QUESTION_COUNT = 10
+DRAIN_SECONDS = 25
 
 
 MOCK_CODING_QUESTION_COUNT = 3
@@ -90,6 +91,7 @@ def _mock_review_filters(request):
 @staff_required
 @require_GET
 def admin_mock_interviews(request):
+    mock_scoring.process_pending(max_items=1, time_budget=10)
     f = _mock_review_filters(request)
     groups, students, sessions, topics = f["groups"], f["students"], f["sessions"], f["topics"]
     selected_group, selected_student, selected_topic = f["selected_group"], f["selected_student"], f["selected_topic"]
@@ -215,6 +217,7 @@ def _mock_progress(user):
 @student_required
 @require_GET
 def student_mock_interview(request):
+    mock_scoring.process_pending(max_items=1, time_budget=15)
     return render(request, "tracker/student/mock_interview.html", {
         "progress": _mock_progress(request.user),
         "ai_url": reverse("student_mock_interview_ai"),
@@ -250,7 +253,10 @@ def student_mock_interview_ai(request):
 
     action = data.get("action")
     session_id = data.get("session_id")
-    if action in {"finish", "results", "integrity"}:
+    if action == "drain":
+        scored = mock_scoring.process_pending(max_items=1, time_budget=DRAIN_SECONDS)
+        return JsonResponse({"scored": scored, "waiting": mock_scoring.pending_count()})
+    if action in {"finish", "results", "integrity", "retry"}:
         session = MockInterviewSession.objects.filter(
             pk=session_id, student=request.user
         ).first()
@@ -289,14 +295,25 @@ def student_mock_interview_ai(request):
                 "limit": limit, "terminate": terminate,
             })
 
+        if action == "retry":
+            return JsonResponse({"requeued": mock_scoring.retry_failed(session)})
+
         if action == "finish":
             expected_answers = data.get("expected_answers", 0)
             if type(expected_answers) is not int or not 0 <= expected_answers <= MOCK_QUESTION_COUNT:
                 return JsonResponse({"error": "Invalid answer count."}, status=400)
             session.expected_answers = max(session.expected_answers, expected_answers)
+            end_reason = data.get("end_reason", "")
+            end_reason = " ".join(end_reason.split())[:300] if isinstance(end_reason, str) else ""
+            if session.expected_answers < MOCK_QUESTION_COUNT and not session.end_reason:
+                if len(end_reason) < 5:
+                    return JsonResponse(
+                        {"error": "Tell us why you are ending before all 10 questions."}, status=400
+                    )
+                session.end_reason = end_reason
             if session.completed_at is None:
                 session.completed_at = timezone.now()
-            session.save(update_fields=["expected_answers", "completed_at"])
+            session.save(update_fields=["expected_answers", "completed_at", "end_reason"])
 
         failed_numbers = data.get("failed_question_numbers", [])
         if action == "results" and isinstance(failed_numbers, list):
@@ -320,7 +337,7 @@ def student_mock_interview_ai(request):
             return JsonResponse({"session_id": session.pk})
 
         if action == "results":
-            mock_scoring.process_pending(max_items=1, session=session, time_budget=25)
+            mock_scoring.process_pending(max_items=1, session=session, time_budget=DRAIN_SECONDS)
             session.refresh_from_db()
         scores = list(session.scores.values(
             "question_number", "question", "status", "score",
@@ -332,11 +349,16 @@ def student_mock_interview_ai(request):
         )
         failed_answers = sum(score["status"] == MockInterviewScore.FAILED for score in scores)
         pending_count = max(0, session.expected_answers - finished_answers)
+        retryable = session.scores.filter(
+            status=MockInterviewScore.FAILED, payload__isnull=False
+        ).count()
         return JsonResponse({
             "session_id": session.pk,
             "expected_answers": session.expected_answers,
             "finished_answers": finished_answers,
             "failed_answers": failed_answers,
+            "retryable": retryable,
+            "end_reason": session.end_reason,
             "pending_count": pending_count,
             "ready": pending_count == 0,
             "session_rating": float(session.rating) if session.rating is not None else None,

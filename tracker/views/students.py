@@ -189,6 +189,8 @@ def admin_student_detail(request, pk):
         for x in student.selections.all()
     ]
     placements.sort(key=lambda p: p["date"], reverse=True)
+    from ..services import mock_scoring
+    mock_scoring.process_pending(max_items=1, time_budget=10)
     return render(request, "tracker/admin/student_detail.html", {
         "student": student,
         "placements": placements,

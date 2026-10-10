@@ -36,6 +36,7 @@
         <span>{% if session.expected_answers %}{{ session.scores.all|length }} of {{ session.expected_answers }} submitted{% else %}{{ session.scores.all|length }} saved answers{% endif %}</span>
       </div>
     </header>
+    {% if session.end_reason %}<p class="mock-feedback-empty is-error">Ended early after {{ session.expected_answers }} of 10 questions. Reason: {{ session.end_reason }}</p>{% elif not session.completed_at %}<p class="mock-feedback-empty is-error">Session was not finished (closed without ending).</p>{% endif %}
     {% if session.events_purged_at %}<p class="mock-integrity-clean">Integrity {{ session.integrity_score }}/100 · {{ session.integrity_flag_count }} flag{{ session.integrity_flag_count|pluralize }}{% if session.auto_ended %} · session auto-ended{% endif %} · detailed log deleted after retention period</p>
     {% else %}{% with n=session.integrity_events|length %}{% if n %}
     <details class="mock-admin-feedback mock-integrity-flags" open>

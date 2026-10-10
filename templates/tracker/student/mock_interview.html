@@ -87,7 +87,30 @@
     <p class="mock-results-status" data-results-status role="status" aria-live="polite">Your submitted answers are being reviewed.</p>
     <p class="mock-results-rating" data-results-rating hidden></p>
     <div class="mock-results-list" data-results-list></div>
+    <div class="mock-session-actions"><button class="button button-quiet" type="button" data-results-retry hidden>Retry failed feedback</button></div>
     <button class="button button-primary" type="button" data-results-close>Close results</button>
+  </dialog>
+  <dialog class="mock-results-dialog" data-end-dialog aria-labelledby="mock-end-title">
+    <form method="dialog" data-end-form>
+      <div class="mock-results-heading"><p class="eyebrow">END SESSION</p><h2 id="mock-end-title">Why are you ending early?</h2></div>
+      <p class="mock-results-status" data-end-progress></p>
+      <label for="mock-end-reason">Reason</label>
+      <select id="mock-end-reason" data-end-reason-select required>
+        <option value="">Select a reason</option>
+        <option>Technical problem (microphone, camera or screen sharing)</option>
+        <option>Internet or connection problem</option>
+        <option>I did not know the answers</option>
+        <option>I ran out of time</option>
+        <option>Other</option>
+      </select>
+      <label for="mock-end-details">Details (required)</label>
+      <textarea id="mock-end-details" rows="3" maxlength="200" data-end-reason-text placeholder="Tell us briefly what happened" required></textarea>
+      <p class="mock-status is-error" data-end-error role="alert"></p>
+      <div class="mock-session-actions">
+        <button class="button button-quiet" type="button" data-end-cancel>Continue interview</button>
+        <button class="button button-primary" type="submit">End session</button>
+      </div>
+    </form>
   </dialog>
   {% include "tracker/_mock_progress.html" %}
   <section class="panel mock-rating-history">

@@ -31,7 +31,8 @@ def _backoff_seconds(attempt, retry_after=None):
     return base + random.uniform(0, 0.5)
 
 
-def generate_json(parts):
+def generate_json(parts, deadline=None):
+    """Call Gemini. `deadline` caps total seconds so serverless requests cannot overrun."""
     api_key = settings.GEMINI_API_KEY
     if not api_key:
         raise GeminiAPIError("AI interview feedback is not configured.")
@@ -43,10 +44,16 @@ def generate_json(parts):
     payload = None
     last_failure = None
     started = time.monotonic()
+    limit = deadline if deadline else RETRY_BUDGET_SECONDS + 20
+    out_of_time = False
     for model_index, model in enumerate(models):
         attempts = RETRY_ATTEMPTS if model_index == 0 else 1
         for attempt in range(attempts):
-            if payload is None and attempt and time.monotonic() - started > RETRY_BUDGET_SECONDS:
+            remaining = limit - (time.monotonic() - started)
+            if (attempt or model_index) and remaining < 3:
+                out_of_time = True
+                break
+            if deadline is None and payload is None and attempt and time.monotonic() - started > RETRY_BUDGET_SECONDS:
                 break
             retry_after = None
             request = Request(
@@ -65,7 +72,7 @@ def generate_json(parts):
                 method="POST",
             )
             try:
-                with urlopen(request, timeout=20) as response:
+                with urlopen(request, timeout=max(3, min(20, remaining))) as response:
                     payload = json.loads(response.read().decode())
                 break
             except HTTPError as error:
@@ -84,8 +91,8 @@ def generate_json(parts):
                 last_failure = f"invalid JSON from {model}: {error}"
                 logger.warning("Gemini model %s returned invalid JSON: %s", model, error)
             if attempt + 1 < attempts:
-                time.sleep(_backoff_seconds(attempt, retry_after))
-        if payload is not None:
+                time.sleep(min(_backoff_seconds(attempt, retry_after), max(0, remaining - 3)))
+        if payload is not None or out_of_time:
             break
 
     if payload is None:

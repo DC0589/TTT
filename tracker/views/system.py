@@ -53,4 +53,6 @@ def cron_score_mock(request):
     if not secret or not hmac.compare_digest(supplied, expected):
         raise PermissionDenied
     from ..services import mock_scoring
-    return JsonResponse({"scored": mock_scoring.process_pending(max_items=8, time_budget=45)})
+    scored = mock_scoring.process_pending(max_items=8, time_budget=45)
+    mock_scoring.purge_old_payloads()
+    return JsonResponse({"scored": scored})

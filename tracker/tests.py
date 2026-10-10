@@ -519,6 +519,7 @@ class MockInterviewTests(Base):
             "consent": True,
             "session_id": session.pk,
             "expected_answers": 1,
+            "end_reason": "Internet problem: connection dropped",
         }, content_type="application/json")
         self.assertEqual(finish_response.status_code, 200)
         response_body = {
@@ -626,6 +627,7 @@ class MockInterviewTests(Base):
             "consent": True,
             "session_id": session.pk,
             "expected_answers": 1,
+            "end_reason": "Internet problem: connection dropped",
         }, content_type="application/json")
 
         self.assertEqual(finish_response.status_code, 200)

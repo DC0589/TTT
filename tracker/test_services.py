@@ -137,7 +137,11 @@ class MockQueueTests(TestCase):
                 )
         score.refresh_from_db()
         self.assertEqual(score.status, "failed")
-        self.assertIsNone(score.payload)
+        self.assertIsNotNone(score.payload)
+
+        self.assertEqual(mock_scoring.retry_failed(self.session), 1)
+        score.refresh_from_db()
+        self.assertEqual((score.status, score.attempts), ("pending", 0))
 
     @override_settings(MOCK_BANK_MIN_SETS=2)
     def test_question_bank_is_served_once_it_has_enough_unseen_sets(self):
@@ -194,3 +198,97 @@ class MockScoringCronTests(TestCase):
         ok = self.client.get(url, headers={"Authorization": "Bearer cron-test-secret"})
         self.assertEqual(ok.status_code, 200)
         self.assertEqual(ok.json(), {"scored": 0})
+
+
+class MockSessionFlowTests(TestCase):
+    def setUp(self):
+        from tracker.models import MockInterviewSession, User
+
+        self.student = User.objects.create_user("flow1", password="pw-12345", is_student=True)
+        self.other = User.objects.create_user("flow2", password="pw-12345", is_student=True)
+        self.session = MockInterviewSession.objects.create(student=self.student, role="Python")
+        self.client.force_login(self.student)
+
+    def call(self, **payload):
+        import json
+
+        from django.urls import reverse
+
+        return self.client.post(
+            reverse("student_mock_interview_ai"),
+            json.dumps({"consent": True, "session_id": self.session.pk, **payload}),
+            content_type="application/json",
+        )
+
+    def test_ending_before_ten_questions_requires_a_reason(self):
+        self.assertEqual(self.call(action="finish", expected_answers=4).status_code, 400)
+        self.assertEqual(self.call(action="finish", expected_answers=4, end_reason="  ok ").status_code, 400)
+        self.session.refresh_from_db()
+        self.assertIsNone(self.session.completed_at)
+        response = self.call(
+            action="finish", expected_answers=4, end_reason="Internet or connection problem: wifi dropped"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.session.refresh_from_db()
+        self.assertIsNotNone(self.session.completed_at)
+        self.assertIn("wifi dropped", self.session.end_reason)
+
+    def test_finishing_all_ten_needs_no_reason(self):
+        self.assertEqual(self.call(action="finish", expected_answers=10).status_code, 200)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.end_reason, "")
+
+    def test_end_reason_is_shown_to_the_admin(self):
+        from django.urls import reverse
+
+        from tracker.models import User
+
+        self.call(action="finish", expected_answers=3, end_reason="I ran out of time: had to leave")
+        admin = User.objects.create_user("flowadmin", password="pw-12345", is_admin=True)
+        self.student.created_by = admin
+        self.student.save()
+        self.client.force_login(admin)
+        page = self.client.get(reverse("admin_mock_interviews"))
+        self.assertContains(page, "I ran out of time: had to leave")
+        self.assertContains(self.client.get(reverse("admin_student_detail", args=[self.student.pk])), "Ended early")
+
+    @patch("tracker.services.mock_scoring.generate_json", return_value={"score": 5, "answer_feedback": "Great."})
+    def test_drain_scores_queued_answers_from_any_session_and_results_finish_them(self, _generate):
+
+
+        from tracker.models import MockInterviewScore, MockInterviewSession
+
+        mine = MockInterviewSession.objects.create(student=self.other, role="SQL")
+        MockInterviewScore.objects.create(
+            session=mine, question_number=1, question="Q?", status="pending",
+            payload={"parts": [{"text": "x"}], "audio": False, "lite": True},
+        )
+        self.assertEqual(self.call(action="drain").json()["scored"], 1)
+        self.assertEqual(MockInterviewScore.objects.get(session=mine).status, "complete")
+        # The results poll also drives scoring for the session being viewed.
+        self.session.expected_answers = 1
+        self.session.save()
+        MockInterviewScore.objects.create(
+            session=self.session, question_number=1, question="Q?", status="pending",
+            payload={"parts": [{"text": "x"}], "audio": False, "lite": True},
+        )
+        results = self.call(action="results").json()
+        self.assertTrue(results["ready"])
+        self.assertEqual(results["retryable"], 0)
+
+    def test_student_cannot_retry_or_finish_someone_elses_session(self):
+        self.client.force_login(self.other)
+        self.assertEqual(self.call(action="retry").status_code, 404)
+        self.assertEqual(self.call(action="finish", expected_answers=10).status_code, 404)
+
+    @override_settings(MOCK_SCORING_PER_MINUTE=12)
+    def test_a_claimed_answer_is_not_scored_twice(self):
+        from tracker.models import MockInterviewScore
+        from tracker.services import mock_scoring
+
+        score = MockInterviewScore.objects.create(
+            session=self.session, question_number=1, question="Q?", status="pending",
+            payload={"parts": [{"text": "x"}], "audio": False, "lite": True},
+        )
+        self.assertTrue(mock_scoring._claim(score))
+        self.assertFalse(mock_scoring._claim(score))

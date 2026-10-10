@@ -42,6 +42,7 @@ class MockInterviewSession(models.Model):
     completed_at = models.DateTimeField(blank=True, null=True)
     integrity_events = models.JSONField(default=list, blank=True)
     difficulty = models.CharField(max_length=10, blank=True)
+    end_reason = models.CharField(max_length=300, blank=True)
     question_set = models.ForeignKey(
         "MockQuestionSet", on_delete=models.SET_NULL, blank=True, null=True,
         related_name="sessions",

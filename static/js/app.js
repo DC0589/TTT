@@ -77,7 +77,7 @@
   let role = '';
   let difficulty = 'medium';
   let sessionId = null;
-  window.__mockEnd = message => endSession(message);
+  window.__mockEnd = message => endSession(message, 'Automatically ended: too many integrity flags');
   window.__mockIntegrity = () => ({ sessionId, question: typeof questionNumber === 'number' ? questionNumber : null });
   let questions = [];
   let pendingFeedback = [];
@@ -431,7 +431,40 @@
     }
   };
 
-  const endSession = async message => {
+  const retryButton = interview.querySelector('[data-results-retry]');
+  const pollResults = async (endedSessionId, failedNumbers, restartButton) => {
+    const timeoutAt = Date.now() + 120000;
+    while (Date.now() < timeoutAt) {
+      const result = await requestAI({
+        action: 'results',
+        session_id: endedSessionId,
+        failed_question_numbers: failedNumbers(),
+      });
+      renderSessionResults(result);
+      retryButton.hidden = !(result.ready && result.retryable);
+      retryButton.onclick = async () => {
+        retryButton.hidden = true;
+        resultsTitle.textContent = 'Your results are loading';
+        try {
+          await requestAI({ action: 'retry', session_id: endedSessionId });
+          await pollResults(endedSessionId, () => [], restartButton);
+        } catch (error) {
+          resultsStatus.textContent = error.message || 'Could not retry. Please try again.';
+        }
+      };
+      if (result.ready) {
+        resultsTitle.textContent = 'Interview results';
+        restartButton.disabled = false;
+        return;
+      }
+      await wait(4000);
+    }
+    resultsTitle.textContent = 'Your answers are saved';
+    resultsStatus.textContent = 'Feedback is still being prepared. You can close this window and open this page again in a few minutes to see it under Recent sessions.';
+    restartButton.disabled = false;
+  };
+
+  const endSession = async (message, endReason = '') => {
     if (!sessionId || ending) return;
     ending = true;
     const endedSessionId = sessionId;
@@ -451,29 +484,13 @@
         action: 'finish',
         session_id: endedSessionId,
         expected_answers: submittedAnswers,
+        end_reason: endReason,
       });
       let feedbackRequestsSettled = false;
       Promise.all(endedFeedbackRequests).then(() => {
         feedbackRequestsSettled = true;
       });
-      const timeoutAt = Date.now() + 90000;
-      while (Date.now() < timeoutAt) {
-        const result = await requestAI({
-          action: 'results',
-          session_id: endedSessionId,
-          failed_question_numbers: feedbackRequestsSettled ? endedFailedNumbers : [],
-        });
-        renderSessionResults(result);
-        if (result.ready) {
-          resultsTitle.textContent = 'Interview results';
-          restartButton.disabled = false;
-          return;
-        }
-        await wait(4000);
-      }
-      resultsTitle.textContent = 'Your answers are saved';
-      resultsStatus.textContent = 'Feedback is still being prepared. You can close this window and open this page again in a few minutes to see it under Recent sessions.';
-      restartButton.disabled = false;
+      await pollResults(endedSessionId, () => (feedbackRequestsSettled ? endedFailedNumbers : []), restartButton);
     } catch (error) {
       resultsTitle.textContent = 'Results could not be loaded';
       resultsStatus.textContent = error.message || 'Please try again later.';
@@ -623,7 +640,7 @@
       submittedAnswers = 0;
       ending = false;
       setStatus(sessionStatus, liteMode ? 'Practice mode is on. Ten questions are ready.' : 'Camera and screen are live. Ten questions are ready.');
-      if (!liteMode) screenStream.getVideoTracks()[0].addEventListener('ended', () => endSession('Screen sharing stopped. Session ended.'));
+      if (!liteMode) screenStream.getVideoTracks()[0].addEventListener('ended', () => endSession('Screen sharing stopped. Session ended.', 'Automatically ended: screen sharing stopped'));
     } catch (error) {
       stopCapture();
       session.hidden = true;
@@ -691,8 +708,45 @@
   });
 
   interview.querySelector('[data-end-session]').addEventListener('click', () => {
-    if (!busy) endSession('Session ended. Your results are loading.');
+    if (busy) return;
+    if (submittedAnswers >= maxQuestions) {
+      endSession('Session ended. Your results are loading.');
+      return;
+    }
+    endProgress.textContent = `You have answered ${submittedAnswers} of ${maxQuestions} questions. Please finish all ${maxQuestions}; if you must stop, tell us why.`;
+    endError.textContent = '';
+    endDialog.showModal();
   });
+
+  const endDialog = interview.querySelector('[data-end-dialog]');
+  const endForm = interview.querySelector('[data-end-form]');
+  const endProgress = interview.querySelector('[data-end-progress]');
+  const endError = interview.querySelector('[data-end-error]');
+  const endSelect = interview.querySelector('[data-end-reason-select]');
+  const endText = interview.querySelector('[data-end-reason-text]');
+  interview.querySelector('[data-end-cancel]').addEventListener('click', () => endDialog.close());
+  endForm.addEventListener('submit', event => {
+    event.preventDefault();
+    const details = endText.value.trim();
+    if (!endSelect.value || details.length < 5) {
+      endError.textContent = 'Choose a reason and add a few words of detail.';
+      return;
+    }
+    endDialog.close();
+    endSession('Session ended. Your results are loading.', `${endSelect.value}: ${details}`);
+  });
+
+  window.addEventListener('beforeunload', event => {
+    if (sessionId && !ending && submittedAnswers < maxQuestions) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+  });
+
+  // Heartbeat that lets the server score queued answers while students are on the page.
+  window.setInterval(() => {
+    if (sessionId || resultsDialog.open) requestAI({ action: 'drain' }).catch(() => {});
+  }, 8000);
 
   interview.querySelector('[data-results-close]').addEventListener('click', () => {
     resultsDialog.close();

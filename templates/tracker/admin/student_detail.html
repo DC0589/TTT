@@ -60,8 +60,8 @@
   <div class="section-heading"><div><p class="eyebrow">MOCK INTERVIEWS</p><h2>Mock interview progress</h2></div><span class="section-meta">{{ mock_sessions|length }} recent session{{ mock_sessions|length|pluralize }}</span></div>
   {% if progress.trend %}{% include "tracker/_mock_progress.html" with eyebrow="PROGRESS" suggest_label="Suggested next topic for this student" %}{% else %}<p class="muted">No rated mock interviews yet.</p>{% endif %}
   {% if mock_sessions %}
-  <div class="table-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Topic</th><th>Level</th><th>Rating</th><th>Integrity</th></tr></thead><tbody>
-  {% for m in mock_sessions %}<tr><td>{{ m.created_at|date:"d M Y, H:i" }}</td><td>{{ m.role }}</td><td>{{ m.difficulty|default:"-"|title }}</td><td>{% if m.rating is not None %}{{ m.rating }}/5{% else %}-{% endif %}</td><td>{{ m.integrity_score }}/100{% if m.integrity_flag_count %} · {{ m.integrity_flag_count }} flag{{ m.integrity_flag_count|pluralize }}{% endif %}{% if m.auto_ended %} · auto-ended{% endif %}</td></tr>{% endfor %}
+  <div class="table-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Topic</th><th>Level</th><th>Rating</th><th>Answers</th><th>Integrity</th></tr></thead><tbody>
+  {% for m in mock_sessions %}<tr><td>{{ m.created_at|date:"d M Y, H:i" }}</td><td>{{ m.role }}</td><td>{{ m.difficulty|default:"-"|title }}</td><td>{% if m.rating is not None %}{{ m.rating }}/5{% elif m.completed_at %}Feedback processing{% else %}-{% endif %}</td><td>{{ m.expected_answers }}/10{% if m.end_reason %}<br><small>Ended early: {{ m.end_reason }}</small>{% elif not m.completed_at %}<br><small>Not finished</small>{% endif %}</td><td>{{ m.integrity_score }}/100{% if m.integrity_flag_count %} · {{ m.integrity_flag_count }} flag{{ m.integrity_flag_count|pluralize }}{% endif %}{% if m.auto_ended %} · auto-ended{% endif %}</td></tr>{% endfor %}
   </tbody></table></div>
   {% endif %}
 </section>
