@@ -1084,3 +1084,11 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
 .inline-filter select { min-width: 192px; }
 .filter-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
 .filter-bar .form-control { max-width: 220px; }
+.storage-figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; margin-bottom: 18px; }
+.storage-figures small { display: block; font-size: 11px; letter-spacing: .08em; opacity: .65; }
+.storage-figures strong { font-size: 24px; }
+.storage-bar { height: 14px; border-radius: 999px; background: rgba(100,116,139,.18); overflow: hidden; }
+.storage-bar span { display: block; height: 100%; border-radius: 999px; background: #16a34a; }
+.storage-warning span { background: #f59e0b; }
+.storage-critical span { background: #dc2626; }
+.storage-mini { display: inline-block; width: 120px; height: 8px; vertical-align: middle; margin-right: 8px; }

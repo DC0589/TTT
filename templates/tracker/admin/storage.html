@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Storage{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">SYSTEM</p><h1>Database storage</h1><p>How much of your {{ usage.limit_label }} database allowance is used. Only administrators can see this page.</p></div>
+</section>
+
+{% if usage.level == "critical" %}<div class="alert alert-error" role="alert">Storage is almost full. Delete old data or upgrade the database plan before writes start failing.</div>
+{% elif usage.level == "warning" %}<div class="alert" role="status">Storage is above 70%. Plan to clean up old data or upgrade soon.</div>{% endif %}
+
+<section class="panel storage-panel">
+  <div class="storage-figures">
+    <div><small>USED</small><strong>{{ usage.used_label }}</strong></div>
+    <div><small>REMAINING</small><strong>{{ usage.free_label }}</strong></div>
+    <div><small>LIMIT</small><strong>{{ usage.limit_label }}</strong></div>
+    <div><small>USAGE</small><strong>{{ usage.percent }}%</strong></div>
+  </div>
+  <div class="storage-bar storage-{{ usage.level }}" role="progressbar" aria-valuenow="{{ usage.percent }}" aria-valuemin="0" aria-valuemax="100" aria-label="Database storage used">
+    <span style="width: {{ usage.bar_percent }}%"></span>
+  </div>
+  <p class="geo-note">Measured from {% if usage.vendor == "postgresql" %}the live PostgreSQL database{% else %}the local database file{% endif %}. The limit comes from the <code>DATABASE_LIMIT_MB</code> setting (currently {{ usage.limit_label }}); change it if your plan changes.</p>
+</section>
+
+<section class="content-section">
+  <div class="section-heading"><div><p class="eyebrow">BREAKDOWN</p><h2>Largest tables</h2></div></div>
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>Table</th><th>Rows</th><th>Size</th><th>Share of database</th></tr></thead>
+    <tbody>
+    {% for t in usage.tables %}<tr>
+      <td><code>{{ t.name }}</code></td><td>{{ t.rows }}</td><td>{{ t.size_label }}</td>
+      <td><div class="storage-bar storage-ok storage-mini"><span style="width: {{ t.share }}%"></span></div> {{ t.share }}%</td>
+    </tr>{% empty %}<tr><td colspan="4" class="table-empty"><strong>No tables found.</strong></td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endblock %}

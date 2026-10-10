@@ -113,6 +113,7 @@ if not DEBUG:
 CSRF_FAILURE_VIEW = "tracker.views.csrf_failure"
 
 THROTTLE_ENABLED = os.environ.get("THROTTLE_ENABLED", "1") == "1" and "test" not in sys.argv
+DATABASE_LIMIT_MB = int(os.environ.get("DATABASE_LIMIT_MB", "1024"))
 CHECKIN_GATE = os.environ.get("CHECKIN_GATE", "1") == "1" and "test" not in sys.argv
 
 CACHES = {"default": {

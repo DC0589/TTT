@@ -89,6 +89,7 @@ from .registrations import (  # noqa: F401
     registration_reject,
     registrations_pending_count,
 )
+from .storage import storage_usage  # noqa: F401
 from .students import (  # noqa: F401
     admin_hr_user_add,
     admin_student_add,

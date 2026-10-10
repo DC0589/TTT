@@ -59,6 +59,7 @@ urlpatterns = [
     path("staff/attendance/", v.staff_attendance, name="staff_attendance"),
     path("staff/attendance/report/", v.staff_attendance_report, name="staff_attendance_report"),
     path("staff/attendance/settings/", v.staff_attendance_settings, name="staff_attendance_settings"),
+    path("admin/storage/", v.storage_usage, name="storage_usage"),
     path("staff/login-activity/", v.login_activity, name="login_activity"),
     path("staff/leaves/", v.staff_leaves, name="staff_leaves"),
     path("staff/leaves/<int:pk>/<str:decision>/", v.staff_leave_review, name="staff_leave_review"),
