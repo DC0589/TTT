@@ -130,7 +130,7 @@ def check_health(force=False):
             if check["ok"]:
                 break
         if checks[0]["ok"]:
-            result = {"status": "ok", "message": "AI is working.", "models": checks}
+            result = {"status": "ok", "message": "AI is working, Start giving your mock.", "models": checks}
         elif checks[-1]["ok"]:
             result = {"status": "degraded", "message": "AI is running on the backup model.", "models": checks}
         else:
