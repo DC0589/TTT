@@ -28,9 +28,7 @@ def celebration_banners(request):
     ).select_related("interview__student")
 
     companies = {}
-    names = list(selected.values_list("interview__company_name", flat=True))
-    names += list(PlacedStudent.objects.values_list("company", flat=True))
-    for company in names:
+    for company in PlacedStudent.objects.values_list("company", flat=True):
         name = company.strip()
         if name:
             companies.setdefault(name.lower(), name)

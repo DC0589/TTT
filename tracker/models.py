@@ -272,6 +272,19 @@ class InterviewRound(models.Model):
         return BADGES[self.status]
 
 
+def record_placement(student, company, batch=""):
+    company = " ".join((company or "").split())
+    if not company:
+        return
+    name = student.get_full_name() or student.username
+    if PlacedStudent.objects.filter(name__iexact=name, company__iexact=company).exists():
+        return
+    PlacedStudent.objects.create(
+        name=name[:150], company=company[:150], batch=(batch or "")[:40],
+        year=timezone.localdate().year,
+    )
+
+
 class InterviewStatus(models.Model):
     SELECTED, NOT_SELECTED = "selected", "not-selected"
     FINAL_CHOICES = [(SELECTED, "Selected"), (NOT_SELECTED, "Not selected")]
@@ -279,6 +292,13 @@ class InterviewStatus(models.Model):
     interview = models.OneToOneField(Interview, on_delete=models.CASCADE, related_name="status")
     final_status = models.CharField(max_length=15, choices=FINAL_CHOICES)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.final_status == self.SELECTED:
+            record_placement(
+                self.interview.student, self.interview.company_name, self.interview.group.name
+            )
 
     def __str__(self):
         return f"{self.interview}: {self.final_status}"
@@ -422,6 +442,11 @@ class Selection(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        membership = self.student.memberships.select_related("group").first()
+        record_placement(self.student, self.company, membership.group.name if membership else "")
 
     def __str__(self):
         return f"{self.student} - {self.company}"
