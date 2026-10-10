@@ -147,13 +147,30 @@
   };
 
   const requestAI = async payload => {
-    const response = await fetch(interview.dataset.aiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-      body: JSON.stringify({ ...payload, role, difficulty, consent: true, history }),
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'The AI request failed. Please try again.');
+    let response;
+    try {
+      response = await fetch(interview.dataset.aiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify({ ...payload, role, difficulty, consent: true, history }),
+      });
+    } catch (networkError) {
+      const error = new Error('Network problem. Please check your connection.');
+      error.retryable = true;
+      throw error;
+    }
+    let result = {};
+    try {
+      result = await response.json();
+    } catch (parseError) {
+      result = {};
+    }
+    if (!response.ok) {
+      const error = new Error(result.error || 'The AI request failed. Please try again.');
+      error.status = response.status;
+      error.retryable = response.status === 429 || response.status >= 500;
+      throw error;
+    }
     return result;
   };
 
@@ -350,6 +367,42 @@
 
   const wait = milliseconds => new Promise(resolve => window.setTimeout(resolve, milliseconds));
 
+  // Score at most two answers at a time and retry busy/overloaded responses, so
+  // answers are not lost when many students are being scored together.
+  const FEEDBACK_CONCURRENCY = 2;
+  const FEEDBACK_RETRIES = 4;
+  let feedbackActive = 0;
+  const feedbackWaiting = [];
+  const acquireFeedbackSlot = () => new Promise(resolve => {
+    if (feedbackActive < FEEDBACK_CONCURRENCY) {
+      feedbackActive += 1;
+      resolve();
+    } else {
+      feedbackWaiting.push(resolve);
+    }
+  });
+  const releaseFeedbackSlot = () => {
+    const next = feedbackWaiting.shift();
+    if (next) next();
+    else feedbackActive -= 1;
+  };
+  const sendFeedback = async payload => {
+    await acquireFeedbackSlot();
+    try {
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          return await requestAI(payload);
+        } catch (error) {
+          if (error.status === 409) return null;
+          if (!error.retryable || attempt >= FEEDBACK_RETRIES) throw error;
+          await wait(1500 * 2 ** attempt + Math.random() * 1000);
+        }
+      }
+    } finally {
+      releaseFeedbackSlot();
+    }
+  };
+
   const renderSessionResults = result => {
     resultsList.replaceChildren();
     feedbackList.replaceChildren();
@@ -403,7 +456,7 @@
       Promise.all(endedFeedbackRequests).then(() => {
         feedbackRequestsSettled = true;
       });
-      const timeoutAt = Date.now() + 180000;
+      const timeoutAt = Date.now() + 240000;
       while (Date.now() < timeoutAt) {
         const result = await requestAI({
           action: 'results',
@@ -604,7 +657,7 @@
         : { audio: await blobToDataUrl(recordingBlob) };
       const questionBeingAnswered = questionNumber;
       const questionFailureList = failedQuestionNumbers;
-      const feedbackRequest = requestAI({
+      const feedbackRequest = sendFeedback({
         action: 'feedback',
         session_id: sessionId,
         question_number: questionBeingAnswered,

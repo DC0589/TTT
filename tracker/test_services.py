@@ -60,3 +60,30 @@ class StorageTests(TestCase):
         for other in (hr, student):
             self.client.force_login(other)
             self.assertEqual(self.client.get(reverse("storage_usage")).status_code, 403)
+
+
+class MockOutOfOrderTests(TestCase):
+    @patch("tracker.views.mock.generate_json", return_value={"score": 4, "answer_feedback": "Good."})
+    def test_answers_arriving_out_of_order_are_all_recorded(self, _generate):
+        import json
+
+        from django.urls import reverse
+
+        from tracker.models import MockInterviewScore, MockInterviewSession, User
+
+        student = User.objects.create_user("mock1", password="pw-12345", is_student=True)
+        session = MockInterviewSession.objects.create(student=student, role="Python")
+        self.client.force_login(student)
+        for number in (3, 1, 2, 10, 5):
+            response = self.client.post(
+                reverse("student_mock_interview_ai"),
+                json.dumps({
+                    "action": "feedback", "consent": True, "role": "Python", "lite": True,
+                    "session_id": session.pk, "question_number": number,
+                    "question": f"Question {number}?", "text": "My answer",
+                }),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 200, (number, response.content))
+        done = MockInterviewScore.objects.filter(session=session, status="complete")
+        self.assertEqual(sorted(done.values_list("question_number", flat=True)), [1, 2, 3, 5, 10])

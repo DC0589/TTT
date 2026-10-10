@@ -409,8 +409,6 @@ def student_mock_interview_ai(request):
         question = data.get("question", "")
         if type(question_number) is not int or not 1 <= question_number <= MOCK_QUESTION_COUNT:
             return JsonResponse({"error": "Invalid question number."}, status=400)
-        if question_number > session.scores.count() + 1:
-            return JsonResponse({"error": "Answer the questions in order."}, status=400)
         if not isinstance(question, str) or not question.strip():
             return JsonResponse({"error": "The interview question is missing."}, status=400)
         role = session.role

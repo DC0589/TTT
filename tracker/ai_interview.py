@@ -10,8 +10,25 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
+RETRY_ATTEMPTS = 3
+RETRY_BUDGET_SECONDS = 30
+
+
 class GeminiAPIError(Exception):
     pass
+
+
+def _retry_after_seconds(error):
+    try:
+        return min(float(error.headers.get("Retry-After", "")), 5.0)
+    except (TypeError, ValueError, AttributeError):
+        return None
+
+
+def _backoff_seconds(attempt, retry_after=None):
+    """Exponential backoff with jitter so many students do not retry in lockstep."""
+    base = retry_after if retry_after else min(0.5 * 2 ** attempt, 3.0)
+    return base + random.uniform(0, 0.5)
 
 
 def generate_json(parts):
@@ -25,9 +42,13 @@ def generate_json(parts):
     )))
     payload = None
     last_failure = None
+    started = time.monotonic()
     for model_index, model in enumerate(models):
-        attempts = 2 if model_index == 0 else 1
+        attempts = RETRY_ATTEMPTS if model_index == 0 else 1
         for attempt in range(attempts):
+            if payload is None and attempt and time.monotonic() - started > RETRY_BUDGET_SECONDS:
+                break
+            retry_after = None
             request = Request(
                 f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
                 data=json.dumps({
@@ -53,6 +74,7 @@ def generate_json(parts):
                         f"The AI service returned HTTP {error.code}."
                     ) from None
                 last_failure = f"HTTP {error.code} from {model}"
+                retry_after = _retry_after_seconds(error)
                 logger.warning("Gemini model %s returned HTTP %s", model, error.code)
             except (URLError, TimeoutError) as error:
                 reason = getattr(error, "reason", error)
@@ -62,7 +84,7 @@ def generate_json(parts):
                 last_failure = f"invalid JSON from {model}: {error}"
                 logger.warning("Gemini model %s returned invalid JSON: %s", model, error)
             if attempt + 1 < attempts:
-                time.sleep(0.25 + random.uniform(0, 0.25))
+                time.sleep(_backoff_seconds(attempt, retry_after))
         if payload is not None:
             break
 

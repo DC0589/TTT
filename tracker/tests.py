@@ -402,8 +402,8 @@ class MockInterviewTests(Base):
 
         self.assertEqual(result["question"], "Tell me about your experience.")
         self.assertEqual(mock_urlopen.call_count, 2)
-        self.assertGreaterEqual(mock_sleep.call_args.args[0], 0.25)
-        self.assertLess(mock_sleep.call_args.args[0], 0.5)
+        self.assertGreaterEqual(mock_sleep.call_args.args[0], 0.5)
+        self.assertLess(mock_sleep.call_args.args[0], 1.0)
 
     @override_settings(
         GEMINI_API_KEY="test-key",
@@ -415,7 +415,7 @@ class MockInterviewTests(Base):
     def test_gemini_persistent_503_returns_retry_message(self, mock_urlopen):
         mock_urlopen.side_effect = [
             HTTPError("https://example.test", 503, "Unavailable", {}, BytesIO())
-            for _ in range(3)
+            for _ in range(4)
         ]
 
         with patch("tracker.ai_interview.time.sleep"):
@@ -425,7 +425,29 @@ class MockInterviewTests(Base):
             ):
                 generate_json([{"text": "Ask a question."}])
 
-        self.assertEqual(mock_urlopen.call_count, 3)
+        self.assertEqual(mock_urlopen.call_count, 4)
+
+    @override_settings(
+        GEMINI_API_KEY="test-key",
+        GEMINI_MODEL="gemini-test",
+        GEMINI_PRIMARY_MODEL="gemini-test",
+        GEMINI_FALLBACK_MODEL="gemini-lite-test",
+    )
+    @patch("tracker.ai_interview.urlopen")
+    def test_gemini_429_honours_retry_after(self, mock_urlopen):
+        ok = MagicMock()
+        ok.__enter__.return_value = ok
+        ok.__exit__.return_value = False
+        ok.read.return_value = json.dumps({
+            "candidates": [{"content": {"parts": [{"text": '{"score": 4}'}]}}]
+        }).encode()
+        mock_urlopen.side_effect = [
+            HTTPError("https://example.test", 429, "Too many", {"Retry-After": "2"}, BytesIO()),
+            ok,
+        ]
+        with patch("tracker.ai_interview.time.sleep") as mock_sleep:
+            self.assertEqual(generate_json([{"text": "x"}])["score"], 4)
+        self.assertGreaterEqual(mock_sleep.call_args.args[0], 2)
 
     @override_settings(
         GEMINI_API_KEY="test-key",
@@ -444,6 +466,7 @@ class MockInterviewTests(Base):
         mock_urlopen.side_effect = [
             HTTPError("https://example.test", 503, "Unavailable", {}, BytesIO()),
             HTTPError("https://example.test", 503, "Unavailable", {}, BytesIO()),
+            HTTPError("https://example.test", 503, "Unavailable", {}, BytesIO()),
             response,
         ]
 
@@ -451,7 +474,7 @@ class MockInterviewTests(Base):
             result = generate_json([{"text": "Ask a question."}])
 
         self.assertEqual(result["question"], "Tell me about your experience.")
-        self.assertEqual(mock_urlopen.call_count, 3)
+        self.assertEqual(mock_urlopen.call_count, 4)
         self.assertIn("models/gemini-test:generateContent", mock_urlopen.call_args_list[0].args[0].full_url)
         self.assertIn("models/gemini-lite-test:generateContent", mock_urlopen.call_args_list[-1].args[0].full_url)
 
@@ -476,8 +499,8 @@ class MockInterviewTests(Base):
 
         self.assertEqual(result["question"], "Tell me about your experience.")
         self.assertEqual(mock_urlopen.call_count, 2)
-        self.assertGreaterEqual(mock_sleep.call_args.args[0], 0.25)
-        self.assertLess(mock_sleep.call_args.args[0], 0.5)
+        self.assertGreaterEqual(mock_sleep.call_args.args[0], 0.5)
+        self.assertLess(mock_sleep.call_args.args[0], 1.0)
 
     @override_settings(
         GEMINI_API_KEY="test-key",
