@@ -915,18 +915,20 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
 @media (max-height: 760px) { .sidebar-note { display: none; } }
 .topbar-right { display: inline-flex; align-items: center; gap: 18px; }
 .topbar-logout { margin: 0; }
-.ticker-wrap { display: grid; gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
-.ticker { display: flex; align-items: center; min-height: 36px; overflow: hidden; font-size: 13px; background: #fff; }
-.ticker-label { flex: none; z-index: 1; padding: 0 16px; line-height: 36px; font-weight: 700; font-size: 12px; letter-spacing: .5px; color: #fff; }
-.ticker-placed .ticker-label { background: #10283b; }
-.ticker-selected .ticker-label { background: #e53935; }
+.ticker-wrap { background: #fff; border-bottom: 1px solid var(--line); }
+.ticker { display: flex; align-items: center; gap: 12px; height: 32px; padding: 0 clamp(24px, 4vw, 58px); overflow: hidden; font-size: 12.5px; }
+.ticker + .ticker { border-top: 1px solid var(--line); }
 .ticker-selected { background: #fff8e6; }
-.ticker-track { flex: 1; overflow: hidden; }
+.ticker-label { flex: none; width: 76px; text-align: center; padding: 3px 0; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .4px; }
+.ticker-placed .ticker-label { background: #e6eef5; color: #10283b; }
+.ticker-selected .ticker-label { background: #fde3e2; color: #c62828; }
+.ticker-track { flex: 1; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent); }
 .ticker-move { display: flex; width: max-content; animation: ticker-scroll 40s linear infinite; }
 .ticker-track:hover .ticker-move { animation-play-state: paused; }
-.ticker-group { display: flex; align-items: center; flex: none; min-width: 60vw; }
-.ticker-item { padding: 0 28px; white-space: nowrap; color: var(--ink-soft); }
+.ticker-group { display: flex; align-items: center; flex: none; }
+.ticker-item { white-space: nowrap; color: var(--ink-soft); }
 .ticker-item strong { color: var(--ink); }
+.ticker-sep { padding: 0 14px; color: var(--muted); }
 @keyframes ticker-scroll { to { transform: translateX(-50%); } }
 @media (prefers-reduced-motion: reduce) { .ticker-move { animation: none; } .ticker-track { overflow-x: auto; } }
 .logout-pill { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; }
