@@ -238,7 +238,7 @@ class AuthTests(Base):
         )
         old_code_hash = registration.verification_code_hash
 
-        with patch("tracker.views.render_to_string", return_value="<p>Verify code</p>"):
+        with patch("tracker.services.notifications.render_to_string", return_value="<p>Verify code</p>"):
             response = self.client.post(
                 reverse("resend_registration_otp", args=[registration.pk])
             )
@@ -705,7 +705,7 @@ class PermissionTests(Base):
         )
         request = RequestFactory().get(reverse("hr_students"))
         request.user = hr
-        with patch("tracker.views.render") as mock_render:
+        with patch("tracker.views.students.render") as mock_render:
             from .views import hr_students
 
             hr_students(request)
@@ -726,7 +726,7 @@ class PermissionTests(Base):
         )
         request = RequestFactory().get(reverse("admin_registrations"))
         request.user = hr
-        with patch("tracker.views.render") as render_mock:
+        with patch("tracker.views.registrations.render") as render_mock:
             from .views import admin_registrations
 
             admin_registrations(request)
@@ -737,7 +737,7 @@ class PermissionTests(Base):
             self.client.get(reverse("registrations_pending_count")).json()["count"],
             1,
         )
-        with patch("tracker.views._send_notification", return_value=True):
+        with patch("tracker.views.registrations.send_notification", return_value=True):
             response = self.client.post(
                 reverse("registration_approve", args=[registration.pk])
             )
@@ -799,7 +799,7 @@ class ViewTests(Base):
         })
         request.user = self.admin
 
-        with patch("tracker.views.render") as mock_render:
+        with patch("tracker.views.mock.render") as mock_render:
             from .views import admin_mock_interviews
 
             admin_mock_interviews(request)
@@ -822,7 +822,7 @@ class ViewTests(Base):
         )
         request.user = self.admin
 
-        with patch("tracker.views.render") as mock_render:
+        with patch("tracker.views.mock.render") as mock_render:
             from .views import admin_mock_interviews
 
             admin_mock_interviews(request)
@@ -862,7 +862,7 @@ class ViewTests(Base):
         })
         request.user = self.admin
 
-        with patch("tracker.views.render") as mock_render:
+        with patch("tracker.views.mock.render") as mock_render:
             from .views import admin_mock_interviews
 
             admin_mock_interviews(request)
@@ -920,7 +920,7 @@ class ViewTests(Base):
         GroupMembership.objects.create(group=other_group, student=self.bob)
         request = RequestFactory().get(reverse("hr_students"))
         request.user = hr
-        with patch("tracker.views.render") as mock_render:
+        with patch("tracker.views.students.render") as mock_render:
             from .views import hr_students
 
             hr_students(request)
@@ -929,7 +929,7 @@ class ViewTests(Base):
 
         batch_request = RequestFactory().get(reverse("admin_groups"))
         batch_request.user = hr
-        with patch("tracker.views.render") as mock_render:
+        with patch("tracker.views.batches.render") as mock_render:
             from .views import admin_groups
 
             admin_groups(batch_request)
@@ -943,7 +943,7 @@ class ViewTests(Base):
 
         admin_request = RequestFactory().get(reverse("admin_students"))
         admin_request.user = self.admin
-        with patch("tracker.views.render") as mock_render:
+        with patch("tracker.views.students.render") as mock_render:
             from .views import admin_students
 
             admin_students(admin_request)
@@ -961,7 +961,7 @@ class ViewTests(Base):
         })
         request.user = self.admin
 
-        with patch("tracker.views.render") as mock_render:
+        with patch("tracker.views.mock.render") as mock_render:
             from .views import admin_mock_interviews
 
             admin_mock_interviews(request)
@@ -1067,7 +1067,7 @@ class ViewTests(Base):
                 ):
                     request = RequestFactory().get("/", params)
                     request.user = self.admin
-                    with patch("tracker.views.render") as render_mock:
+                    with patch(f"{view.__module__}.render") as render_mock:
                         view(request)
                     self.assertEqual(
                         render_mock.call_args.args[2]["view_mode"], expected_mode
@@ -1512,7 +1512,7 @@ class ViewTests(Base):
 class MockProgressTests(TestCase):
     def test_progress_summarises_topics_levels_and_suggestion(self):
         from tracker.models import MockInterviewSession
-        from tracker.views import _mock_progress
+        from tracker.views.mock import _mock_progress
 
         student = User.objects.create_user("prog", password="pw12345!", is_student=True)
         for topic, rating, level in [("Python", 2, "easy"), ("SQL", 4, "medium")]:
@@ -1545,7 +1545,7 @@ class MockLiteModeTests(TestCase):
                    "question_number": 1, "question": "What is a list?", **extra}
         return self.client.post(self.url, payload, content_type="application/json")
 
-    @patch("tracker.views.generate_json", return_value={"score": 4, "answer_feedback": "Good."})
+    @patch("tracker.views.mock.generate_json", return_value={"score": 4, "answer_feedback": "Good."})
     def test_text_answer_without_camera_is_scored(self, mock_ai):
         response = self.post(text="A list is an ordered, mutable sequence.", lite=True)
         self.assertEqual(response.status_code, 200)
@@ -1593,7 +1593,7 @@ class PrepTrackerTests(TestCase):
         self.assertEqual(self.client.post(url, {"scheduled_date": "2030-02-01"}).status_code, 404)
 
     def test_reminders_and_calendar(self):
-        from tracker.views import _reminders
+        from tracker.views.calendar import _reminders
         items = _reminders(self.student)
         self.assertEqual([i["when"] for i in items], ["Tomorrow", "In 2 days"])
         response = self.client.get(reverse("student_calendar"))
@@ -1603,7 +1603,7 @@ class PrepTrackerTests(TestCase):
         self.assertContains(self.client.get(reverse("student_dashboard")), "Coming up this week")
 
     def test_first_round_on_interview_date_is_not_duplicated(self):
-        from tracker.views import _schedule_events
+        from tracker.views.calendar import _schedule_events
         self.rnd.scheduled_date = self.iv.date_of_interview
         self.rnd.save()
         events = _schedule_events(
