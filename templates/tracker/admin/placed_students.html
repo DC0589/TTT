@@ -17,7 +17,7 @@
     {% for p in page_obj.object_list %}
     <tr>
       <td>{{ p.name }}</td><td>{{ p.batch|default:"—" }}</td><td>{{ p.company }}</td><td>{{ p.year|default:"—" }}</td>
-      <td class="actions-cell"><form method="post" action="{% url 'admin_placed_delete' p.pk %}" style="display:inline" onsubmit="return confirm('Remove this placement?');">{% csrf_token %}<button class="button button-quiet" type="submit">Delete</button></form></td>
+      <td class="actions-cell"><a class="button button-quiet" href="{% url 'admin_placed_edit' p.pk %}">Edit</a> <form method="post" action="{% url 'admin_placed_delete' p.pk %}" style="display:inline" onsubmit="return confirm('Remove this placement?');">{% csrf_token %}<button class="button button-quiet" type="submit">Delete</button></form></td>
     </tr>
     {% empty %}<tr><td colspan="5" class="table-empty"><strong>No placements imported yet.</strong></td></tr>{% endfor %}
     </tbody>

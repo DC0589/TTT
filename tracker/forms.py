@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from .models import (
     Group, GroupMembership, Interview, InterviewNote, InterviewRound, InterviewStatus, LearningCourse,
-    MockQuestion, Selection, StudentRegistrationRequest, User,
+    MockQuestion, PlacedStudent, Selection, StudentRegistrationRequest, User,
 )
 
 INPUT = "form-control"
@@ -471,3 +471,15 @@ class SelectionForm(Styled, forms.ModelForm):
 
     def clean_role(self):
         return " ".join(self.cleaned_data["role"].split())
+
+
+class PlacedStudentForm(Styled, forms.ModelForm):
+    class Meta:
+        model = PlacedStudent
+        fields = ("name", "batch", "company", "year")
+
+    def clean_name(self):
+        return " ".join(self.cleaned_data["name"].split())
+
+    def clean_company(self):
+        return " ".join(self.cleaned_data["company"].split())

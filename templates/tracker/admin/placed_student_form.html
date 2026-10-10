@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Edit placement{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="{% url 'admin_placed_students' %}">Placed students</a><span aria-hidden="true">/</span><span>Edit placement</span></div>
+<section class="panel">
+  <form method="post">{% csrf_token %}
+    {{ form.non_field_errors }}
+    {% for f in form %}<div class="form-field"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{{ f.errors }}</div>{% endfor %}
+    <div class="course-card-actions"><button class="button button-primary" type="submit">Save changes</button><a class="button button-quiet" href="{% url 'admin_placed_students' %}">Cancel</a></div>
+  </form>
+</section>
+{% endblock %}

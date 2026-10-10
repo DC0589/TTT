@@ -34,7 +34,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 from .forms import (
     AddMemberForm, FinalStatusForm, GroupForm, HRUserForm, InterviewAdminNotesForm, NoteReplyForm, InterviewForm, InterviewNotesForm,
-    LearningCourseForm, MockQuestionForm, RegistrationOTPForm, RoundForm, SelectionForm, RoundScheduleForm,
+    LearningCourseForm, MockQuestionForm, RegistrationOTPForm, PlacedStudentForm, RoundForm, SelectionForm, RoundScheduleForm,
     RoundStatusForm, StudentForm,
     StudentRegistrationForm,
 )
@@ -2120,6 +2120,18 @@ def admin_placed_import(request):
         f"Imported {len(created)} placement(s); skipped {len(entries) - len(created)} duplicate row(s).",
     )
     return redirect("admin_placed_students")
+
+
+@admin_required
+@require_http_methods(["GET", "POST"])
+def admin_placed_edit(request, pk):
+    placed = get_object_or_404(PlacedStudent, pk=pk)
+    form = PlacedStudentForm(request.POST or None, instance=placed)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Placement updated.")
+        return redirect("admin_placed_students")
+    return render(request, "tracker/admin/placed_student_form.html", {"form": form})
 
 
 @admin_required

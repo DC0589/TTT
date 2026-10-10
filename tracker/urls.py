@@ -56,6 +56,7 @@ urlpatterns = [
     path("staff/selections/<int:pk>/delete/", v.staff_selection_delete, name="staff_selection_delete"),
     path("admin/placed-students/", v.admin_placed_students, name="admin_placed_students"),
     path("admin/placed-students/import/", v.admin_placed_import, name="admin_placed_import"),
+    path("admin/placed-students/<int:pk>/edit/", v.admin_placed_edit, name="admin_placed_edit"),
     path("admin/placed-students/<int:pk>/delete/", v.admin_placed_delete, name="admin_placed_delete"),
     path("admin/registrations/pending-count/", v.registrations_pending_count, name="registrations_pending_count"),
     path("admin/registrations/", v.admin_registrations, name="admin_registrations"),
