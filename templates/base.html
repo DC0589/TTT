@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=24">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=25">
 </head>
 <body class="{% if user.is_authenticated %}app-body{% else %}auth-body{% endif %}">
 {% if user.is_authenticated %}
@@ -29,6 +29,10 @@
       <a class="nav-link{% if request.resolver_match.url_name == 'staff_attendance' %} is-active{% endif %}" href="{% url 'staff_attendance' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.500"/><path d="M12 7.500V12l3 2"/></svg>
         <span>Attendance</span>
+      </a>
+      <a class="nav-link{% if request.resolver_match.url_name == 'login_activity' %} is-active{% endif %}" href="{% url 'login_activity' %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.500"/><path d="M3 19c0-3.300 2.700-5.500 6-5.500s6 2.200 6 5.500M17 7.500a3 3 0 0 1 0 5M18.500 14c1.600.8 2.500 2.500 2.500 5"/></svg>
+        <span>Login activity</span>
       </a>
       <a class="nav-link{% if request.resolver_match.url_name == 'staff_leaves' %} is-active{% endif %}" href="{% url 'staff_leaves' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3.500v3M16 3.500v3M4 9.500h16M9 14l2 2 4-4"/></svg>

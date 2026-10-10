@@ -22,10 +22,12 @@
   </div>
   {% if not leave_today %}
   <div class="att-actions">
-    <form method="post" action="{% url 'student_attendance_mark' 'in' %}">{% csrf_token %}<button class="button button-primary" type="submit"{% if record %} disabled{% endif %}>Check in</button></form>
-    <form method="post" action="{% url 'student_attendance_mark' 'out' %}">{% csrf_token %}<button class="button button-secondary" type="submit"{% if not record or record.check_out %} disabled{% endif %}>Check out</button></form>
+    <form method="post" class="geo-form" action="{% url 'student_attendance_mark' 'in' %}">{% csrf_token %}{% include "tracker/_geo_fields.html" %}<button class="button button-primary" type="submit"{% if record %} disabled{% endif %}>Check in</button></form>
+    <form method="post" class="geo-form" action="{% url 'student_attendance_mark' 'out' %}">{% csrf_token %}{% include "tracker/_geo_fields.html" %}<button class="button button-secondary" type="submit"{% if not record or record.check_out %} disabled{% endif %}>Check out</button></form>
   </div>
+  <p class="geo-note" id="geo-status" role="status">Your location is recorded when you check in and out.</p>
   {% endif %}
+  {% if record and record.check_in_map_url %}<p class="geo-note">Check-in location: <a href="{{ record.check_in_map_url }}" target="_blank" rel="noopener">view on map</a>{% if record.check_out_map_url %} · Check-out location: <a href="{{ record.check_out_map_url }}" target="_blank" rel="noopener">view on map</a>{% endif %}</p>{% endif %}
 </section>
 
 <div class="att-grid">
@@ -60,4 +62,33 @@
   </table></div>
 </section>
 {% endif %}
+{% block scripts %}{{ block.super }}
+<script>
+document.querySelectorAll(".geo-form").forEach(function (form) {
+  form.addEventListener("submit", function (event) {
+    if (form.dataset.located) return;
+    event.preventDefault();
+    var status = document.getElementById("geo-status");
+    var button = form.querySelector("button");
+    if (!navigator.geolocation) {
+      if (status) status.textContent = "This browser does not support location. Please use a different browser.";
+      return;
+    }
+    button.disabled = true;
+    if (status) status.textContent = "Getting your location…";
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      form.elements.latitude.value = pos.coords.latitude;
+      form.elements.longitude.value = pos.coords.longitude;
+      form.elements.accuracy.value = pos.coords.accuracy;
+      form.dataset.located = "1";
+      form.submit();
+    }, function (err) {
+      button.disabled = false;
+      if (status) status.textContent = err.code === 1
+        ? "Location permission was denied. Allow location access for this site and try again."
+        : "Could not get your location. Check that location is on and try again.";
+    }, {enableHighAccuracy: true, timeout: 15000, maximumAge: 0});
+  });
+});
+</script>
 {% endblock %}

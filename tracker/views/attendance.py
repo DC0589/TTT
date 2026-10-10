@@ -33,14 +33,17 @@ def student_attendance_mark(request, action):
     if action not in {"in", "out"}:
         raise PermissionDenied
     try:
+        location = service.parse_location(
+            request.POST.get("latitude"), request.POST.get("longitude"), request.POST.get("accuracy")
+        )
         if action == "in":
-            record, created = service.check_in(request.user)
+            record, created = service.check_in(request.user, location)
             if created:
                 messages.success(request, f"Checked in at {timezone.localtime(record.check_in):%I:%M %p}.")
             else:
                 messages.info(request, "You have already checked in today.")
         else:
-            record, changed = service.check_out(request.user)
+            record, changed = service.check_out(request.user, location)
             if changed:
                 messages.success(request, f"Checked out at {timezone.localtime(record.check_out):%I:%M %p}.")
             else:

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Login activity{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">ACCESS</p><h1>Login activity</h1><p>See who is signed in right now and a log of every sign-in. A person counts as online if active in the last {{ window_minutes }} minutes.</p></div>
+</section>
+
+<section class="panel">
+  <div class="section-heading section-heading-panel"><div><p class="eyebrow">LIVE</p><h2>Currently logged in <span class="nav-badge">{{ online|length }}</span></h2></div></div>
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>User</th><th>Role</th><th>Signed in</th><th>Last active</th><th>IP address</th></tr></thead>
+    <tbody>
+    {% for log in online %}
+    <tr>
+      <td><span class="online-dot" aria-hidden="true"></span> <strong>{{ log.user.username }}</strong></td>
+      <td>{% if log.user.is_admin %}Admin{% elif log.user.is_hr %}HR{% else %}Student{% endif %}</td>
+      <td>{{ log.logged_in_at|date:"d M, h:i A" }}</td>
+      <td>{{ log.last_seen|timesince }} ago</td>
+      <td>{{ log.ip_address|default:"—" }}</td>
+    </tr>
+    {% empty %}<tr><td colspan="5" class="table-empty"><strong>Nobody else is online right now.</strong></td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</section>
+
+<section class="panel">
+  <div class="section-heading section-heading-panel">
+    <div><p class="eyebrow">HISTORY</p><h2>Login log</h2></div>
+    <form method="get" class="inline-filter">
+      <select name="user" onchange="this.form.submit()" aria-label="Filter by user">
+        <option value="">All users</option>
+        {% for u in users %}<option value="{{ u.pk }}"{% if selected_user == u.pk|stringformat:"s" %} selected{% endif %}>{{ u.username }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>User</th><th>Role</th><th>Logged in</th><th>Logged out</th><th>IP address</th><th>Device</th></tr></thead>
+    <tbody>
+    {% for log in page_obj %}
+    <tr>
+      <td><strong>{{ log.user.username }}</strong></td>
+      <td>{% if log.user.is_admin %}Admin{% elif log.user.is_hr %}HR{% else %}Student{% endif %}</td>
+      <td>{{ log.logged_in_at|date:"d M Y, h:i A" }}</td>
+      <td>{% if log.logged_out_at %}{{ log.logged_out_at|date:"d M Y, h:i A" }}{% elif log.pk in online_ids %}<span class="status-badge status-selected">Online</span>{% else %}<span class="status-badge status-pending">Session ended</span>{% endif %}</td>
+      <td>{{ log.ip_address|default:"—" }}</td>
+      <td title="{{ log.user_agent }}">{{ log.user_agent|truncatechars:40|default:"—" }}</td>
+    </tr>
+    {% empty %}<tr><td colspan="6" class="table-empty"><strong>No logins recorded yet.</strong></td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+  {% if page_obj.has_other_pages %}
+  <div class="pagination">
+    {% if page_obj.has_previous %}<a class="button button-secondary" href="?page={{ page_obj.previous_page_number }}{% if selected_user %}&user={{ selected_user }}{% endif %}">Previous</a>{% endif %}
+    <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a class="button button-secondary" href="?page={{ page_obj.next_page_number }}{% if selected_user %}&user={{ selected_user }}{% endif %}">Next</a>{% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -23,7 +23,19 @@ def approved_leave_on(student, day):
     ).first()
 
 
-def check_in(student, now=None):
+def parse_location(lat, lng, accuracy=None):
+    """Validate browser geolocation values. Returns (lat, lng, accuracy)."""
+    try:
+        lat, lng = float(lat), float(lng)
+        accuracy = float(accuracy) if accuracy not in (None, "") else None
+    except (TypeError, ValueError):
+        raise AttendanceError("Location is required. Allow location access in your browser and try again.")
+    if not (-90 <= lat <= 90 and -180 <= lng <= 180):
+        raise AttendanceError("Location looks invalid. Please try again.")
+    return lat, lng, accuracy
+
+
+def check_in(student, location, now=None):
     """Record today's check-in. Returns (record, created)."""
     now = now or timezone.now()
     today = timezone.localdate(now)
@@ -31,12 +43,14 @@ def check_in(student, now=None):
         raise AttendanceError("Attendance is only for students in an active batch.")
     if approved_leave_on(student, today):
         raise AttendanceError("You have approved leave today.")
+    lat, lng, accuracy = location
     return Attendance.objects.get_or_create(
-        student=student, date=today, defaults={"check_in": now}
+        student=student, date=today,
+        defaults={"check_in": now, "check_in_lat": lat, "check_in_lng": lng, "check_in_accuracy": accuracy},
     )
 
 
-def check_out(student, now=None):
+def check_out(student, location, now=None):
     """Record today's check-out. Returns (record, changed)."""
     now = now or timezone.now()
     today = timezone.localdate(now)
@@ -49,7 +63,8 @@ def check_out(student, now=None):
         if record.check_out:
             return record, False
         record.check_out = now
-        record.save(update_fields=["check_out"])
+        record.check_out_lat, record.check_out_lng, record.check_out_accuracy = location
+        record.save(update_fields=["check_out", "check_out_lat", "check_out_lng", "check_out_accuracy"])
     return record, True
 
 

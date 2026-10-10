@@ -8,6 +8,12 @@ class Attendance(models.Model):
     date = models.DateField()
     check_in = models.DateTimeField()
     check_out = models.DateTimeField(null=True, blank=True)
+    check_in_lat = models.FloatField(null=True, blank=True)
+    check_in_lng = models.FloatField(null=True, blank=True)
+    check_in_accuracy = models.FloatField(null=True, blank=True)
+    check_out_lat = models.FloatField(null=True, blank=True)
+    check_out_lng = models.FloatField(null=True, blank=True)
+    check_out_accuracy = models.FloatField(null=True, blank=True)
 
     class Meta:
         ordering = ["-date"]
@@ -22,6 +28,20 @@ class Attendance(models.Model):
             return None
         minutes = int((self.check_out - self.check_in).total_seconds() // 60)
         return f"{minutes // 60}h {minutes % 60:02d}m"
+
+    @staticmethod
+    def _map_url(lat, lng):
+        if lat is None or lng is None:
+            return ""
+        return f"https://www.google.com/maps?q={lat:.6f},{lng:.6f}"
+
+    @property
+    def check_in_map_url(self):
+        return self._map_url(self.check_in_lat, self.check_in_lng)
+
+    @property
+    def check_out_map_url(self):
+        return self._map_url(self.check_out_lat, self.check_out_lng)
 
     def __str__(self):
         return f"{self.student} - {self.date}"
@@ -63,3 +83,20 @@ class LeaveRequest(models.Model):
 
     def __str__(self):
         return f"{self.student}: {self.start_date} to {self.end_date} ({self.status})"
+
+
+class LoginLog(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="login_logs")
+    session_key = models.CharField(max_length=40, blank=True, db_index=True)
+    logged_in_at = models.DateTimeField(auto_now_add=True)
+    last_seen = models.DateTimeField(auto_now_add=True)
+    logged_out_at = models.DateTimeField(null=True, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["-logged_in_at"]
+        indexes = [models.Index(fields=["-logged_in_at"]), models.Index(fields=["logged_out_at", "last_seen"])]
+
+    def __str__(self):
+        return f"{self.user} @ {self.logged_in_at:%Y-%m-%d %H:%M}"

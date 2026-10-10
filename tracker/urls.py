@@ -57,6 +57,7 @@ urlpatterns = [
     path("student/leave/apply/", v.student_leave_apply, name="student_leave_apply"),
     path("student/leave/<int:pk>/cancel/", v.student_leave_cancel, name="student_leave_cancel"),
     path("staff/attendance/", v.staff_attendance, name="staff_attendance"),
+    path("staff/login-activity/", v.login_activity, name="login_activity"),
     path("staff/leaves/", v.staff_leaves, name="staff_leaves"),
     path("staff/leaves/<int:pk>/<str:decision>/", v.staff_leave_review, name="staff_leave_review"),
     path("staff/selections/", v.staff_selections, name="staff_selections"),

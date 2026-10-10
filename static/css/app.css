@@ -1079,3 +1079,6 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
 .company-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .company-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: #fff; font-size: 13px; color: var(--ink-soft); }
 .company-chip strong { color: var(--ink); }
+.online-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,.2); }
+.geo-note { margin: 12px 0 0; font-size: 13px; opacity: .75; }
+.inline-filter select { min-width: 192px; }
