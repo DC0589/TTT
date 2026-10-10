@@ -1076,3 +1076,6 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
 .leave-review { display: grid; gap: 6px; min-width: 190px; }
 .leave-review .form-control { min-height: 34px; font-size: 12px; }
 @media (max-width: 600px) { .att-times { grid-template-columns: 1fr; } }
+.company-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.company-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: #fff; font-size: 13px; color: var(--ink-soft); }
+.company-chip strong { color: var(--ink); }

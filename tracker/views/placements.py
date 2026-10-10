@@ -21,6 +21,7 @@ from ..placed_import import parse_placements, read_csv_rows, read_xlsx_rows
 logger = logging.getLogger(__name__)
 
 from ..permissions import admin_required, staff_required
+from ..services.placements import import_placements, top_companies
 
 
 @admin_required
@@ -29,6 +30,7 @@ def admin_placed_students(request):
     page_obj = Paginator(PlacedStudent.objects.all(), 50).get_page(request.GET.get("page"))
     return render(request, "tracker/admin/placed_students.html", {
         "page_obj": page_obj, "total": page_obj.paginator.count,
+        "top_companies": top_companies(),
     })
 
 
@@ -51,22 +53,8 @@ def admin_placed_import(request):
     if error:
         messages.error(request, error)
         return redirect("admin_placed_students")
-    existing = {
-        (n.lower(), c.lower())
-        for n, c in PlacedStudent.objects.values_list("name", "company")
-    }
-    created = []
-    for entry in entries:
-        key = (entry["name"].lower(), entry["company"].lower())
-        if key in existing:
-            continue
-        existing.add(key)
-        created.append(PlacedStudent(**entry))
-    PlacedStudent.objects.bulk_create(created)
-    messages.success(
-        request,
-        f"Imported {len(created)} placement(s); skipped {len(entries) - len(created)} duplicate row(s).",
-    )
+    created, skipped = import_placements(entries)
+    messages.success(request, f"Imported {created} placement(s); skipped {skipped} duplicate row(s).")
     return redirect("admin_placed_students")
 
 

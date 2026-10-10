@@ -1,7 +1,7 @@
 from django.db import models
 
 from .batches import Group
-from .placements import record_placement
+from .placements import Company, Role
 from .users import User
 
 
@@ -27,6 +27,12 @@ class Interview(models.Model):
     group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name="interviews")
     company_name = models.CharField(max_length=150)
     role = models.CharField(max_length=150)
+    company_ref = models.ForeignKey(
+        Company, null=True, blank=True, on_delete=models.SET_NULL, related_name="interviews"
+    )
+    role_ref = models.ForeignKey(
+        Role, null=True, blank=True, on_delete=models.SET_NULL, related_name="interviews"
+    )
     job_posting_url = models.URLField(blank=True)
     date_of_interview = models.DateField()
     time_of_interview = models.TimeField(blank=True, null=True)
@@ -40,6 +46,11 @@ class Interview(models.Model):
 
     class Meta:
         ordering = ["-date_of_interview", "-created_at"]
+
+    def save(self, *args, **kwargs):
+        self.company_ref = Company.objects.for_name(self.company_name)
+        self.role_ref = Role.objects.for_name(self.role)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.company_name} - {self.role}"
@@ -148,6 +159,8 @@ class InterviewStatus(models.Model):
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         if self.final_status == self.SELECTED:
+            from ..services.placements import record_placement
+
             record_placement(
                 self.interview.student, self.interview.company_name, self.interview.group.name
             )

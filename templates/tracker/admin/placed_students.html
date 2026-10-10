@@ -10,6 +10,12 @@
     <button class="button button-primary" type="submit">Import</button>
   </form>
 </section>
+{% if top_companies %}
+<section class="content-section">
+  <div class="section-heading"><div><p class="eyebrow">WHERE THEY WORK</p><h2>Top hiring companies</h2></div></div>
+  <div class="company-chips">{% for c in top_companies %}<span class="company-chip"><strong>{{ c.name }}</strong> {{ c.total }}</span>{% endfor %}</div>
+</section>
+{% endif %}
 <section class="content-section">
   <div class="table-wrap"><table class="data-table">
     <thead><tr><th>Name</th><th>Batch</th><th>Company</th><th>Year</th><th></th></tr></thead>

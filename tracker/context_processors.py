@@ -3,7 +3,8 @@ from datetime import timedelta
 from django.core.cache import cache
 from django.utils import timezone
 
-from .models import GroupMembership, InterviewStatus, LeaveRequest, PlacedStudent, Selection
+from .models import GroupMembership, InterviewStatus, LeaveRequest, Selection
+from .services.placements import placed_company_names
 
 BANNER_CACHE_KEY = "celebration-banner-data"
 BANNER_CACHE_SECONDS = 300
@@ -34,12 +35,7 @@ def _build_banner_data():
         final_status=InterviewStatus.SELECTED
     ).select_related("interview__student")
 
-    companies = {}
-    for company in PlacedStudent.objects.values_list("company", flat=True):
-        name = company.strip()
-        if name:
-            companies.setdefault(name.lower(), name)
-    placed = sorted(companies.values(), key=str.lower)
+    placed = placed_company_names()
 
     since = timezone.now() - timedelta(days=CELEBRATION_DAYS)
     recent = [

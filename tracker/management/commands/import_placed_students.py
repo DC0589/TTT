@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand, CommandError
 
-from tracker.models import PlacedStudent
+from tracker.services.placements import import_placements
 from tracker.placed_import import parse_placements, read_csv_rows, read_xlsx_rows
 
 
@@ -20,17 +20,7 @@ class Command(BaseCommand):
         entries, error = parse_placements(rows)
         if error:
             raise CommandError(error)
-        existing = {
-            (n.lower(), c.lower())
-            for n, c in PlacedStudent.objects.values_list("name", "company")
-        }
-        created = []
-        for entry in entries:
-            key = (entry["name"].lower(), entry["company"].lower())
-            if key not in existing:
-                existing.add(key)
-                created.append(PlacedStudent(**entry))
-        PlacedStudent.objects.bulk_create(created)
+        created, skipped = import_placements(entries)
         self.stdout.write(self.style.SUCCESS(
-            f"Imported {len(created)} placement(s); skipped {len(entries) - len(created)} duplicate(s)."
+            f"Imported {created} placement(s); skipped {skipped} duplicate(s)."
         ))
