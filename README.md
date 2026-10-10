@@ -48,8 +48,10 @@ Import the placed-students spreadsheet from the admin "Placed students" page.
 
 ## Architecture notes
 
-- `tracker/models.py` – data model. `User.data_owner` resolves the admin whose data a user works with (an HR user's creating admin).
-- `tracker/views.py` – HTTP handlers. Role checks use the `admin_required`, `hr_required`, `student_required` and `staff_required` decorators.
+- `tracker/models/` – data model split by domain (users, batches, learning, interviews, placements incl. `Company`/`Role`, attendance). `User.data_owner` resolves the admin whose data a user works with (an HR user's creating admin).
+- `tracker/views/` – thin HTTP handlers per feature. Role decorators live in `tracker/permissions.py`.
+- `tracker/services/` – business rules (attendance, placements, registration OTP, notifications).
+- `tracker/tasks.py` – `enqueue()` task runner; synchronous by default, `BACKGROUND_TASKS=thread` offloads to a worker thread.
 - `tracker/throttle.py` – cache-based rate limiting for sign-in, registration and OTP endpoints (`THROTTLE_ENABLED`).
 - `tracker/context_processors.py` – scrolling banners, cached for 5 minutes and cleared when a placement or selection changes.
 - Run `make lint` and `make test` before pushing.

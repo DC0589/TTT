@@ -4,7 +4,6 @@ from django.db import models
 
 from .users import User
 
-
 LEGAL_SUFFIXES = {"pvt", "private", "ltd", "limited", "llp", "inc", "corp", "corporation"}
 
 

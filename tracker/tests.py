@@ -1,7 +1,7 @@
-from datetime import date, timedelta
 import base64
 import json
 import re
+from datetime import date, timedelta
 from io import BytesIO
 from unittest.mock import MagicMock, patch
 from urllib.error import HTTPError, URLError
@@ -15,12 +15,19 @@ from django.test import Client, RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import (
-    Group, GroupMembership, Interview, InterviewRound, InterviewStatus,
-    LearningCourse, MockInterviewScore, MockInterviewSession,
-    StudentRegistrationRequest, User,
-)
 from .ai_interview import GeminiAPIError, generate_json
+from .models import (
+    Group,
+    GroupMembership,
+    Interview,
+    InterviewRound,
+    InterviewStatus,
+    LearningCourse,
+    MockInterviewScore,
+    MockInterviewSession,
+    StudentRegistrationRequest,
+    User,
+)
 
 
 def _without_banners(response):
@@ -1614,6 +1621,7 @@ class PrepTrackerTests(TestCase):
 class RetentionTests(TestCase):
     def setUp(self):
         from datetime import timedelta
+
         from django.utils import timezone
         self.student = User.objects.create_user("ret", password="pw", is_student=True)
         events = [{"type": "tab_hidden", "at": "x"}, {"type": "copy", "at": "x"}]

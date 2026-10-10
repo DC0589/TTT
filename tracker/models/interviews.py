@@ -4,7 +4,6 @@ from .batches import Group
 from .placements import Company, Role
 from .users import User
 
-
 BADGES = {
     "selected": "status-selected",
     "not-selected": "status-not-selected",

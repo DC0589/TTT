@@ -77,6 +77,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"  # Added for collectstatic
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CRON_SECRET = os.environ.get("CRON_SECRET", "")
+BACKGROUND_TASKS = os.environ.get("BACKGROUND_TASKS", "sync")
 MOCK_RETENTION_DAYS = int(os.environ.get("MOCK_RETENTION_DAYS", "30"))
 MOCK_MAX_INTEGRITY_FLAGS = int(os.environ.get("MOCK_MAX_INTEGRITY_FLAGS", "5"))
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")

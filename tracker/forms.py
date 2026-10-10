@@ -1,14 +1,25 @@
-from django import forms
 import logging
 
+from django import forms
 from django.contrib.auth.forms import PasswordResetForm, UserCreationForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.validators import RegexValidator
 from django.utils import timezone
 
 from .models import (
-    Group, GroupMembership, Interview, InterviewNote, InterviewRound, InterviewStatus, LearningCourse,
-    LeaveRequest, MockQuestion, PlacedStudent, Selection, StudentRegistrationRequest, User,
+    Group,
+    GroupMembership,
+    Interview,
+    InterviewNote,
+    InterviewRound,
+    InterviewStatus,
+    LearningCourse,
+    LeaveRequest,
+    MockQuestion,
+    PlacedStudent,
+    Selection,
+    StudentRegistrationRequest,
+    User,
 )
 
 INPUT = "form-control"
@@ -338,7 +349,8 @@ class RoundStatusForm(forms.ModelForm):
         if status and status != InterviewRound.PENDING:
             rnd = self.instance
             if rnd.scheduled_date:
-                from datetime import datetime, time as dtime
+                from datetime import datetime
+                from datetime import time as dtime
                 when = datetime.combine(rnd.scheduled_date, rnd.scheduled_time or dtime.min)
                 if timezone.make_aware(when) > timezone.now():
                     raise forms.ValidationError("You can update the result only after the round time has passed.")

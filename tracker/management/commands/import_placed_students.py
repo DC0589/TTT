@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
 
-from tracker.services.placements import import_placements
 from tracker.placed_import import parse_placements, read_csv_rows, read_xlsx_rows
+from tracker.services.placements import import_placements
 
 
 class Command(BaseCommand):
