@@ -168,7 +168,7 @@
         <span class="ticker-label">Placed</span>
         <div class="ticker-track"><div class="ticker-move" style="animation-duration: {{ placed_loop.duration }}s">
           {% for half in "12" %}<span class="ticker-group"{% if half == "2" %} aria-hidden="true"{% endif %}>
-            {% for r in placed_loop.repeats %}<span class="ticker-item">Our students are working in</span>{% for c in placed_companies %}<span class="ticker-item"><strong>{{ c }}</strong></span><span class="ticker-sep" aria-hidden="true">•</span>{% endfor %}{% endfor %}
+            {% for r in placed_loop.repeats %}<span class="ticker-item">Our students are working in </span>{% for c in placed_companies %}<span class="ticker-item"><strong>{{ c }}</strong></span><span class="ticker-sep" aria-hidden="true">•</span>{% endfor %}{% endfor %}
           </span>{% endfor %}
         </div></div>
       </div>

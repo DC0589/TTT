@@ -2,7 +2,7 @@
 {% block title %}Placed students{% endblock %}
 {% block content %}
 <section class="page-heading">
-  <div><p class="eyebrow">PLACEMENTS</p><h1>Placed students</h1><p>{{ total }} placement{{ total|pluralize }}. The companies here appear in the "Our students are working in" banner.</p></div>
+  <div><p class="eyebrow">PLACEMENTS</p><h1>Placed students</h1><p>{{ total }} placement{{ total|pluralize }}. The companies here appear in the "Our students are working in " banner.</p></div>
 </section>
 <section class="panel">
   <form class="question-bank-import" method="post" action="{% url 'admin_placed_import' %}" enctype="multipart/form-data">{% csrf_token %}
