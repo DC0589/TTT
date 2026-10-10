@@ -52,7 +52,7 @@ class MockInterviewSession(models.Model):
 
     INTEGRITY_PENALTIES = {
         "tab_hidden": 10, "window_blur": 5, "paste": 10, "copy": 3,
-        "context_menu": 2, "devtools_key": 5, "auto_ended": 0,
+        "context_menu": 2, "devtools_key": 5, "screen_share_stopped": 10, "auto_ended": 0,
     }
 
     @property

@@ -4,7 +4,6 @@ import json
 import logging
 import re
 
-from django.conf import settings
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
@@ -266,7 +265,7 @@ def student_mock_interview_ai(request):
             events = data.get("events")
             if not isinstance(events, list):
                 return JsonResponse({"error": "Invalid events."}, status=400)
-            allowed = {"tab_hidden", "window_blur", "paste", "copy", "context_menu", "devtools_key"}
+            allowed = {"tab_hidden", "window_blur", "paste", "copy", "context_menu", "devtools_key", "screen_share_stopped"}
             stored = list(session.integrity_events or [])
             for event in events[:20]:
                 if not isinstance(event, dict) or event.get("type") not in allowed:
@@ -281,19 +280,8 @@ def student_mock_interview_ai(request):
                     "detail": detail[:80] if isinstance(detail, str) else "",
                 })
             session.integrity_events = stored
-            limit = settings.MOCK_MAX_INTEGRITY_FLAGS
-            terminate = bool(limit) and session.completed_at is None and not session.auto_ended \
-                and session.integrity_flag_count >= limit
-            if terminate:
-                session.integrity_events = stored + [{
-                    "type": "auto_ended", "at": timezone.localtime().isoformat(timespec="seconds"),
-                    "question": None, "detail": f"limit {limit}",
-                }]
             session.save(update_fields=["integrity_events"])
-            return JsonResponse({
-                "ok": True, "flags": session.integrity_flag_count,
-                "limit": limit, "terminate": terminate,
-            })
+            return JsonResponse({"ok": True, "flags": session.integrity_flag_count, "terminate": False})
 
         if action == "retry":
             return JsonResponse({"requeued": mock_scoring.retry_failed(session)})

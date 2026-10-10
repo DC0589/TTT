@@ -77,7 +77,7 @@
   let role = '';
   let difficulty = 'medium';
   let sessionId = null;
-  window.__mockEnd = message => endSession(message, 'Automatically ended: too many integrity flags');
+  window.__mockReport = type => window.__mockIntegrityReport && window.__mockIntegrityReport(type);
   window.__mockIntegrity = () => ({ sessionId, question: typeof questionNumber === 'number' ? questionNumber : null });
   let questions = [];
   let pendingFeedback = [];
@@ -640,7 +640,7 @@
       submittedAnswers = 0;
       ending = false;
       setStatus(sessionStatus, liteMode ? 'Practice mode is on. Ten questions are ready.' : 'Camera and screen are live. Ten questions are ready.');
-      if (!liteMode) screenStream.getVideoTracks()[0].addEventListener('ended', () => endSession('Screen sharing stopped. Session ended.', 'Automatically ended: screen sharing stopped'));
+      if (!liteMode) screenStream.getVideoTracks()[0].addEventListener('ended', () => { setStatus(sessionStatus, 'Screen sharing stopped. Your trainer will see this. You can continue answering.'); if (window.__mockReport) window.__mockReport('screen_share_stopped'); });
     } catch (error) {
       stopCapture();
       session.hidden = true;
@@ -850,12 +850,9 @@
         action: 'integrity', consent: true, session_id: state.sessionId,
         events: [{ type, detail: detail || '', question: state.question }],
       }),
-    }).then(r => r.json()).then(result => {
-      if (result && result.terminate && window.__mockEnd) {
-        window.__mockEnd('This session has ended. Your trainer will review it.');
-      }
     }).catch(() => {});
   };
+  window.__mockIntegrityReport = report;
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { leftAt = Date.now(); report('tab_hidden'); }
