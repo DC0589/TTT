@@ -43,6 +43,16 @@
   </div>
 </section>
 <section class="content-section">
+  <div class="section-heading"><div><p class="eyebrow">OUTCOMES</p><h2>Placements</h2></div><span class="section-meta">{{ placements|length }} selection{{ placements|length|pluralize }}</span></div>
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>Company</th><th>Role</th><th>Date</th><th>Source</th></tr></thead>
+    <tbody>
+    {% for p in placements %}<tr><td><strong>{{ p.company }}</strong></td><td>{{ p.role|default:"—" }}</td><td>{{ p.date|date:"d M Y" }}</td><td>{{ p.source }}</td></tr>
+    {% empty %}<tr><td colspan="4" class="table-empty"><strong>No selections yet.</strong></td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</section>
+<section class="content-section">
   <div class="section-heading"><div><p class="eyebrow">CAREER PROGRESS</p><h2>Interview history</h2></div><span class="section-meta">{{ interviews|length }} interview{{ interviews|length|pluralize }}</span></div>
   {% include "tracker/_interview_table.html" with show_student=False link=False %}
 </section>

@@ -1060,8 +1060,17 @@ def admin_student_detail(request, pk):
     interviews = (Interview.objects.filter(
         student=student, group__admin=request.user
     ).select_related("group", "status").prefetch_related("rounds"))
+    placements = [
+        {"company": i.company_name, "role": i.role, "date": i.status.updated_at, "source": "Interview"}
+        for i in interviews if i.final_status == InterviewStatus.SELECTED
+    ] + [
+        {"company": x.company, "role": x.role, "date": x.created_at, "source": "Added by staff"}
+        for x in student.selections.all()
+    ]
+    placements.sort(key=lambda p: p["date"], reverse=True)
     return render(request, "tracker/admin/student_detail.html", {
         "student": student,
+        "placements": placements,
         "memberships": student.memberships.filter(
             group__admin=request.user).select_related("group"),
         "interviews": interviews,
