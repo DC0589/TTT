@@ -134,21 +134,14 @@ def admin_mock_interviews_export(request):
     writer = csv.writer(response)
     writer.writerow([
         "Date (IST)", "Student", "Topic", "Level", "Rating (out of 5)", "Answers submitted",
-        "Answers expected", "Integrity score", "Integrity flags", "Auto-ended", "Flag summary",
+        "Answers expected",
     ])
     for session in f["sessions"].order_by("-created_at"):
-        counts = {}
-        for event in session.integrity_events or []:
-            if event.get("type") != "auto_ended":
-                counts[event.get("type")] = counts.get(event.get("type"), 0) + 1
         writer.writerow([_csv_safe(x) for x in [
             timezone.localtime(session.created_at).strftime("%Y-%m-%d %H:%M"),
             session.student.username, session.role, session.difficulty or "",
             f"{session.rating:.1f}" if session.rating is not None else "",
             len(session.scores.all()), session.expected_answers,
-            session.integrity_score, session.integrity_flag_count,
-            "yes" if session.auto_ended else "no",
-            "; ".join(f"{k}: {n}" for k, n in sorted(counts.items())),
         ]])
     return response
 
@@ -255,34 +248,12 @@ def student_mock_interview_ai(request):
     if action == "drain":
         scored = mock_scoring.process_pending(max_items=1, time_budget=DRAIN_SECONDS)
         return JsonResponse({"scored": scored, "waiting": mock_scoring.pending_count()})
-    if action in {"finish", "results", "integrity", "retry"}:
+    if action in {"finish", "results", "retry"}:
         session = MockInterviewSession.objects.filter(
             pk=session_id, student=request.user
         ).first()
         if session is None:
             return JsonResponse({"error": "Interview session not found."}, status=404)
-        if action == "integrity":
-            events = data.get("events")
-            if not isinstance(events, list):
-                return JsonResponse({"error": "Invalid events."}, status=400)
-            allowed = {"tab_hidden", "window_blur", "paste", "copy", "context_menu", "devtools_key", "screen_share_stopped"}
-            stored = list(session.integrity_events or [])
-            for event in events[:20]:
-                if not isinstance(event, dict) or event.get("type") not in allowed:
-                    continue
-                if len(stored) >= 300:
-                    break
-                detail = event.get("detail")
-                stored.append({
-                    "type": event["type"],
-                    "at": timezone.localtime().isoformat(timespec="seconds"),
-                    "question": event.get("question") if type(event.get("question")) is int else None,
-                    "detail": detail[:80] if isinstance(detail, str) else "",
-                })
-            session.integrity_events = stored
-            session.save(update_fields=["integrity_events"])
-            return JsonResponse({"ok": True, "flags": session.integrity_flag_count, "terminate": False})
-
         if action == "retry":
             return JsonResponse({"requeued": mock_scoring.retry_failed(session)})
 

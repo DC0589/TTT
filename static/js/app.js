@@ -77,8 +77,6 @@
   let role = '';
   let difficulty = 'medium';
   let sessionId = null;
-  window.__mockReport = type => window.__mockIntegrityReport && window.__mockIntegrityReport(type);
-  window.__mockIntegrity = () => ({ sessionId, question: typeof questionNumber === 'number' ? questionNumber : null });
   let questions = [];
   let pendingFeedback = [];
   let failedQuestionNumbers = [];
@@ -640,7 +638,7 @@
       submittedAnswers = 0;
       ending = false;
       setStatus(sessionStatus, liteMode ? 'Practice mode is on. Ten questions are ready.' : 'Camera and screen are live. Ten questions are ready.');
-      if (!liteMode) screenStream.getVideoTracks()[0].addEventListener('ended', () => { setStatus(sessionStatus, 'Screen sharing stopped. Your trainer will see this. You can continue answering.'); if (window.__mockReport) window.__mockReport('screen_share_stopped'); });
+      if (!liteMode) screenStream.getVideoTracks()[0].addEventListener('ended', () => { setStatus(sessionStatus, 'Screen sharing stopped. You can continue answering.'); });
     } catch (error) {
       stopCapture();
       session.hidden = true;
@@ -825,51 +823,4 @@
   if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
   poll();
   setInterval(poll, 20000);
-})();
-
-(function () {
-  const interview = document.querySelector('[data-mock-interview]');
-  if (!interview) return;
-  const url = interview.dataset.aiUrl;
-  const csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value
-    || (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
-  const warning = interview.querySelector('[data-integrity-warning]');
-  const getState = () => window.__mockIntegrity && window.__mockIntegrity();
-  let leftAt = null;
-  let count = 0;
-
-  const report = (type, detail) => {
-    const state = getState();
-    if (!state || !state.sessionId) return;
-    count += 1;
-    fetch(url, {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-      body: JSON.stringify({
-        action: 'integrity', consent: true, session_id: state.sessionId,
-        events: [{ type, detail: detail || '', question: state.question }],
-      }),
-    }).catch(() => {});
-  };
-  window.__mockIntegrityReport = report;
-
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { leftAt = Date.now(); report('tab_hidden'); }
-    else if (leftAt) { leftAt = null; }
-  });
-  window.addEventListener('blur', () => {
-    setTimeout(() => { if (!document.hidden) report('window_blur'); }, 400);
-  });
-  document.addEventListener('paste', event => {
-    const text = (event.clipboardData && event.clipboardData.getData('text')) || '';
-    report('paste', `${text.length} chars`);
-  });
-  document.addEventListener('copy', () => report('copy'));
-  document.addEventListener('contextmenu', () => report('context_menu'));
-  document.addEventListener('keydown', event => {
-    const k = event.key.toLowerCase();
-    if (event.key === 'F12' || ((event.ctrlKey || event.metaKey) && event.shiftKey && ['i', 'j', 'c'].includes(k))
-      || ((event.ctrlKey || event.metaKey) && k === 'u')) report('devtools_key', event.key);
-  });
 })();
