@@ -928,6 +928,7 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
 .ticker-group { display: flex; align-items: center; flex: none; }
 .ticker-item { white-space: nowrap; color: var(--ink-soft); }
 .ticker-item strong { color: var(--ink); }
+.ticker-intro { margin-right: 8px; }
 .ticker-sep { padding: 0 14px; color: var(--muted); }
 @keyframes ticker-scroll { to { transform: translateX(-50%); } }
 @media (prefers-reduced-motion: reduce) { .ticker-move { animation: none; } .ticker-track { overflow-x: auto; } }
