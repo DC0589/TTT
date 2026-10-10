@@ -14,3 +14,10 @@ venv/
 db.sqlite3
 staticfiles/
 .DS_Store
+
+# Local data and scratch files (may contain personal data)
+*.xlsx
+~$*
+improvements/
+suggestions/
+mock_interview_questions/

@@ -32,6 +32,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
+from .throttle import client_ip, count as throttle_count, hit as throttle_hit, throttle_post
 from .forms import (
     AddMemberForm, FinalStatusForm, GroupForm, HRUserForm, InterviewAdminNotesForm, NoteReplyForm, InterviewForm, InterviewNotesForm,
     LearningCourseForm, MockQuestionForm, RegistrationOTPForm, LeaveRequestForm, PlacedStudentForm, RoundForm, SelectionForm, RoundScheduleForm,
@@ -139,8 +140,29 @@ def dashboard_for(user):
     return "student_dashboard"
 
 
+LOGIN_FAILURE_LIMIT = 8
+LOGIN_FAILURE_WINDOW = 15 * 60
+
+
 class RoleLoginView(LoginView):
     redirect_authenticated_user = True
+
+    def _failure_key(self):
+        username = (self.request.POST.get("username") or "").strip().lower()
+        return f"login-fail:{client_ip(self.request)}:{username}"
+
+    def post(self, request, *args, **kwargs):
+        if settings.THROTTLE_ENABLED and throttle_count(self._failure_key()) >= LOGIN_FAILURE_LIMIT:
+            return HttpResponse(
+                "Too many failed sign-in attempts. Please wait 15 minutes and try again.",
+                status=429,
+            )
+        return super().post(request, *args, **kwargs)
+
+    def form_invalid(self, form):
+        if settings.THROTTLE_ENABLED:
+            throttle_hit(self._failure_key(), LOGIN_FAILURE_WINDOW)
+        return super().form_invalid(form)
 
     def get_default_redirect_url(self):
         from django.urls import reverse
@@ -151,6 +173,7 @@ def home(request):
     return redirect(dashboard_for(request.user) if request.user.is_authenticated else "login")
 
 
+@throttle_post("register", 10, 3600)
 def register(request):
     form = StudentRegistrationForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -196,6 +219,7 @@ def register(request):
 
 
 @require_POST
+@throttle_post("otp-resend", 10, 3600)
 def resend_registration_otp(request, pk):
     with transaction.atomic():
         registration = get_object_or_404(
@@ -254,6 +278,7 @@ def registration_submitted(request):
 
 
 @require_http_methods(["GET", "POST"])
+@throttle_post("otp-verify", 30, 3600)
 def verify_registration(request, pk):
     with transaction.atomic():
         registration = get_object_or_404(
@@ -406,7 +431,7 @@ def admin_dashboard(request):
     })
 
 
-@staff_required
+@admin_required
 def admin_hr_user_add(request):
     form = HRUserForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -459,7 +484,7 @@ def admin_student_add(request):
 
 
 def _filtered_interviews(request):
-    owner = request.user.created_by if request.user.is_hr else request.user
+    owner = request.user.data_owner
     interviews = (
         Interview.objects.filter(group__admin=owner)
         .select_related("student", "group", "status")
@@ -678,7 +703,7 @@ def admin_reports(request):
 
 
 def _mock_review_filters(request):
-    owner = request.user.created_by if request.user.is_hr else request.user
+    owner = request.user.data_owner
     groups = owner.groups_created.order_by("name")
     batch_value = request.GET.get("batch", "")
     selected_group = groups.filter(pk=int(batch_value)).first() if batch_value.isdigit() else None
@@ -812,7 +837,7 @@ def admin_mock_interviews_report(request):
 
 @staff_required
 def admin_interview_detail(request, pk):
-    owner = request.user.created_by if request.user.is_hr else request.user
+    owner = request.user.data_owner
     interview = get_object_or_404(
         Interview.objects.select_related("student", "group", "status").prefetch_related("rounds"),
         pk=pk,
@@ -1085,7 +1110,7 @@ def admin_groups(request):
     view_mode = request.GET.get("view", "table")
     if view_mode not in {"cards", "table", "list"}:
         view_mode = "table"
-    owner = request.user.created_by if request.user.is_hr else request.user
+    owner = request.user.data_owner
     groups = Group.objects.filter(admin=owner).annotate(
         member_count=Count("memberships", distinct=True),
         interview_count=Count("interviews", distinct=True),
@@ -1103,7 +1128,7 @@ def admin_group_add(request):
     form = GroupForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         group = form.save(commit=False)
-        group.admin = request.user.created_by if request.user.is_hr else request.user
+        group.admin = request.user.data_owner
         group.save()
         messages.success(request, "Batch created.")
         return redirect("admin_group_detail", pk=group.pk)
@@ -1133,7 +1158,7 @@ def admin_group_edit(request, pk):
 @staff_required
 @require_GET
 def admin_group_detail(request, pk):
-    owner = request.user.created_by if request.user.is_hr else request.user
+    owner = request.user.data_owner
     group = get_object_or_404(Group, pk=pk, admin=owner)
     return render(request, "tracker/admin/group_detail.html", {
         "group": group,
@@ -1149,7 +1174,7 @@ def admin_group_detail(request, pk):
 
 @staff_required
 def admin_group_member_add(request, pk):
-    owner = request.user.created_by if request.user.is_hr else request.user
+    owner = request.user.data_owner
     group = get_object_or_404(Group, pk=pk, admin=owner)
     form = AddMemberForm(request.POST or None, group=group)
     if request.method == "POST" and form.is_valid():
@@ -1364,7 +1389,7 @@ def student_calendar(request):
 @staff_required
 @require_GET
 def admin_calendar(request):
-    owner = request.user.created_by if request.user.is_hr else request.user
+    owner = request.user.data_owner
     batches = list(Group.objects.filter(admin=owner).order_by("name"))
     selected = next((b for b in batches if str(b.pk) == request.GET.get("batch", "")), None)
 
@@ -2315,7 +2340,7 @@ def admin_questions_import(request):
 
 
 def _attendance_owner(user):
-    return user.created_by if user.is_hr else user
+    return user.data_owner
 
 
 def _is_active_batch_student(user):

@@ -1,9 +1,12 @@
 from datetime import timedelta
 
+from django.core.cache import cache
 from django.utils import timezone
 
 from .models import GroupMembership, InterviewStatus, LeaveRequest, PlacedStudent, Selection
 
+BANNER_CACHE_KEY = "celebration-banner-data"
+BANNER_CACHE_SECONDS = 300
 CELEBRATION_DAYS = 7
 MIN_ITEMS_PER_LOOP = 12
 PLACED_SECONDS_PER_ITEM = 3
@@ -18,11 +21,15 @@ def _loop(count, seconds_per_item):
     }
 
 
-def celebration_banners(request):
-    user = getattr(request, "user", None)
-    if not user or not user.is_authenticated:
-        return {}
+def _banner_data():
+    data = cache.get(BANNER_CACHE_KEY)
+    if data is None:
+        data = _build_banner_data()
+        cache.set(BANNER_CACHE_KEY, data, BANNER_CACHE_SECONDS)
+    return data
 
+
+def _build_banner_data():
     selected = InterviewStatus.objects.filter(
         final_status=InterviewStatus.SELECTED
     ).select_related("interview__student")
@@ -52,10 +59,20 @@ def celebration_banners(request):
         for s in Selection.objects.filter(created_at__gte=since).select_related("student")
     ]
     recent = [item for _, item in sorted(recent, key=lambda x: x[0], reverse=True)[:20]]
+    return {"placed": placed, "recent": recent}
+
+
+def celebration_banners(request):
+    user = getattr(request, "user", None)
+    if not user or not user.is_authenticated:
+        return {}
+
+    banners = _banner_data()
+    placed, recent = banners["placed"], banners["recent"]
 
     pending_leaves = 0
     if user.is_admin or user.is_hr:
-        owner = user.created_by if user.is_hr else user
+        owner = user.data_owner
         pending_leaves = LeaveRequest.objects.filter(
             status=LeaveRequest.PENDING,
             student__in=GroupMembership.objects.filter(group__admin=owner).values("student"),

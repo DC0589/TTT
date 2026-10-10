@@ -23,6 +23,11 @@ from .models import (
 from .ai_interview import GeminiAPIError, generate_json
 
 
+def _without_banners(response):
+    """Page HTML minus the site-wide celebration banners, which list every placement."""
+    return re.sub(r'<div class="ticker-wrap">.*?\n    </div>\n', "", response.content.decode(), flags=re.S)
+
+
 class Base(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -684,7 +689,7 @@ class PermissionTests(Base):
         )
         self.client.force_login(hr)
         for name in (
-            "admin_dashboard", "admin_reports",
+            "admin_reports",
             "admin_hr_user_add",
         ):
             self.assertEqual(self.client.get(reverse(name)).status_code, 403, name)
@@ -1298,7 +1303,7 @@ class ViewTests(Base):
         self.assertContains(response, "Jordan Recruiter")
         self.assertContains(response, "https://example.com/acme")
         self.assertContains(response, "https://example.com/globex")
-        self.assertNotContains(response, "Private Co")
+        self.assertNotIn("Private Co", _without_banners(response))
 
     def test_only_admin_can_manage_courses_and_view_reports(self):
         course = LearningCourse.objects.get(name="Python")
@@ -1420,10 +1425,10 @@ class ViewTests(Base):
             group=new_group, student=self.alice).exists())
         available_response = self.client.get(
             reverse("admin_group_member_add", args=[new_group.pk]))
-        self.assertNotContains(available_response, "alice")
+        self.assertNotIn("alice", _without_banners(available_response))
         self.client.force_login(self.admin)
         group_response = self.client.get(reverse("admin_group_detail", args=[new_group.pk]))
-        self.assertNotContains(group_response, "Acme")
+        self.assertNotIn("Acme", _without_banners(group_response))
         same_group_response = self.client.post(
             reverse("admin_group_member_add", args=[self.group.pk]),
             {"student": self.alice.pk},

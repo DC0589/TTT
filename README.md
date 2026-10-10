@@ -35,3 +35,21 @@ Demo logins (password `demo12345`): `admin`, `alice`, `bob`, `carol`.
 - The responsive interface is served from `static/css/app.css` with lightweight interactions in `static/js/app.js`; no frontend build step is required. Google Fonts are optional, with system font fallbacks when they are unavailable.
 - Students can use **AI Mock Interview** for ten role-specific questions. Answers are sent for evaluation without blocking the next question; after ending, students can review saved ratings and feedback as it loads. With the student's consent, recordings and snapshots are sent to Google Gemini; the app does not save recordings, transcripts, or snapshots. Per-question scores and written feedback are shared with the student's administrator. Google's API data terms apply. Set `GEMINI_API_KEY` in local `.env` and in Vercel project environment variables. The free tier has provider-defined quotas and availability.
 - `python manage.py createsuperuser` creates a user that is automatically flagged `is_admin`.
+
+## Deploying
+
+Vercel does not run migrations. After every deploy that adds a migration, run it against the production database:
+
+```bash
+DATABASE_URL=<production url> SECRET_KEY=<key> python manage.py migrate
+```
+
+Import the placed-students spreadsheet from the admin "Placed students" page.
+
+## Architecture notes
+
+- `tracker/models.py` – data model. `User.data_owner` resolves the admin whose data a user works with (an HR user's creating admin).
+- `tracker/views.py` – HTTP handlers. Role checks use the `admin_required`, `hr_required`, `student_required` and `staff_required` decorators.
+- `tracker/throttle.py` – cache-based rate limiting for sign-in, registration and OTP endpoints (`THROTTLE_ENABLED`).
+- `tracker/context_processors.py` – scrolling banners, cached for 5 minutes and cleared when a placement or selection changes.
+- Run `make lint` and `make test` before pushing.

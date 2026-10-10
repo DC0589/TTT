@@ -24,6 +24,11 @@ class User(AbstractUser):
         related_name="students_created",
     )
 
+    @property
+    def data_owner(self):
+        """The admin whose data this user works with (an HR user's creating admin)."""
+        return (self.created_by or self) if self.is_hr else self
+
     def save(self, *args, **kwargs):
         if self.is_superuser:
             self.is_admin = True
@@ -294,6 +299,9 @@ class InterviewStatus(models.Model):
     final_status = models.CharField(max_length=15, choices=FINAL_CHOICES)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        indexes = [models.Index(fields=["final_status", "updated_at"])]
+
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         if self.final_status == self.SELECTED:
@@ -427,6 +435,7 @@ class PlacedStudent(models.Model):
 
     class Meta:
         ordering = ["-year", "name"]
+        indexes = [models.Index(fields=["company"])]
 
     def __str__(self):
         return f"{self.name} - {self.company}"
@@ -443,6 +452,7 @@ class Selection(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [models.Index(fields=["created_at"])]
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
@@ -461,6 +471,7 @@ class Attendance(models.Model):
 
     class Meta:
         ordering = ["-date"]
+        indexes = [models.Index(fields=["date"])]
         constraints = [
             models.UniqueConstraint(fields=["student", "date"], name="unique_attendance_per_day"),
         ]
@@ -497,6 +508,7 @@ class LeaveRequest(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [models.Index(fields=["status", "start_date"])]
 
     @property
     def days(self):
@@ -511,3 +523,14 @@ class LeaveRequest(models.Model):
 
     def __str__(self):
         return f"{self.student}: {self.start_date} to {self.end_date} ({self.status})"
+
+
+def _invalidate_banner_cache(**kwargs):
+    from django.core.cache import cache
+    from .context_processors import BANNER_CACHE_KEY
+    cache.delete(BANNER_CACHE_KEY)
+
+
+for _model in (PlacedStudent, Selection, InterviewStatus):
+    models.signals.post_save.connect(_invalidate_banner_cache, sender=_model, weak=False)
+    models.signals.post_delete.connect(_invalidate_banner_cache, sender=_model, weak=False)
