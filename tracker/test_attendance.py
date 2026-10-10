@@ -109,6 +109,11 @@ class LocationTests(TestCase):
         self.assertEqual(rec.check_out_lat, 17.4)
         self.assertIn("17.385000,78.486000", rec.check_in_map_url)
 
+    def test_attendance_page_renders(self):
+        self.client.force_login(self.student)
+        response = self.client.get(reverse("student_attendance"))
+        self.assertContains(response, "geo-form")
+
     def test_missing_or_invalid_location_rejected(self):
         self.client.force_login(self.student)
         self.client.post(reverse("student_attendance_mark", args=["in"]))
