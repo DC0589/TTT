@@ -24,6 +24,10 @@
     {
       "path": "/cron/purge-mock-data/",
       "schedule": "30 21 * * *"
+    },
+    {
+      "path": "/cron/close-attendance/",
+      "schedule": "30 14 * * *"
     }
   ]
 }

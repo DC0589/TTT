@@ -16,7 +16,7 @@
     {% else %}<span class="status-badge status-pending">Not checked in</span>{% endif %}
   </div>
   <div class="att-times">
-    <div class="att-time"><small>IN TIME</small><strong>{% if record %}{{ record.check_in|time:"h:i A" }}{% else %}—{% endif %}</strong></div>
+    <div class="att-time"><small>IN TIME</small><strong>{% if record %}{{ record.check_in|time:"h:i A" }}{% else %}—{% endif %}</strong>{% if record.is_late %}<span class="status-badge status-pending">Late</span>{% endif %}</div>
     <div class="att-time"><small>OUT TIME</small><strong>{% if record.check_out %}{{ record.check_out|time:"h:i A" }}{% else %}—{% endif %}</strong></div>
     <div class="att-time"><small>HOURS</small><strong>{{ record.duration|default:"—" }}</strong></div>
   </div>

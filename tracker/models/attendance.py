@@ -1,3 +1,5 @@
+import datetime
+
 from django.db import models
 
 from .users import User
@@ -14,6 +16,11 @@ class Attendance(models.Model):
     check_out_lat = models.FloatField(null=True, blank=True)
     check_out_lng = models.FloatField(null=True, blank=True)
     check_out_accuracy = models.FloatField(null=True, blank=True)
+    is_late = models.BooleanField(default=False)
+    outside_geofence = models.BooleanField(default=False)
+    check_out_outside_geofence = models.BooleanField(default=False)
+    distance_m = models.PositiveIntegerField(null=True, blank=True)
+    auto_closed = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["-date"]
@@ -45,6 +52,24 @@ class Attendance(models.Model):
 
     def __str__(self):
         return f"{self.student} - {self.date}"
+
+
+class AttendanceSettings(models.Model):
+    """Per-admin attendance rules: office location, late cut-off and auto check-out."""
+    admin = models.OneToOneField(User, on_delete=models.CASCADE, related_name="attendance_settings")
+    centre_lat = models.FloatField(null=True, blank=True)
+    centre_lng = models.FloatField(null=True, blank=True)
+    radius_m = models.PositiveIntegerField(default=200)
+    block_outside = models.BooleanField(default=False)
+    late_after = models.TimeField(default=datetime.time(10, 0))
+    auto_close_at = models.TimeField(default=datetime.time(18, 0))
+
+    @property
+    def geofence_enabled(self):
+        return self.centre_lat is not None and self.centre_lng is not None
+
+    def __str__(self):
+        return f"Attendance settings for {self.admin}"
 
 
 class LeaveRequest(models.Model):

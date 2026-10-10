@@ -1082,3 +1082,5 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
 .online-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,.2); }
 .geo-note { margin: 12px 0 0; font-size: 13px; opacity: .75; }
 .inline-filter select { min-width: 192px; }
+.filter-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.filter-bar .form-control { max-width: 220px; }

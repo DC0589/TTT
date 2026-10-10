@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Attendance rules{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">ATTENDANCE</p><h1>Attendance rules</h1><p>Set where students must be when they check in, when a check-in counts as late, and when forgotten check-outs are closed automatically.</p></div>
+  <a class="button button-secondary" href="{% url 'staff_attendance' %}">Back to attendance</a>
+</section>
+<section class="panel">
+  <form method="post" class="stack-form" id="rules-form">{% csrf_token %}
+    {% include "tracker/_form.html" with form=form %}
+    <div class="att-actions">
+      <button type="button" class="button button-secondary" id="use-my-location">Use my current location as the centre</button>
+      <button class="button button-primary" type="submit">Save rules</button>
+    </div>
+    <p class="geo-note" id="rules-geo-status" role="status">Leave latitude and longitude empty to turn the location check off. Blocking is off by default, so students outside the radius are only flagged.</p>
+  </form>
+</section>
+{% endblock %}
+{% block scripts %}{{ block.super }}
+<script>
+document.getElementById("use-my-location").addEventListener("click", function () {
+  var status = document.getElementById("rules-geo-status");
+  if (!navigator.geolocation) { status.textContent = "This browser does not support location."; return; }
+  status.textContent = "Getting your location…";
+  navigator.geolocation.getCurrentPosition(function (pos) {
+    var f = document.getElementById("rules-form");
+    f.elements.centre_lat.value = pos.coords.latitude.toFixed(6);
+    f.elements.centre_lng.value = pos.coords.longitude.toFixed(6);
+    status.textContent = "Centre set to your current location. Save to apply.";
+  }, function () { status.textContent = "Could not get your location. Enter the coordinates manually."; },
+  {enableHighAccuracy: true, timeout: 15000});
+});
+</script>
+{% endblock %}

@@ -163,3 +163,111 @@ class LoginActivityTests(TestCase):
         stu = Client()
         stu.force_login(self.student)
         self.assertEqual(stu.get(reverse("login_activity")).status_code, 403)
+
+
+@override_settings(CHECKIN_GATE=True)
+class RulesTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.admin = User.objects.create_user("adm4", password="pw-12345", is_admin=True)
+        cls.hr = User.objects.create_user("hr4", password="pw-12345", is_hr=True, created_by=cls.admin)
+        cls.student = User.objects.create_user("stu4", password="pw-12345", is_student=True)
+        cls.batch = Group.objects.create(name="B4", admin=cls.admin)
+        GroupMembership.objects.create(group=cls.batch, student=cls.student)
+
+    def _rules(self, **kw):
+        from .models import AttendanceSettings
+        AttendanceSettings.objects.update_or_create(admin=self.admin, defaults=kw)
+
+    def test_gate_redirects_until_check_in(self):
+        self.client.force_login(self.student)
+        response = self.client.get(reverse("student_interviews"))
+        self.assertRedirects(response, reverse("student_attendance"))
+        self.assertEqual(self.client.get(reverse("student_attendance")).status_code, 200)
+        self.client.post(reverse("student_attendance_mark", args=["in"]), LOC)
+        self.assertEqual(self.client.get(reverse("student_interviews")).status_code, 200)
+
+    def test_gate_skipped_on_approved_leave_and_for_non_batch_users(self):
+        today = timezone.localdate()
+        LeaveRequest.objects.create(
+            student=self.student, start_date=today, end_date=today, reason="medical",
+            status=LeaveRequest.APPROVED,
+        )
+        self.client.force_login(self.student)
+        self.assertEqual(self.client.get(reverse("student_interviews")).status_code, 200)
+        loner = User.objects.create_user("loner", password="pw-12345", is_student=True)
+        self.client.force_login(loner)
+        self.assertEqual(self.client.get(reverse("student_interviews")).status_code, 200)
+
+    def test_geofence_flags_or_blocks(self):
+        self._rules(centre_lat=17.385, centre_lng=78.486, radius_m=100)
+        far = {"latitude": "17.40", "longitude": "78.50", "accuracy": "5"}
+        self.client.force_login(self.student)
+        self.client.post(reverse("student_attendance_mark", args=["in"]), far)
+        rec = Attendance.objects.get(student=self.student)
+        self.assertTrue(rec.outside_geofence)
+        self.assertGreater(rec.distance_m, 100)
+        rec.delete()
+        self._rules(block_outside=True)
+        self.client.post(reverse("student_attendance_mark", args=["in"]), far)
+        self.assertFalse(Attendance.objects.exists())
+        self.client.post(reverse("student_attendance_mark", args=["in"]), LOC)
+        self.assertTrue(Attendance.objects.exists())
+        self.assertFalse(Attendance.objects.get().outside_geofence)
+
+    def test_late_flag(self):
+        from datetime import time
+        self._rules(late_after=time(0, 0))
+        self.client.force_login(self.student)
+        self.client.post(reverse("student_attendance_mark", args=["in"]), LOC)
+        self.assertTrue(Attendance.objects.get().is_late)
+
+    def test_auto_close_stale(self):
+        from .services import attendance as svc
+        yesterday = timezone.localdate() - timedelta(days=1)
+        Attendance.objects.create(student=self.student, date=yesterday, check_in=timezone.now() - timedelta(days=1))
+        self.assertEqual(svc.auto_close_stale(), 1)
+        rec = Attendance.objects.get()
+        self.assertTrue(rec.auto_closed)
+        self.assertIsNotNone(rec.check_out)
+        self.assertEqual(svc.auto_close_stale(), 0)
+
+    def test_monthly_report_and_csv(self):
+        from datetime import date
+
+        from .services import attendance as svc
+        days = svc.working_days(2026, 3)
+        Attendance.objects.create(student=self.student, date=days[0], check_in=timezone.now(), is_late=True)
+        Attendance.objects.create(student=self.student, date=days[1], check_in=timezone.now())
+        LeaveRequest.objects.create(
+            student=self.student, start_date=days[2], end_date=days[3], reason="trip",
+            status=LeaveRequest.APPROVED,
+        )
+        memberships = list(svc.batch_students(self.admin))
+        row = svc.monthly_report(memberships, 2026, 3, today=date(2026, 3, 31))[0]
+        self.assertEqual((row.present, row.late, row.leave), (2, 1, 2))
+        self.assertEqual(row.working, len(days))
+        self.assertAlmostEqual(row.percent, round(100 * 2 / (len(days) - 2), 1))
+        self.client.force_login(self.hr)
+        page = self.client.get(reverse("staff_attendance_report"), {"month": "2026-03"})
+        self.assertContains(page, "Monthly report")
+        csv_response = self.client.get(reverse("staff_attendance_report"), {"month": "2026-03", "export": "csv"})
+        self.assertEqual(csv_response["Content-Type"], "text/csv")
+        self.assertIn("stu4", csv_response.content.decode())
+
+    def test_settings_admin_only_and_validated(self):
+        self.client.force_login(self.hr)
+        self.assertEqual(self.client.get(reverse("staff_attendance_settings")).status_code, 403)
+        self.client.force_login(self.admin)
+        bad = self.client.post(reverse("staff_attendance_settings"), {
+            "centre_lat": "17.3", "centre_lng": "", "radius_m": 200, "late_after": "10:00", "auto_close_at": "18:00",
+        })
+        self.assertEqual(bad.status_code, 200)
+        ok = self.client.post(reverse("staff_attendance_settings"), {
+            "centre_lat": "17.3", "centre_lng": "78.4", "radius_m": 150, "late_after": "09:30", "auto_close_at": "18:00",
+        })
+        self.assertEqual(ok.status_code, 302)
+        self.assertEqual(self.admin.attendance_settings.radius_m, 150)
+
+    def test_cron_close_requires_secret(self):
+        self.assertEqual(self.client.get(reverse("cron_close_attendance")).status_code, 403)

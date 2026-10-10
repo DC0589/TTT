@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Attendance report{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">ATTENDANCE</p><h1>Monthly report</h1><p>{{ month_label|date:"F Y" }} · working days are Monday to Friday, counted up to today. Approved leave is excluded from the percentage.</p></div>
+  <div class="att-actions">
+    <a class="button button-secondary" href="{% url 'staff_attendance' %}">Daily view</a>
+    {% if user.is_admin %}<a class="button button-secondary" href="{% url 'staff_attendance_settings' %}">Rules</a>{% endif %}
+    <a class="button button-primary" href="?month={{ month_value }}{% if selected_batch %}&batch={{ selected_batch }}{% endif %}&export=csv">Export CSV</a>
+  </div>
+</section>
+<form method="get" class="filter-bar">
+  <input type="month" name="month" value="{{ month_value }}" class="form-control" onchange="this.form.submit()" aria-label="Month">
+  <select name="batch" class="form-control" onchange="this.form.submit()" aria-label="Batch">
+    <option value="">All batches</option>
+    {% for b in batches %}<option value="{{ b.pk }}"{% if selected_batch == b.pk|stringformat:"s" %} selected{% endif %}>{{ b.name }}</option>{% endfor %}
+  </select>
+</form>
+
+<section class="content-section">
+  <div class="section-heading"><div><p class="eyebrow">BY BATCH</p><h2>Batch summary</h2></div></div>
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>Batch</th><th>Students</th><th>Attendance</th><th>Late check-ins</th></tr></thead>
+    <tbody>
+    {% for g in summary %}<tr><td><strong>{{ g.group.name }}</strong></td><td>{{ g.students }}</td>
+      <td><span class="status-badge {% if g.percent >= 85 %}status-selected{% elif g.percent >= 70 %}status-in-progress{% else %}status-not-selected{% endif %}">{{ g.percent }}%</span></td><td>{{ g.late }}</td></tr>
+    {% empty %}<tr><td colspan="4" class="table-empty"><strong>No students found.</strong></td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</section>
+
+<section class="content-section">
+  <div class="section-heading"><div><p class="eyebrow">BY STUDENT</p><h2>Student attendance</h2></div></div>
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>Student</th><th>Batch</th><th>Present</th><th>Late</th><th>Leave</th><th>Absent</th><th>Attendance</th><th>Outside location</th></tr></thead>
+    <tbody>
+    {% for r in rows %}<tr>
+      <td><a href="{% url 'admin_student_detail' r.student.pk %}">{{ r.student.get_full_name|default:r.student.username }}</a></td>
+      <td>{{ r.group.name }}</td><td>{{ r.present }}/{{ r.working }}</td><td>{{ r.late }}</td><td>{{ r.leave }}</td><td>{{ r.absent }}</td>
+      <td><span class="status-badge {% if r.percent >= 85 %}status-selected{% elif r.percent >= 70 %}status-in-progress{% else %}status-not-selected{% endif %}">{{ r.percent }}%</span></td>
+      <td>{% if r.outside %}<span class="status-badge status-pending">{{ r.outside }}</span>{% else %}—{% endif %}</td>
+    </tr>
+    {% empty %}<tr><td colspan="8" class="table-empty"><strong>No students found.</strong></td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endblock %}

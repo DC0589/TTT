@@ -29,10 +29,10 @@
       <td><a href="{% url 'admin_student_detail' r.student.pk %}">{{ r.student.get_full_name|default:r.student.username }}</a></td>
       <td>{{ r.group.name }}</td>
       <td><span class="status-badge {% if r.status == 'Present' %}status-selected{% elif r.status == 'On leave' %}status-in-progress{% else %}status-not-selected{% endif %}">{% if r.status == 'Absent' and is_today %}Not in yet{% else %}{{ r.status }}{% endif %}</span></td>
-      <td>{% if r.record %}{{ r.record.check_in|time:"h:i A" }}{% else %}—{% endif %}</td>
-      <td>{% if r.record.check_out %}{{ r.record.check_out|time:"h:i A" }}{% elif r.record %}<span class="status-badge status-pending">Not out</span>{% else %}—{% endif %}</td>
+      <td>{% if r.record %}{{ r.record.check_in|time:"h:i A" }}{% if r.record.is_late %} <span class="status-badge status-pending">Late</span>{% endif %}{% else %}—{% endif %}</td>
+      <td>{% if r.record.check_out %}{{ r.record.check_out|time:"h:i A" }}{% if r.record.auto_closed %} <span class="status-badge status-pending" title="Closed automatically">Auto</span>{% endif %}{% elif r.record %}<span class="status-badge status-pending">Not out</span>{% else %}—{% endif %}</td>
       <td>{{ r.record.duration|default:"—" }}</td>
-      <td>{% if r.record.check_in_map_url %}<a href="{{ r.record.check_in_map_url }}" target="_blank" rel="noopener">In</a>{% endif %}{% if r.record.check_out_map_url %} · <a href="{{ r.record.check_out_map_url }}" target="_blank" rel="noopener">Out</a>{% endif %}{% if not r.record %}—{% endif %}</td>
+      <td>{% if r.record.check_in_map_url %}<a href="{{ r.record.check_in_map_url }}" target="_blank" rel="noopener">In</a>{% if r.record.outside_geofence %} <span class="status-badge status-not-selected" title="{{ r.record.distance_m }} m away">Outside</span>{% endif %}{% endif %}{% if r.record.check_out_map_url %} · <a href="{{ r.record.check_out_map_url }}" target="_blank" rel="noopener">Out</a>{% endif %}{% if not r.record %}—{% endif %}</td>
     </tr>
     {% empty %}<tr><td colspan="7" class="table-empty"><strong>No students in active batches.</strong></td></tr>{% endfor %}
     </tbody>

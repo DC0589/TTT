@@ -7,6 +7,7 @@ from django.core.validators import RegexValidator
 from django.utils import timezone
 
 from .models import (
+    AttendanceSettings,
     Group,
     GroupMembership,
     Interview,
@@ -540,3 +541,32 @@ class LeaveRequestForm(Styled, forms.ModelForm):
         if len(reason) < 5:
             raise forms.ValidationError("Please give a short reason.")
         return reason
+
+
+class AttendanceSettingsForm(Styled, forms.ModelForm):
+    class Meta:
+        model = AttendanceSettings
+        fields = ("centre_lat", "centre_lng", "radius_m", "block_outside", "late_after", "auto_close_at")
+        labels = {
+            "centre_lat": "Centre latitude", "centre_lng": "Centre longitude",
+            "radius_m": "Allowed radius (metres)", "block_outside": "Block check-in outside the radius",
+            "late_after": "Late after", "auto_close_at": "Auto check-out time",
+        }
+        widgets = {
+            "late_after": forms.TimeInput(attrs={"type": "time"}, format="%H:%M"),
+            "auto_close_at": forms.TimeInput(attrs={"type": "time"}, format="%H:%M"),
+        }
+
+    def clean(self):
+        data = super().clean()
+        lat, lng = data.get("centre_lat"), data.get("centre_lng")
+        if (lat is None) != (lng is None):
+            raise forms.ValidationError("Enter both latitude and longitude, or leave both empty to turn the geofence off.")
+        if lat is not None and not (-90 <= lat <= 90 and -180 <= lng <= 180):
+            raise forms.ValidationError("Latitude must be between -90 and 90 and longitude between -180 and 180.")
+        if data.get("block_outside") and lat is None:
+            raise forms.ValidationError("Set the centre location before turning on blocking.")
+        radius = data.get("radius_m")
+        if radius is not None and not (20 <= radius <= 50000):
+            self.add_error("radius_m", "Use a radius between 20 m and 50,000 m.")
+        return data

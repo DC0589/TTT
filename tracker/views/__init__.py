@@ -10,6 +10,8 @@ from .admin_interviews import (  # noqa: F401
 )
 from .attendance import (  # noqa: F401
     staff_attendance,
+    staff_attendance_report,
+    staff_attendance_settings,
     staff_leave_review,
     staff_leaves,
     student_attendance,
@@ -96,4 +98,4 @@ from .students import (  # noqa: F401
     hr_students,
     student_delete,
 )
-from .system import cron_purge_mock_data, csrf_failure  # noqa: F401
+from .system import cron_close_attendance, cron_purge_mock_data, csrf_failure  # noqa: F401

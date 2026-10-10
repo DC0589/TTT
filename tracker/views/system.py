@@ -26,6 +26,16 @@ def csrf_failure(request, reason=""):
 
 
 @require_GET
+def cron_close_attendance(request):
+    secret = settings.CRON_SECRET
+    supplied = request.headers.get("Authorization", "")
+    if not secret or not hmac.compare_digest(supplied, f"Bearer {secret}"):
+        raise PermissionDenied
+    from ..services import attendance
+    return JsonResponse({"closed": attendance.auto_close_stale()})
+
+
+@require_GET
 def cron_purge_mock_data(request):
     secret = settings.CRON_SECRET
     supplied = request.headers.get("Authorization", "")

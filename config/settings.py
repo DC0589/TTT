@@ -35,6 +35,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "tracker.middleware.LoginActivityMiddleware",
+    "tracker.middleware.CheckInGateMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
@@ -112,6 +113,7 @@ if not DEBUG:
 CSRF_FAILURE_VIEW = "tracker.views.csrf_failure"
 
 THROTTLE_ENABLED = os.environ.get("THROTTLE_ENABLED", "1") == "1" and "test" not in sys.argv
+CHECKIN_GATE = os.environ.get("CHECKIN_GATE", "1") == "1" and "test" not in sys.argv
 
 CACHES = {"default": {
     "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
