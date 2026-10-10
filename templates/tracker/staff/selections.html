@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Selections{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">CELEBRATIONS</p><h1>Student selections</h1><p>Add a student who got selected. They are celebrated in the scrolling banner for {{ celebration_days }} days.</p></div>
+</section>
+<section class="panel">
+  <form method="post" class="question-bank-import">{% csrf_token %}
+    {{ form.non_field_errors }}
+    <div class="form-field"><label for="{{ form.student.id_for_label }}">Student</label>{{ form.student }}{{ form.student.errors }}</div>
+    <div class="form-field"><label for="{{ form.company.id_for_label }}">Company</label>{{ form.company }}{{ form.company.errors }}</div>
+    <div class="form-field"><label for="{{ form.role.id_for_label }}">Role</label>{{ form.role }}{{ form.role.errors }}</div>
+    <button class="button button-primary" type="submit">Add selection</button>
+  </form>
+</section>
+<section class="content-section">
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>Student</th><th>Company</th><th>Role</th><th>Added</th><th>Banner</th><th></th></tr></thead>
+    <tbody>
+    {% for s in page_obj.object_list %}
+    <tr>
+      <td>{{ s.student.get_full_name|default:s.student.username }}</td><td>{{ s.company }}</td><td>{{ s.role|default:"—" }}</td>
+      <td>{{ s.created_at|date:"d M Y" }}</td>
+      <td>{% if s.created_at >= cutoff %}Showing{% else %}Ended{% endif %}</td>
+      <td class="actions-cell"><form method="post" action="{% url 'staff_selection_delete' s.pk %}" style="display:inline" onsubmit="return confirm('Remove this selection?');">{% csrf_token %}<button class="button button-quiet" type="submit">Delete</button></form></td>
+    </tr>
+    {% empty %}<tr><td colspan="6" class="table-empty"><strong>No selections added yet.</strong></td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+  {% if page_obj.paginator.num_pages > 1 %}
+  <p class="section-meta">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    {% if page_obj.has_previous %}<a class="button button-quiet" href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+    {% if page_obj.has_next %}<a class="button button-quiet" href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}</p>
+  {% endif %}
+</section>
+{% endblock %}

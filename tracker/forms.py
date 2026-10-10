@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from .models import (
     Group, GroupMembership, Interview, InterviewNote, InterviewRound, InterviewStatus, LearningCourse,
-    MockQuestion, StudentRegistrationRequest, User,
+    MockQuestion, Selection, StudentRegistrationRequest, User,
 )
 
 INPUT = "form-control"
@@ -420,3 +420,22 @@ class InterviewAdminNotesForm(Styled, forms.ModelForm):
         if not text:
             raise forms.ValidationError("Write a note first.")
         return text
+
+
+class SelectionForm(Styled, forms.ModelForm):
+    class Meta:
+        model = Selection
+        fields = ("student", "company", "role")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["student"].queryset = User.objects.filter(is_student=True).order_by("username")
+        self.fields["student"].label_from_instance = lambda u: (
+            f"{u.get_full_name()} ({u.username})" if u.get_full_name() else u.username
+        )
+
+    def clean_company(self):
+        return " ".join(self.cleaned_data["company"].split())
+
+    def clean_role(self):
+        return " ".join(self.cleaned_data["role"].split())

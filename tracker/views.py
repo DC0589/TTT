@@ -34,7 +34,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 from .forms import (
     AddMemberForm, FinalStatusForm, GroupForm, HRUserForm, InterviewAdminNotesForm, NoteReplyForm, InterviewForm, InterviewNotesForm,
-    LearningCourseForm, MockQuestionForm, RegistrationOTPForm, RoundForm, RoundScheduleForm,
+    LearningCourseForm, MockQuestionForm, RegistrationOTPForm, RoundForm, SelectionForm, RoundScheduleForm,
     RoundStatusForm, StudentForm,
     StudentRegistrationForm,
 )
@@ -44,8 +44,9 @@ from .ai_interview import GeminiAPIError, check_health, generate_json
 from .models import (
     Group, GroupMembership, Interview, InterviewNote, InterviewNoteReply, InterviewRound, InterviewStatus,
     LearningCourse, MockInterviewScore, MockInterviewSession, MockQuestion,
-    PlacedStudent, StudentRegistrationRequest, User,
+    PlacedStudent, Selection, StudentRegistrationRequest, User,
 )
+from .context_processors import CELEBRATION_DAYS
 from .placed_import import parse_placements, read_csv_rows, read_xlsx_rows
 
 logger = logging.getLogger(__name__)
@@ -2127,6 +2128,34 @@ def admin_placed_delete(request, pk):
     get_object_or_404(PlacedStudent, pk=pk).delete()
     messages.success(request, "Placement removed.")
     return redirect("admin_placed_students")
+
+
+@staff_required
+@require_http_methods(["GET", "POST"])
+def staff_selections(request):
+    form = SelectionForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        selection = form.save(commit=False)
+        selection.added_by = request.user
+        selection.save()
+        messages.success(request, "Selection added. It will be celebrated in the banner for 7 days.")
+        return redirect("staff_selections")
+    page_obj = Paginator(
+        Selection.objects.select_related("student"), 25
+    ).get_page(request.GET.get("page"))
+    return render(request, "tracker/staff/selections.html", {
+        "form": form, "page_obj": page_obj,
+        "celebration_days": CELEBRATION_DAYS,
+        "cutoff": timezone.now() - timedelta(days=CELEBRATION_DAYS),
+    })
+
+
+@staff_required
+@require_POST
+def staff_selection_delete(request, pk):
+    get_object_or_404(Selection, pk=pk).delete()
+    messages.success(request, "Selection removed.")
+    return redirect("staff_selections")
 
 
 QUESTION_CSV_COLUMNS = ["topic", "difficulty", "type", "text", "language"]

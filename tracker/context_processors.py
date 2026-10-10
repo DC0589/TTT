@@ -2,18 +2,19 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from .models import InterviewStatus, PlacedStudent
+from .models import InterviewStatus, PlacedStudent, Selection
 
 CELEBRATION_DAYS = 7
 MIN_ITEMS_PER_LOOP = 12
-SECONDS_PER_ITEM = 3
+PLACED_SECONDS_PER_ITEM = 3
+SELECTED_SECONDS_PER_ITEM = 12
 
 
-def _loop(count):
+def _loop(count, seconds_per_item):
     repeats = max(1, -(-MIN_ITEMS_PER_LOOP // max(count, 1)))
     return {
         "repeats": range(repeats),
-        "duration": max(20, repeats * count * SECONDS_PER_ITEM),
+        "duration": max(20, repeats * count * seconds_per_item),
     }
 
 
@@ -37,17 +38,26 @@ def celebration_banners(request):
 
     since = timezone.now() - timedelta(days=CELEBRATION_DAYS)
     recent = [
-        {
+        (s.updated_at, {
             "student": s.interview.student.get_full_name() or s.interview.student.username,
             "company": s.interview.company_name,
             "role": s.interview.role,
-        }
-        for s in selected.filter(updated_at__gte=since).order_by("-updated_at")[:20]
+        })
+        for s in selected.filter(updated_at__gte=since)
     ]
+    recent += [
+        (s.created_at, {
+            "student": s.student.get_full_name() or s.student.username,
+            "company": s.company,
+            "role": s.role,
+        })
+        for s in Selection.objects.filter(created_at__gte=since).select_related("student")
+    ]
+    recent = [item for _, item in sorted(recent, key=lambda x: x[0], reverse=True)[:20]]
 
     return {
         "placed_companies": placed,
-        "placed_loop": _loop(len(placed) + 1),
+        "placed_loop": _loop(len(placed) + 1, PLACED_SECONDS_PER_ITEM),
         "recent_selections": recent,
-        "selected_loop": _loop(len(recent)),
+        "selected_loop": _loop(len(recent), SELECTED_SECONDS_PER_ITEM),
     }
