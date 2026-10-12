@@ -43,6 +43,12 @@ class MockInterviewSession(models.Model):
     integrity_events = models.JSONField(default=list, blank=True)
     difficulty = models.CharField(max_length=10, blank=True)
     end_reason = models.CharField(max_length=300, blank=True)
+    MODE_FULL, MODE_PRACTICE = "full", "practice"
+    mode = models.CharField(
+        max_length=10, default=MODE_FULL,
+        choices=[(MODE_FULL, "Full (camera and screen)"), (MODE_PRACTICE, "Practice (typing, weak connection)")],
+    )
+    mode_reason = models.CharField(max_length=200, blank=True)
     question_set = models.ForeignKey(
         "MockQuestionSet", on_delete=models.SET_NULL, blank=True, null=True,
         related_name="sessions",

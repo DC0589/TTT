@@ -135,7 +135,7 @@ def admin_mock_interviews_export(request):
     writer = csv.writer(response)
     writer.writerow([
         "Date (IST)", "Student", "Topic", "Level", "Rating (out of 5)", "Answers submitted",
-        "Answers expected", "Integrity score", "Integrity flags", "Auto-ended", "Flag summary",
+        "Answers expected", "Mode", "Mode reason", "Integrity score", "Integrity flags", "Auto-ended", "Flag summary",
     ])
     for session in f["sessions"].order_by("-created_at"):
         counts = {}
@@ -147,6 +147,7 @@ def admin_mock_interviews_export(request):
             session.student.username, session.role, session.difficulty or "",
             f"{session.rating:.1f}" if session.rating is not None else "",
             len(session.scores.all()), session.expected_answers,
+            session.get_mode_display(), session.mode_reason,
             session.integrity_score, session.integrity_flag_count,
             "yes" if session.auto_ended else "no",
             "; ".join(f"{k}: {n}" for k, n in sorted(counts.items())),
@@ -382,6 +383,8 @@ def student_mock_interview_ai(request):
         session = MockInterviewSession.objects.create(
             student=request.user, role=role, difficulty=difficulty,
             question_set=bank_set,
+            mode=MockInterviewSession.MODE_PRACTICE if data.get("lite") is True else MockInterviewSession.MODE_FULL,
+            mode_reason=" ".join(str(data.get("mode_reason", "")).split())[:200],
         )
         return JsonResponse({"questions": bank_set.questions, "session_id": session.pk})
     else:

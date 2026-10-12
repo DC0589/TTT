@@ -952,6 +952,8 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
 
 .mock-lite{display:flex;gap:10px;align-items:flex-start;margin:6px 0 12px;font-size:.9rem}
 .mock-lite input{margin-top:4px}
+.mock-mode{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;background:#e6f4ea;color:#1a7f4b}
+.mock-mode-practice{background:#fff4e5;color:#b54708}
 .mock-text-answer textarea{width:100%;margin:6px 0}
 
 .reminder-panel{margin-bottom:18px}

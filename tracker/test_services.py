@@ -292,3 +292,25 @@ class MockSessionFlowTests(TestCase):
         )
         self.assertTrue(mock_scoring._claim(score))
         self.assertFalse(mock_scoring._claim(score))
+
+
+class MockModeTests(MockSessionFlowTests):
+    test_ending_before_ten_questions_requires_a_reason = None
+    test_finishing_all_ten_needs_no_reason = None
+    test_end_reason_is_shown_to_the_admin = None
+    test_drain_scores_queued_answers_from_any_session_and_results_finish_them = None
+    test_student_cannot_retry_or_finish_someone_elses_session = None
+    test_a_claimed_answer_is_not_scored_twice = None
+
+    @patch("tracker.views.mock.question_sets.serve")
+    def test_session_records_mode_and_reason(self, serve):
+        from tracker.models import MockInterviewSession, MockQuestionSet
+
+        serve.return_value = MockQuestionSet.objects.create(
+            topic="Python", difficulty="medium", questions=[{"question": "Q?"}] * 10
+        )
+        response = self.call(action="question", role="Python", lite=True, mode_reason="3g, measured 0.4 Mbps")
+        session = MockInterviewSession.objects.get(pk=response.json()["session_id"])
+        self.assertEqual((session.mode, session.mode_reason), ("practice", "3g, measured 0.4 Mbps"))
+        response = self.call(action="question", role="Python")
+        self.assertEqual(MockInterviewSession.objects.get(pk=response.json()["session_id"]).mode, "full")

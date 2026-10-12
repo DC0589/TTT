@@ -59,6 +59,36 @@
   const textSubmitButton = interview.querySelector('[data-text-submit]');
   const captureGrid = interview.querySelector('[data-capture-grid]');
   let liteMode = false;
+  let modeReason = '';
+  const modeNote = interview.querySelector('[data-mode-note]');
+  const checkConnection = async () => {
+    const conn = navigator.connection || {};
+    const parts = [];
+    let strong = true;
+    if (conn.effectiveType) parts.push(conn.effectiveType);
+    if (['slow-2g', '2g', '3g'].includes(conn.effectiveType)) strong = false;
+    if (conn.saveData) { strong = false; parts.push('data saver on'); }
+    if (conn.downlink) { parts.push(`${conn.downlink} Mbps`); if (conn.downlink < 1.5) strong = false; }
+    if (conn.rtt) { parts.push(`${conn.rtt} ms latency`); if (conn.rtt > 500) strong = false; }
+    try {
+      const script = document.querySelector('script[src*="app.js"]');
+      const probeUrl = `${script ? script.src.split('?')[0] : '/static/js/app.js'}?probe=${Date.now()}`;
+      const started = performance.now();
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      const response = await fetch(probeUrl, { cache: 'no-store', signal: controller.signal });
+      const bytes = (await response.arrayBuffer()).byteLength;
+      clearTimeout(timer);
+      const seconds = Math.max((performance.now() - started) / 1000, 0.05);
+      const mbps = (bytes * 8) / seconds / 1e6;
+      parts.push(`measured ${mbps.toFixed(1)} Mbps`);
+      if (mbps < 1.5) strong = false;
+    } catch (error) {
+      strong = false;
+      parts.push('speed test failed');
+    }
+    return { strong, summary: parts.join(', ') };
+  };
   const codeLanguage = interview.querySelector('[data-code-language]');
   const codeEditor = interview.querySelector('[data-code-editor]');
   const codeRunButton = interview.querySelector('[data-code-run]');
@@ -152,7 +182,7 @@
       response = await fetch(interview.dataset.aiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-        body: JSON.stringify({ ...payload, role, difficulty, consent: true, history }),
+        body: JSON.stringify({ ...payload, role, difficulty, consent: true, history, ...(payload.action === 'question' ? { lite: liteMode, mode_reason: modeReason } : {}) }),
       });
     } catch (networkError) {
       const error = new Error('Network problem. Please check your connection.');
@@ -600,7 +630,16 @@
   startForm.addEventListener('submit', async event => {
     event.preventDefault();
     if (busy) return;
-    liteMode = Boolean(startForm.elements.lite && startForm.elements.lite.checked);
+    startForm.querySelector('button[type="submit"]').disabled = true;
+    setStatus(setupStatus, 'Checking your connection...');
+    const check = await checkConnection();
+    liteMode = !check.strong;
+    modeReason = check.summary;
+    startForm.querySelector('button[type="submit"]').disabled = false;
+    if (modeNote) {
+      modeNote.hidden = !liteMode;
+      modeNote.textContent = liteMode ? `Your connection is weak (${check.summary}), so this interview uses practice mode: you answer by typing or coding, with no camera or screen sharing.` : '';
+    }
     if (!liteMode && (!navigator.mediaDevices?.getUserMedia || !navigator.mediaDevices?.getDisplayMedia || !window.MediaRecorder)) {
       setStatus(setupStatus, 'This browser does not support camera, screen sharing, and audio recording.', true);
       return;
