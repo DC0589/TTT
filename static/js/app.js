@@ -617,7 +617,17 @@
         cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         cameraPreview.srcObject = cameraStream;
         await cameraPreview.play();
-        screenStream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 5 }, audio: false });
+        screenStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { frameRate: 5, displaySurface: 'monitor' },
+          audio: false,
+          monitorTypeSurfaces: 'include',
+          selfBrowserSurface: 'exclude',
+          surfaceSwitching: 'exclude',
+        });
+        const surface = (screenStream.getVideoTracks()[0].getSettings() || {}).displaySurface;
+        if (surface && surface !== 'monitor') {
+          throw new Error('Please share your ENTIRE screen (not a window or a browser tab). Click Start again and choose "Entire screen".');
+        }
         screenPreview.srcObject = screenStream;
         await screenPreview.play();
       }
@@ -640,7 +650,7 @@
       submittedAnswers = 0;
       ending = false;
       setStatus(sessionStatus, liteMode ? 'Practice mode is on. Ten questions are ready.' : 'Camera and screen are live. Ten questions are ready.');
-      if (!liteMode) screenStream.getVideoTracks()[0].addEventListener('ended', () => { setStatus(sessionStatus, 'Screen sharing stopped. Your trainer will see this. You can continue answering.'); if (window.__mockReport) window.__mockReport('screen_share_stopped'); });
+      if (!liteMode) screenStream.getVideoTracks()[0].addEventListener('ended', () => { setStatus(sessionStatus, 'Screen sharing stopped. Please share your entire screen again by restarting if needed. Your trainer will see this.'); if (window.__mockReport) window.__mockReport('screen_share_stopped'); });
     } catch (error) {
       stopCapture();
       session.hidden = true;
@@ -854,22 +864,36 @@
   };
   window.__mockIntegrityReport = report;
 
+  const LIMIT = 7;
+  const banner = document.createElement('div');
+  banner.setAttribute('role', 'alert');
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#b42318;color:#fff;padding:14px 18px;font-weight:700;text-align:center;display:none';
+  document.body.appendChild(banner);
+  let tabSwitches = 0;
+  window.__mockIntegrityWarn = () => {
+    banner.textContent = tabSwitches >= LIMIT
+      ? `Warning ${tabSwitches}: you keep leaving the interview tab. Every switch is recorded and your trainer will review it.`
+      : `Warning ${tabSwitches} of ${LIMIT}: do not switch tabs or apps during the interview. Every switch is recorded.`;
+    banner.style.display = 'block';
+    setTimeout(() => { banner.style.display = 'none'; }, 8000);
+  };
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { leftAt = Date.now(); report('tab_hidden'); }
-    else if (leftAt) { leftAt = null; }
+    const state = getState();
+    if (!state || !state.sessionId) return;
+    if (document.hidden) {
+      tabSwitches += 1;
+      report('tab_hidden');
+    } else if (tabSwitches) {
+      window.__mockIntegrityWarn();
+    }
   });
-  window.addEventListener('blur', () => {
-    setTimeout(() => { if (!document.hidden) report('window_blur'); }, 400);
-  });
-  document.addEventListener('paste', event => {
-    const text = (event.clipboardData && event.clipboardData.getData('text')) || '';
-    report('paste', `${text.length} chars`);
-  });
-  document.addEventListener('copy', () => report('copy'));
-  document.addEventListener('contextmenu', () => report('context_menu'));
-  document.addEventListener('keydown', event => {
-    const k = event.key.toLowerCase();
-    if (event.key === 'F12' || ((event.ctrlKey || event.metaKey) && event.shiftKey && ['i', 'j', 'c'].includes(k))
-      || ((event.ctrlKey || event.metaKey) && k === 'u')) report('devtools_key', event.key);
-  });
+  const block = event => {
+    const state = getState();
+    if (!state || !state.sessionId) return;
+    event.preventDefault();
+    banner.textContent = 'Copy, cut and paste are not allowed during the interview. Type your own answer.';
+    banner.style.display = 'block';
+    setTimeout(() => { banner.style.display = 'none'; }, 4000);
+  };
+  ['copy', 'cut', 'paste', 'drop'].forEach(name => document.addEventListener(name, block));
 })();

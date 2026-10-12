@@ -30,6 +30,7 @@ from ..services import mock_scoring, question_sets
 
 MOCK_QUESTION_COUNT = 10
 DRAIN_SECONDS = 25
+MAX_TAB_WARNINGS = 7
 
 
 MOCK_CODING_QUESTION_COUNT = 3
@@ -265,7 +266,7 @@ def student_mock_interview_ai(request):
             events = data.get("events")
             if not isinstance(events, list):
                 return JsonResponse({"error": "Invalid events."}, status=400)
-            allowed = {"tab_hidden", "window_blur", "paste", "copy", "context_menu", "devtools_key", "screen_share_stopped"}
+            allowed = {"tab_hidden", "screen_share_stopped"}
             stored = list(session.integrity_events or [])
             for event in events[:20]:
                 if not isinstance(event, dict) or event.get("type") not in allowed:
@@ -281,7 +282,7 @@ def student_mock_interview_ai(request):
                 })
             session.integrity_events = stored
             session.save(update_fields=["integrity_events"])
-            return JsonResponse({"ok": True, "flags": session.integrity_flag_count, "terminate": False})
+            return JsonResponse({"ok": True, "flags": session.integrity_flag_count, "limit": MAX_TAB_WARNINGS, "terminate": False})
 
         if action == "retry":
             return JsonResponse({"requeued": mock_scoring.retry_failed(session)})
