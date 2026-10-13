@@ -919,7 +919,7 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
 .ticker { display: flex; align-items: center; gap: 12px; height: 32px; padding: 0 clamp(24px, 4vw, 58px); overflow: hidden; font-size: 12.5px; }
 .ticker + .ticker { border-top: 1px solid var(--line); }
 .ticker-selected { background: #fff8e6; }
-.ticker-label { flex: none; width: 76px; text-align: center; padding: 3px 0; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .4px; }
+.ticker-label { flex: none; min-width: 96px; text-align: center; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .4px; white-space: nowrap; }
 .ticker-placed .ticker-label { background: #e6eef5; color: #10283b; }
 .ticker-selected .ticker-label { background: #fde3e2; color: #c62828; }
 .ticker-track { flex: 1; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent); }
