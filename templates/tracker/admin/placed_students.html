@@ -10,10 +10,11 @@
     <button class="button button-primary" type="submit">Import</button>
   </form>
 </section>
-{% if top_companies %}
+{% if top_companies or selected_company %}
 <section class="content-section">
   <div class="section-heading"><div><p class="eyebrow">WHERE THEY WORK</p><h2>Top hiring companies</h2></div></div>
-  <div class="company-chips">{% for c in top_companies %}<span class="company-chip"><strong>{{ c.name }}</strong> {{ c.total }}</span>{% endfor %}</div>
+  <div class="company-chips">{% for c in top_companies %}<a class="company-chip{% if selected_company.pk == c.pk %} is-active{% endif %}" href="?company={{ c.pk }}"><strong>{{ c.name }}</strong> {{ c.total }}</a>{% endfor %}</div>
+  {% if selected_company %}<p class="section-meta">Showing students placed at <strong>{{ selected_company.name }}</strong> ({{ total }}). <a href="{% url 'admin_placed_students' %}">Show all</a></p>{% endif %}
 </section>
 {% endif %}
 <section class="content-section">
@@ -30,8 +31,8 @@
   </table></div>
   {% if page_obj.paginator.num_pages > 1 %}
   <p class="section-meta">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-    {% if page_obj.has_previous %}<a class="button button-quiet" href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
-    {% if page_obj.has_next %}<a class="button button-quiet" href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}</p>
+    {% if page_obj.has_previous %}<a class="button button-quiet" href="?page={{ page_obj.previous_page_number }}{% if selected_company %}&company={{ selected_company.pk }}{% endif %}">Previous</a>{% endif %}
+    {% if page_obj.has_next %}<a class="button button-quiet" href="?page={{ page_obj.next_page_number }}{% if selected_company %}&company={{ selected_company.pk }}{% endif %}">Next</a>{% endif %}</p>
   {% endif %}
 </section>
 {% endblock %}

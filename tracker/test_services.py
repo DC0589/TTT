@@ -381,3 +381,20 @@ class AnnouncementTests(TestCase):
         self.client.force_login(self.student)
         self.assertEqual(self.client.get(reverse("admin_announcements")).status_code, 403)
         self.assertEqual(self.client.post(reverse("admin_announcement_add"), {}).status_code, 403)
+
+
+class PlacedCompanyFilterTests(TestCase):
+    def test_clicking_a_company_filters_the_list(self):
+        from django.urls import reverse
+
+        from tracker.models import Company, PlacedStudent, User
+
+        admin = User.objects.create_user("pfadmin", password="pw-12345", is_admin=True)
+        PlacedStudent.objects.create(name="Asha Rao", company="LTIMindtree", year=2026)
+        PlacedStudent.objects.create(name="Ravi Kumar", company="Deloitte", year=2026)
+        self.client.force_login(admin)
+        ltim = Company.objects.get(name="LTIMindtree")
+        page = self.client.get(reverse("admin_placed_students"), {"company": ltim.pk})
+        self.assertContains(page, "Asha Rao")
+        self.assertNotContains(page, "Ravi Kumar")
+        self.assertContains(self.client.get(reverse("admin_placed_students")), "Ravi Kumar")

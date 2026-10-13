@@ -13,6 +13,7 @@ from ..forms import (
     SelectionForm,
 )
 from ..models import (
+    Company,
     PlacedStudent,
     Selection,
 )
@@ -27,10 +28,18 @@ from ..services.placements import import_placements, top_companies
 @admin_required
 @require_GET
 def admin_placed_students(request):
-    page_obj = Paginator(PlacedStudent.objects.all(), 50).get_page(request.GET.get("page"))
+    companies = top_companies()
+    selected = None
+    queryset = PlacedStudent.objects.all()
+    company_id = request.GET.get("company", "")
+    if company_id.isdigit():
+        selected = Company.objects.filter(pk=int(company_id)).first()
+        if selected:
+            queryset = queryset.filter(company_ref=selected)
+    page_obj = Paginator(queryset, 50).get_page(request.GET.get("page"))
     return render(request, "tracker/admin/placed_students.html", {
         "page_obj": page_obj, "total": page_obj.paginator.count,
-        "top_companies": top_companies(),
+        "top_companies": companies, "selected_company": selected,
     })
 
 
