@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Announcements{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">POP-UP MESSAGES</p><h1>Announcements</h1><p>Each live message appears as a pop-up on the overview page, rotating when there are several. Pick when it starts and ends.</p></div>
+  <div class="page-heading-actions"><a class="button button-primary" href="{% url 'admin_announcement_add' %}"><span class="button-plus" aria-hidden="true">+</span> New announcement</a></div>
+</section>
+<section class="content-section">
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>Title</th><th>Audience</th><th>From</th><th>Until</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for a in announcements %}
+    <tr>
+      <td><strong>{{ a.title }}</strong><br><small>{{ a.message|truncatechars:90 }}</small></td>
+      <td>{{ a.get_audience_display }}</td>
+      <td>{{ a.start_at|date:"d M Y, g:i A" }}</td><td>{{ a.end_at|date:"d M Y, g:i A" }}</td>
+      <td><span class="announce-status announce-{{ a.status|lower }}">{{ a.status }}</span></td>
+      <td class="actions-cell"><a class="button button-quiet" href="{% url 'admin_announcement_edit' a.pk %}">Edit</a>
+        <form method="post" action="{% url 'admin_announcement_delete' a.pk %}" style="display:inline" onsubmit="return confirm('Delete this announcement?');">{% csrf_token %}<button class="button button-quiet" type="submit">Delete</button></form></td>
+    </tr>
+    {% empty %}<tr><td colspan="6" class="table-empty"><strong>No announcements yet.</strong></td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endblock %}

@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=28">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=29">
 </head>
 <body class="{% if user.is_authenticated %}app-body{% else %}auth-body{% endif %}">
 {% if user.is_authenticated %}
@@ -70,6 +70,10 @@
       <a class="nav-link{% if request.resolver_match.url_name == 'admin_questions' or request.resolver_match.url_name == 'admin_question_add' or request.resolver_match.url_name == 'admin_question_edit' %} is-active{% endif %}" href="{% url 'admin_questions' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 9a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1 1-1.1 1.8M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
         <span>Question bank</span>
+      </a>
+      <a class="nav-link{% if request.resolver_match.url_name == 'admin_announcements' or request.resolver_match.url_name == 'admin_announcement_add' or request.resolver_match.url_name == 'admin_announcement_edit' %} is-active{% endif %}" href="{% url 'admin_announcements' %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h3l6 4V6L7 10zM16.5 9a4 4 0 0 1 0 6M19 6.500a8 8 0 0 1 0 11"/></svg>
+        <span>Announcements</span>
       </a>
       <a class="nav-link{% if request.resolver_match.url_name == 'admin_placed_students' %} is-active{% endif %}" href="{% url 'admin_placed_students' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="7.5" width="17" height="12" rx="2"/><path d="M9 7.5v-2a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5.500v2M3.5 13h17"/></svg>
@@ -271,7 +275,7 @@
   });
 </script>
 {% if user.is_authenticated and user.is_admin or user.is_authenticated and user.is_hr %}<script>window.SIGNUP_POLL_URL="{% url 'registrations_pending_count' %}";</script>{% endif %}
-<script src="{% static 'js/app.js' %}?v=15" defer></script>
+<script src="{% static 'js/app.js' %}?v=16" defer></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

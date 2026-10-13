@@ -14,6 +14,7 @@ from ..models import (
 logger = logging.getLogger(__name__)
 
 from ..permissions import staff_required, student_required
+from ..services.announcements import active_for
 from .calendar import _reminders
 
 
@@ -77,6 +78,7 @@ def admin_dashboard(request):
             seen_by_admin=False, note__interview__group__admin=request.user)
         .select_related("note__interview__student").order_by("-created_at")[:10])
     return render(request, "tracker/admin/dashboard.html", {
+        "announcements": active_for(request.user),
         "unseen_replies": unseen_replies,
         "unseen_reply_count": InterviewNoteReply.objects.filter(
             seen_by_admin=False, note__interview__group__admin=request.user).count(),
@@ -98,6 +100,7 @@ def admin_dashboard(request):
 def student_dashboard(request):
     interviews = request.user.interviews.select_related("group", "status").prefetch_related("rounds")
     return render(request, "tracker/student/dashboard.html", {
+        "announcements": active_for(request.user),
         "groups": request.user.student_groups.all(), "interviews": interviews[:5],
         "active_tab": "overview",
         "reminders": _reminders(request.user),

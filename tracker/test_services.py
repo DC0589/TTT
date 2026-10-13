@@ -314,3 +314,70 @@ class MockModeTests(MockSessionFlowTests):
         self.assertEqual((session.mode, session.mode_reason), ("practice", "3g, measured 0.4 Mbps"))
         response = self.call(action="question", role="Python")
         self.assertEqual(MockInterviewSession.objects.get(pk=response.json()["session_id"]).mode, "full")
+
+
+class AnnouncementTests(TestCase):
+    def setUp(self):
+        from tracker.models import User
+
+        self.admin = User.objects.create_user("annadmin", password="pw-12345", is_admin=True)
+        self.student = User.objects.create_user("annstudent", password="pw-12345", is_student=True)
+
+    def make(self, title, start_hours, end_hours, **extra):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from tracker.models import Announcement
+
+        now = timezone.now()
+        return Announcement.objects.create(
+            title=title, message="Hello all", start_at=now + timedelta(hours=start_hours),
+            end_at=now + timedelta(hours=end_hours), **extra,
+        )
+
+    def test_only_live_announcements_for_the_right_audience_are_shown(self):
+        from django.urls import reverse
+
+        self.make("Live now", -1, 5)
+        self.make("Too early", 2, 5)
+        self.make("Expired", -5, -1)
+        self.make("Paused", -1, 5, is_active=False)
+        self.make("Staff only", -1, 5, audience="staff")
+        self.client.force_login(self.student)
+        page = self.client.get(reverse("student_dashboard"))
+        self.assertContains(page, "Live now")
+        for hidden in ("Too early", "Expired", "Paused", "Staff only"):
+            self.assertNotContains(page, hidden)
+        self.client.force_login(self.admin)
+        self.assertContains(self.client.get(reverse("admin_dashboard")), "Staff only")
+
+    def test_admin_can_create_validate_and_delete(self):
+        from django.urls import reverse
+
+        from tracker.models import Announcement
+
+        self.client.force_login(self.admin)
+        url = reverse("admin_announcement_add")
+        bad = self.client.post(url, {
+            "title": "T", "message": "M", "audience": "all",
+            "start_at": "2026-10-20T10:00", "end_at": "2026-10-19T10:00", "is_active": "on",
+        })
+        self.assertContains(bad, "The end must be after the start.")
+        ok = self.client.post(url, {
+            "title": "Holiday", "message": "Closed on Friday", "audience": "all",
+            "start_at": "2026-10-20T10:00", "end_at": "2026-10-25T10:00", "is_active": "on",
+        })
+        self.assertRedirects(ok, reverse("admin_announcements"))
+        item = Announcement.objects.get(title="Holiday")
+        self.assertEqual(item.created_by, self.admin)
+        self.assertContains(self.client.get(reverse("admin_announcements")), "Holiday")
+        self.client.post(reverse("admin_announcement_delete", args=[item.pk]))
+        self.assertFalse(Announcement.objects.exists())
+
+    def test_students_cannot_manage_announcements(self):
+        from django.urls import reverse
+
+        self.client.force_login(self.student)
+        self.assertEqual(self.client.get(reverse("admin_announcements")).status_code, 403)
+        self.assertEqual(self.client.post(reverse("admin_announcement_add"), {}).status_code, 403)

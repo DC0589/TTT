@@ -7,6 +7,7 @@ from django.core.validators import RegexValidator
 from django.utils import timezone
 
 from .models import (
+    Announcement,
     AttendanceSettings,
     Group,
     GroupMembership,
@@ -501,6 +502,31 @@ class PlacedStudentForm(Styled, forms.ModelForm):
 
     def clean_company(self):
         return " ".join(self.cleaned_data["company"].split())
+
+
+class AnnouncementForm(Styled, forms.ModelForm):
+    class Meta:
+        model = Announcement
+        fields = ("title", "message", "audience", "start_at", "end_at", "is_active")
+        widgets = {
+            "message": forms.Textarea(attrs={"rows": 4, "maxlength": 1000}),
+            "start_at": forms.DateTimeInput(attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"),
+            "end_at": forms.DateTimeInput(attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"),
+        }
+        labels = {"start_at": "Show from", "end_at": "Show until", "is_active": "Active (untick to pause)"}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name in ("start_at", "end_at"):
+            self.fields[name].input_formats = ["%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M"]
+        self.fields["is_active"].widget.attrs["class"] = ""
+
+    def clean(self):
+        data = super().clean()
+        start, end = data.get("start_at"), data.get("end_at")
+        if start and end and end <= start:
+            self.add_error("end_at", "The end must be after the start.")
+        return data
 
 
 class LeaveRequestForm(Styled, forms.ModelForm):

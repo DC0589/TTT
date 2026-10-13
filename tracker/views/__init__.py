@@ -8,6 +8,7 @@ from .admin_interviews import (  # noqa: F401
     admin_reports,
     interview_quick,
 )
+from .announcements import admin_announcement_delete, admin_announcement_edit, admin_announcements  # noqa: F401
 from .attendance import (  # noqa: F401
     staff_attendance,
     staff_attendance_report,

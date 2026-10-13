@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{% if announcement %}Edit{% else %}New{% endif %} announcement{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="{% url 'admin_announcements' %}">Announcements</a><span aria-hidden="true">/</span><span>{% if announcement %}Edit{% else %}New{% endif %}</span></div>
+<section class="panel">
+  <form method="post">{% csrf_token %}
+    {{ form.non_field_errors }}
+    {% for f in form %}<div class="form-field"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{{ f.errors }}</div>{% endfor %}
+    <div class="course-card-actions"><button class="button button-primary" type="submit">Save announcement</button><a class="button button-quiet" href="{% url 'admin_announcements' %}">Cancel</a></div>
+  </form>
+</section>
+{% endblock %}

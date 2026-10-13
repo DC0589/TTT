@@ -1,0 +1,18 @@
+{% if announcements %}
+<dialog class="announce-dialog" data-announcements aria-labelledby="announce-title">
+  <div class="announce-head"><span class="announce-badge">📢 Announcement</span><button class="announce-close" type="button" data-announce-close aria-label="Close">×</button></div>
+  <div class="announce-slides">
+    {% for a in announcements %}
+    <article class="announce-slide" data-announce-slide data-key="{{ a.pk }}-{{ a.updated_at|date:'U' }}"{% if not forloop.first %} hidden{% endif %}>
+      <h2{% if forloop.first %} id="announce-title"{% endif %}>{{ a.title }}</h2>
+      <p>{{ a.message|linebreaksbr }}</p>
+      <small>Until {{ a.end_at|date:"d M Y, g:i A" }}</small>
+    </article>
+    {% endfor %}
+  </div>
+  <div class="announce-foot">
+    <div class="announce-dots">{% for a in announcements %}<button type="button" data-announce-dot aria-label="Message {{ forloop.counter }}"></button>{% endfor %}</div>
+    <div class="announce-nav"><button class="button button-quiet" type="button" data-announce-prev>‹ Prev</button><button class="button button-primary" type="button" data-announce-next>Next ›</button></div>
+  </div>
+</dialog>
+{% endif %}
