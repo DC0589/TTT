@@ -958,11 +958,13 @@
   };
   const restart = () => {
     clearInterval(timer);
-    if (shown.length > 1) timer = setInterval(() => show(index + 1), 7000);
+    if (shown.length > 1) timer = setInterval(() => { if (index < shown.length - 1) show(index + 1); else clearInterval(timer); }, 15000);
   };
+  dialog.addEventListener('mouseenter', () => clearInterval(timer));
+  dialog.addEventListener('mouseleave', restart);
   dialog.querySelector('[data-announce-next]').addEventListener('click', () => { show(index + 1); restart(); });
   dialog.querySelector('[data-announce-prev]').addEventListener('click', () => { show(index - 1); restart(); });
-  dots.forEach((dot, i) => dot.addEventListener('click', () => { show(i); restart(); }));
+  dots.forEach((dot, i) => dot.addEventListener('click', () => { show(i); clearInterval(timer); }));
   if (shown.length < 2) dialog.querySelector('.announce-nav').hidden = true;
   const close = () => {
     clearInterval(timer);
