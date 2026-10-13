@@ -13,3 +13,13 @@ def active_for(user):
             is_active=True, start_at__lte=now, end_at__gte=now,
         ).filter(Q(audience=Announcement.ALL) | Q(audience=audience)).order_by("start_at", "id")[:10]
     )
+
+
+def for_login(request):
+    """Announcements to pop up once per login session."""
+    if request.session.get("_announcements_shown"):
+        return []
+    items = active_for(request.user)
+    if items:
+        request.session["_announcements_shown"] = True
+    return items

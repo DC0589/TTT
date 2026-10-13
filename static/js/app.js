@@ -942,11 +942,6 @@
   if (!dialog || typeof dialog.showModal !== 'function') return;
   const slides = [...dialog.querySelectorAll('[data-announce-slide]')];
   const dots = [...dialog.querySelectorAll('[data-announce-dot]')];
-  const today = new Date().toISOString().slice(0, 10);
-  const seenKey = slide => `announce:${dialog.dataset.user}:${slide.dataset.key}:${today}`;
-  const fresh = slides.filter(slide => !localStorage.getItem(seenKey(slide)));
-  if (!fresh.length) return;
-  slides.forEach(slide => { if (!fresh.includes(slide)) slide.remove(); });
   const shown = [...dialog.querySelectorAll('[data-announce-slide]')];
   dots.slice(shown.length).forEach(dot => dot.remove());
   let index = 0;
@@ -968,7 +963,6 @@
   if (shown.length < 2) dialog.querySelector('.announce-nav').hidden = true;
   const close = () => {
     clearInterval(timer);
-    shown.forEach(slide => localStorage.setItem(seenKey(slide), '1'));
     dialog.close();
   };
   dialog.querySelector('[data-announce-close]').addEventListener('click', close);

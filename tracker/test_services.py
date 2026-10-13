@@ -352,6 +352,18 @@ class AnnouncementTests(TestCase):
         self.client.force_login(self.admin)
         self.assertContains(self.client.get(reverse("admin_dashboard")), "Staff only")
 
+    def test_popup_shows_once_per_login(self):
+        from django.urls import reverse
+
+        self.make("Live now", -1, 5)
+        self.client.force_login(self.student)
+        url = reverse("student_dashboard")
+        self.assertContains(self.client.get(url), "Live now")
+        self.assertNotContains(self.client.get(url), "Live now")
+        self.client.logout()
+        self.client.force_login(self.student)
+        self.assertContains(self.client.get(url), "Live now")
+
     def test_admin_can_create_validate_and_delete(self):
         from django.urls import reverse
 
