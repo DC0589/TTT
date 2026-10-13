@@ -1,5 +1,5 @@
 {% if announcements %}
-<dialog class="announce-dialog" data-announcements aria-labelledby="announce-title">
+<dialog class="announce-dialog" data-announcements data-user="{{ request.user.pk }}" aria-labelledby="announce-title">
   <div class="announce-head"><span class="announce-badge">📢 Announcement</span><button class="announce-close" type="button" data-announce-close aria-label="Close">×</button></div>
   <div class="announce-slides">
     {% for a in announcements %}

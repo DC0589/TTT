@@ -943,7 +943,7 @@
   const slides = [...dialog.querySelectorAll('[data-announce-slide]')];
   const dots = [...dialog.querySelectorAll('[data-announce-dot]')];
   const today = new Date().toISOString().slice(0, 10);
-  const seenKey = slide => `announce:${slide.dataset.key}:${today}`;
+  const seenKey = slide => `announce:${dialog.dataset.user}:${slide.dataset.key}:${today}`;
   const fresh = slides.filter(slide => !localStorage.getItem(seenKey(slide)));
   if (!fresh.length) return;
   slides.forEach(slide => { if (!fresh.includes(slide)) slide.remove(); });
