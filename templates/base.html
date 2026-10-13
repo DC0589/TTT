@@ -71,10 +71,6 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 9a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1 1-1.1 1.8M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
         <span>Question bank</span>
       </a>
-      <a class="nav-link{% if request.resolver_match.url_name == 'admin_announcements' or request.resolver_match.url_name == 'admin_announcement_add' or request.resolver_match.url_name == 'admin_announcement_edit' %} is-active{% endif %}" href="{% url 'admin_announcements' %}">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h3l6 4V6L7 10zM16.5 9a4 4 0 0 1 0 6M19 6.500a8 8 0 0 1 0 11"/></svg>
-        <span>Announcements</span>
-      </a>
       <a class="nav-link{% if request.resolver_match.url_name == 'admin_placed_students' %} is-active{% endif %}" href="{% url 'admin_placed_students' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="7.5" width="17" height="12" rx="2"/><path d="M9 7.5v-2a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5.500v2M3.5 13h17"/></svg>
         <span>Placed students</span>
@@ -104,7 +100,15 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20v-1.4a5.5 5.5 0 0 1 11 0V20zM17 8h5M19.5 5.5v5"/></svg>
         <span>HR access</span>
       </a>
+      <a class="nav-link{% if request.resolver_match.url_name == 'admin_announcements' or request.resolver_match.url_name == 'admin_announcement_add' or request.resolver_match.url_name == 'admin_announcement_edit' %} is-active{% endif %}" href="{% url 'admin_announcements' %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h3l6 4V6L7 10zM16.5 9a4 4 0 0 1 0 6M19 6.500a8 8 0 0 1 0 11"/></svg>
+        <span>Announcements</span>
+      </a>
       {% elif user.is_hr %}
+      <a class="nav-link{% if request.resolver_match.url_name == 'admin_announcements' or request.resolver_match.url_name == 'admin_announcement_add' or request.resolver_match.url_name == 'admin_announcement_edit' %} is-active{% endif %}" href="{% url 'admin_announcements' %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h3l6 4V6L7 10zM16.5 9a4 4 0 0 1 0 6M19 6.500a8 8 0 0 1 0 11"/></svg>
+        <span>Announcements</span>
+      </a>
       <a class="nav-link{% if request.resolver_match.url_name == 'admin_interviews' or request.resolver_match.url_name == 'admin_interview_detail' %} is-active{% endif %}" href="{% url 'admin_interviews' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3.5v3M16 3.5v3M4 9.5h16M8 13h3M8 16.5h6"/></svg>
         <span>Interviews</span>
@@ -275,7 +279,7 @@
   });
 </script>
 {% if user.is_authenticated and user.is_admin or user.is_authenticated and user.is_hr %}<script>window.SIGNUP_POLL_URL="{% url 'registrations_pending_count' %}";</script>{% endif %}
-<script src="{% static 'js/app.js' %}?v=19" defer></script>
+<script src="{% static 'js/app.js' %}?v=20" defer></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

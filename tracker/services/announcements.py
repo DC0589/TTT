@@ -17,9 +17,12 @@ def active_for(user):
 
 def for_login(request):
     """Announcements to pop up once per login session."""
-    if request.session.get("_announcements_shown"):
+    session = getattr(request, "session", None)
+    if session is None:
+        return active_for(request.user)
+    if session.get("_announcements_shown"):
         return []
     items = active_for(request.user)
     if items:
-        request.session["_announcements_shown"] = True
+        session["_announcements_shown"] = True
     return items

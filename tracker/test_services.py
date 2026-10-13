@@ -387,6 +387,17 @@ class AnnouncementTests(TestCase):
         self.client.post(reverse("admin_announcement_delete", args=[item.pk]))
         self.assertFalse(Announcement.objects.exists())
 
+    def test_hr_can_manage_and_sees_popup(self):
+        from django.urls import reverse
+
+        from tracker.models import User
+
+        hr = User.objects.create_user("annhr", password="pw-12345", is_hr=True)
+        self.make("For staff", -1, 5, audience="staff")
+        self.client.force_login(hr)
+        self.assertEqual(self.client.get(reverse("admin_announcements")).status_code, 200)
+        self.assertContains(self.client.get(reverse("hr_students")), "For staff")
+
     def test_students_cannot_manage_announcements(self):
         from django.urls import reverse
 

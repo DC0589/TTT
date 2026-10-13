@@ -4,16 +4,16 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 from ..forms import AnnouncementForm
 from ..models import Announcement
-from ..permissions import admin_required
+from ..permissions import staff_required
 
 
-@admin_required
+@staff_required
 @require_GET
 def admin_announcements(request):
     return render(request, "tracker/admin/announcements.html", {"announcements": Announcement.objects.all()[:100]})
 
 
-@admin_required
+@staff_required
 @require_http_methods(["GET", "POST"])
 def admin_announcement_edit(request, pk=None):
     announcement = get_object_or_404(Announcement, pk=pk) if pk else None
@@ -28,7 +28,7 @@ def admin_announcement_edit(request, pk=None):
     return render(request, "tracker/admin/announcement_form.html", {"form": form, "announcement": announcement})
 
 
-@admin_required
+@staff_required
 @require_POST
 def admin_announcement_delete(request, pk):
     get_object_or_404(Announcement, pk=pk).delete()

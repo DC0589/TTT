@@ -22,6 +22,7 @@ from ..models import (
 logger = logging.getLogger(__name__)
 
 from ..permissions import admin_required, hr_required, staff_required
+from ..services.announcements import for_login
 from .mock import _mock_progress
 
 
@@ -54,6 +55,7 @@ def hr_students(request):
         request.GET.get("page")
     )
     return render(request, "tracker/hr/students.html", {
+        "announcements": for_login(request),
         "students": page_obj.object_list,
         "page_obj": page_obj,
         "search": search,
