@@ -181,7 +181,7 @@ def staff_attendance_report(request):
 
 @admin_required
 def staff_attendance_settings(request):
-    settings_obj, _ = AttendanceSettings.objects.get_or_create(admin=request.user)
+    settings_obj, _ = AttendanceSettings.objects.get_or_create(admin=request.user.data_owner)
     form = AttendanceSettingsForm(request.POST or None, instance=settings_obj)
     if request.method == "POST" and form.is_valid():
         form.save()

@@ -421,3 +421,25 @@ class PlacedCompanyFilterTests(TestCase):
         self.assertContains(page, "Asha Rao")
         self.assertNotContains(page, "Ravi Kumar")
         self.assertContains(self.client.get(reverse("admin_placed_students")), "Ravi Kumar")
+
+
+class SharedAdminDataTests(TestCase):
+    def test_partner_admin_sees_and_manages_the_same_data(self):
+        from django.urls import reverse
+
+        from tracker.models import Group, User
+
+        main = User.objects.create_user("mainadmin", password="pw-12345", is_admin=True)
+        partner = User.objects.create_user(
+            "partneradmin", password="pw-12345", is_admin=True, shares_data_with=main
+        )
+        batch = Group.objects.create(name="Shared batch", admin=main)
+        student = User.objects.create_user("sharedstud", password="pw-12345", is_student=True, created_by=main)
+        self.client.force_login(partner)
+        self.assertContains(self.client.get(reverse("admin_groups")), "Shared batch")
+        self.assertContains(self.client.get(reverse("admin_students")), student.username)
+        self.assertEqual(partner.data_owner, main)
+        self.assertEqual(set(partner.team_ids), {main.pk, partner.pk})
+        self.assertEqual(
+            self.client.get(reverse("admin_group_detail", args=[batch.pk])).status_code, 200
+        )

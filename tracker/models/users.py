@@ -23,10 +23,28 @@ class User(AbstractUser):
         related_name="students_created",
     )
 
+    shares_data_with = models.ForeignKey(
+        "self",
+        blank=True,
+        limit_choices_to={"is_admin": True},
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="data_partners",
+    )
+
     @property
     def data_owner(self):
-        """The admin whose data this user works with (an HR user's creating admin)."""
-        return (self.created_by or self) if self.is_hr else self
+        """The admin whose data this user works with (shared admins and HR resolve to one owner)."""
+        user = (self.created_by or self) if self.is_hr else self
+        if user.is_admin and user.shares_data_with_id:
+            return user.shares_data_with
+        return user
+
+    @property
+    def team_ids(self):
+        """Ids of every admin who works on the same data as this user."""
+        owner = self.data_owner
+        return [owner.pk, *owner.data_partners.values_list("pk", flat=True)]
 
     def save(self, *args, **kwargs):
         if self.is_superuser:

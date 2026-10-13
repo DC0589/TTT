@@ -148,7 +148,7 @@ def interview_quick(request, pk):
 @staff_required
 @require_POST
 def admin_interview_quick(request, pk):
-    iv = get_object_or_404(Interview, pk=pk, group__admin=request.user)
+    iv = get_object_or_404(Interview, pk=pk, group__admin=request.user.data_owner)
     error = _apply_quick_action(iv, request.POST.get("action", ""), allow_override=True)
     if error:
         messages.error(request, error)
@@ -161,7 +161,7 @@ def admin_interview_quick(request, pk):
 def admin_reports(request):
     interviews = (
         Interview.objects.filter(
-            group__admin=request.user,
+            group__admin=request.user.data_owner,
             status__final_status__in=(
                 InterviewStatus.SELECTED,
                 InterviewStatus.NOT_SELECTED,

@@ -45,7 +45,7 @@ def hr_students(request):
     if request.user.created_by_id:
         students = User.objects.filter(is_student=True).filter(
             Q(created_by=request.user)
-            | Q(memberships__group__admin=request.user.created_by)
+            | Q(memberships__group__admin=request.user.data_owner)
         ).distinct()
     if search:
         students = students.filter(
@@ -84,9 +84,9 @@ def admin_student_add(request):
 def student_delete(request, pk):
     student = get_object_or_404(
         User.objects.filter(is_student=True).filter(
-            Q(memberships__group__admin=request.user)
-            | Q(created_by=request.user)
-            | Q(created_by__created_by=request.user)
+            Q(memberships__group__admin=request.user.data_owner)
+            | Q(created_by__in=request.user.team_ids)
+            | Q(created_by__created_by__in=request.user.team_ids)
         ).distinct(),
         pk=pk,
     )
@@ -102,17 +102,17 @@ def admin_students(request):
         view_mode = "table"
     search = request.GET.get("q", "").strip()[:100]
     students = User.objects.filter(is_student=True).filter(
-        Q(memberships__group__admin=request.user)
-        | Q(created_by=request.user)
-        | Q(created_by__created_by=request.user)
+        Q(memberships__group__admin=request.user.data_owner)
+        | Q(created_by__in=request.user.team_ids)
+        | Q(created_by__created_by__in=request.user.team_ids)
     ).annotate(
         interview_count=Count(
-            "interviews", filter=Q(interviews__group__admin=request.user), distinct=True
+            "interviews", filter=Q(interviews__group__admin=request.user.data_owner), distinct=True
         ),
         selected_count=Count(
             "interviews",
             filter=Q(
-                interviews__group__admin=request.user,
+                interviews__group__admin=request.user.data_owner,
                 interviews__status__final_status="selected",
             ),
             distinct=True,
@@ -120,7 +120,7 @@ def admin_students(request):
         upcoming_count=Count(
             "interviews",
             filter=Q(
-                interviews__group__admin=request.user,
+                interviews__group__admin=request.user.data_owner,
                 interviews__date_of_interview__gte=timezone.localdate(),
             ),
             distinct=True,
@@ -128,7 +128,7 @@ def admin_students(request):
     ).distinct().prefetch_related(Prefetch(
         "memberships",
         queryset=GroupMembership.objects.filter(
-            group__admin=request.user
+            group__admin=request.user.data_owner
         ).select_related("group"),
         to_attr="admin_memberships",
     )).order_by("username")
@@ -136,7 +136,7 @@ def admin_students(request):
         students = students.filter(
             Q(username__icontains=search)
             | Q(email__icontains=search)
-            | Q(memberships__group__name__icontains=search, memberships__group__admin=request.user)
+            | Q(memberships__group__name__icontains=search, memberships__group__admin=request.user.data_owner)
         ).distinct()
     page_obj = Paginator(students, 25).get_page(request.GET.get("page"))
     return render(request, "tracker/admin/students.html", {
@@ -153,9 +153,9 @@ def admin_students(request):
 def admin_student_reset_password(request, pk):
     student = get_object_or_404(
         User.objects.filter(is_student=True).filter(
-            Q(memberships__group__admin=request.user)
-            | Q(created_by=request.user)
-            | Q(created_by__created_by=request.user)
+            Q(memberships__group__admin=request.user.data_owner)
+            | Q(created_by__in=request.user.team_ids)
+            | Q(created_by__created_by__in=request.user.team_ids)
         ).distinct(),
         pk=pk,
     )
@@ -174,14 +174,14 @@ def admin_student_reset_password(request, pk):
 def admin_student_detail(request, pk):
     student = get_object_or_404(
         User.objects.filter(is_student=True).filter(
-            Q(memberships__group__admin=request.user)
-            | Q(created_by=request.user)
-            | Q(created_by__created_by=request.user)
+            Q(memberships__group__admin=request.user.data_owner)
+            | Q(created_by__in=request.user.team_ids)
+            | Q(created_by__created_by__in=request.user.team_ids)
         ).distinct().prefetch_related("memberships__group"),
         pk=pk,
     )
     interviews = (Interview.objects.filter(
-        student=student, group__admin=request.user
+        student=student, group__admin=request.user.data_owner
     ).select_related("group", "status").prefetch_related("rounds"))
     placements = [
         {"company": i.company_name, "role": i.role, "date": i.status.updated_at, "source": "Interview"}
@@ -197,7 +197,7 @@ def admin_student_detail(request, pk):
         "student": student,
         "placements": placements,
         "memberships": student.memberships.filter(
-            group__admin=request.user).select_related("group"),
+            group__admin=request.user.data_owner).select_related("group"),
         "interviews": interviews,
         "progress": _mock_progress(student),
         "mock_sessions": student.mock_interview_sessions.order_by("-created_at")[:15],

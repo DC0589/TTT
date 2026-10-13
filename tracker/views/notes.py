@@ -24,7 +24,7 @@ from .interviews import _own_interview
 @staff_required
 @require_POST
 def admin_interview_notes(request, pk):
-    iv = get_object_or_404(Interview, pk=pk, group__admin=request.user)
+    iv = get_object_or_404(Interview, pk=pk, group__admin=request.user.data_owner)
     form = InterviewAdminNotesForm(request.POST)
     if form.is_valid():
         note = form.save(commit=False)
@@ -55,7 +55,7 @@ def student_notes(request):
 @admin_required
 @require_POST
 def admin_note_reply(request, pk):
-    note = get_object_or_404(InterviewNote, pk=pk, interview__group__admin=request.user)
+    note = get_object_or_404(InterviewNote, pk=pk, interview__group__admin=request.user.data_owner)
     form = NoteReplyForm(request.POST)
     if not note.visible_to_student:
         messages.error(request, "Only notes shown to the student can be replied to.")

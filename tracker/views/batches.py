@@ -57,7 +57,7 @@ def admin_group_add(request):
 
 @admin_required
 def admin_group_edit(request, pk):
-    group = get_object_or_404(Group, pk=pk, admin=request.user)
+    group = get_object_or_404(Group, pk=pk, admin=request.user.data_owner)
     form = GroupForm(request.POST or None, instance=group)
     if request.method == "POST" and form.is_valid():
         form.save()
@@ -106,7 +106,7 @@ def admin_group_member_add(request, pk):
 @admin_required
 @require_POST
 def group_delete(request, pk):
-    get_object_or_404(Group, pk=pk, admin=request.user).delete()
+    get_object_or_404(Group, pk=pk, admin=request.user.data_owner).delete()
     messages.success(request, "Batch deleted.")
     return redirect("admin_groups")
 
@@ -114,7 +114,7 @@ def group_delete(request, pk):
 @admin_required
 @require_POST
 def member_remove(request, pk, student_id):
-    group = get_object_or_404(Group, pk=pk, admin=request.user)
+    group = get_object_or_404(Group, pk=pk, admin=request.user.data_owner)
     membership = get_object_or_404(GroupMembership, group=group, student_id=student_id)
     membership.delete()
     messages.success(request, "Student removed from batch. Their interview records have been kept.")

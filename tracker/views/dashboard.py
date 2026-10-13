@@ -20,16 +20,16 @@ from .calendar import _reminders
 
 @staff_required
 def admin_dashboard(request):
-    interviews = (Interview.objects.filter(group__admin=request.user)
+    interviews = (Interview.objects.filter(group__admin=request.user.data_owner)
                   .select_related("student", "group", "status").prefetch_related("rounds"))
     students = User.objects.filter(is_student=True).filter(
-        Q(memberships__group__admin=request.user)
-        | Q(created_by=request.user)
-        | Q(created_by__created_by=request.user)
+        Q(memberships__group__admin=request.user.data_owner)
+        | Q(created_by__in=request.user.team_ids)
+        | Q(created_by__created_by__in=request.user.team_ids)
     ).distinct()
     stats = {
         "students": students.count(),
-        "groups": request.user.groups_created.count(),
+        "groups": request.user.data_owner.groups_created.count(),
         "interviews": interviews.count(),
         "selected": interviews.filter(status__final_status="selected").count(),
     }
@@ -51,7 +51,7 @@ def admin_dashboard(request):
             ("Not selected", outcome_counts["not_selected"]),
         )
     ]
-    batches = list(request.user.groups_created.order_by("name"))
+    batches = list(request.user.data_owner.groups_created.order_by("name"))
     batch_id = request.GET.get("batch", "")
     selected_batch = next((b for b in batches if str(b.pk) == batch_id), None)
     roster = students
@@ -60,9 +60,9 @@ def admin_dashboard(request):
     roster = roster.annotate(
         mock_count=Count("mock_interview_sessions", filter=Q(mock_interview_sessions__rating__isnull=False), distinct=True),
         mock_avg=Avg("mock_interview_sessions__rating"),
-        interview_count=Count("interviews", filter=Q(interviews__group__admin=request.user), distinct=True),
+        interview_count=Count("interviews", filter=Q(interviews__group__admin=request.user.data_owner), distinct=True),
         selected_count=Count("interviews", filter=Q(
-            interviews__group__admin=request.user, interviews__status__final_status="selected"), distinct=True),
+            interviews__group__admin=request.user.data_owner, interviews__status__final_status="selected"), distinct=True),
     ).order_by("username")
     progress_rows = []
     for student in roster[:100]:
@@ -75,13 +75,13 @@ def admin_dashboard(request):
         })
     unseen_replies = list(
         InterviewNoteReply.objects.filter(
-            seen_by_admin=False, note__interview__group__admin=request.user)
+            seen_by_admin=False, note__interview__group__admin=request.user.data_owner)
         .select_related("note__interview__student").order_by("-created_at")[:10])
     return render(request, "tracker/admin/dashboard.html", {
         "announcements": for_login(request),
         "unseen_replies": unseen_replies,
         "unseen_reply_count": InterviewNoteReply.objects.filter(
-            seen_by_admin=False, note__interview__group__admin=request.user).count(),
+            seen_by_admin=False, note__interview__group__admin=request.user.data_owner).count(),
         "stats": stats, "interviews": interviews[:20],
         "progress_rows": progress_rows, "batches": batches, "selected_batch": selected_batch,
         "roster_total": roster.count(),
