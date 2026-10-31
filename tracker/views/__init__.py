@@ -22,6 +22,7 @@ from .attendance import (  # noqa: F401
 )
 from .auth import (  # noqa: F401
     RoleLoginView,
+    StudentPasswordResetView,
     home,
     register,
     registration_submitted,

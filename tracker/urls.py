@@ -12,7 +12,7 @@ urlpatterns = [
     path("register/verify/<int:pk>/", v.verify_registration, name="verify_registration"),
     path("register/verify/<int:pk>/resend/", v.resend_registration_otp, name="resend_registration_otp"),
     path("login/", v.RoleLoginView.as_view(), name="login"),
-    path("password-reset/", auth_views.PasswordResetView.as_view(
+    path("password-reset/", v.StudentPasswordResetView.as_view(
         form_class=StudentPasswordResetForm,
         template_name="registration/password_reset_form.html",
         email_template_name="registration/password_reset_email.txt",

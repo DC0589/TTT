@@ -3,6 +3,7 @@ import json
 import re
 from datetime import date, timedelta
 from io import BytesIO
+from smtplib import SMTPException
 from unittest.mock import MagicMock, patch
 from urllib.error import HTTPError, URLError
 
@@ -12,7 +13,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import IntegrityError, transaction
 from django.test import Client, RequestFactory, TestCase, override_settings
-from django.urls import reverse
+from django.urls import resolve, reverse
 from django.utils import timezone
 
 from .ai_interview import GeminiAPIError, generate_json
@@ -76,6 +77,77 @@ PROFILE = {
 
 
 class AuthTests(Base):
+    def test_password_reset_sends_email_for_student_account(self):
+        self.alice.email = "alice@example.com"
+        self.alice.save(update_fields=["email"])
+
+        with (
+            self.settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend"),
+        ):
+            request = RequestFactory().post(
+                reverse("password_reset"),
+                {"email": self.alice.email},
+                HTTP_HOST="localhost",
+            )
+            callback = resolve(request.path).func
+            view = callback.view_class(**callback.view_initkwargs)
+            view.setup(request)
+            response = view.post(request)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("password_reset_done"))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [self.alice.email])
+        self.assertIn("/reset/", mail.outbox[0].body)
+
+    def test_password_reset_accepts_username_and_staff_accounts(self):
+        hr = User.objects.create_user(
+            "reset-hr", "hr@example.com", "pw12345!", is_hr=True, created_by=self.admin)
+        with self.settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend"):
+            for identifier in ("reset-hr", "HR@example.com"):
+                mail.outbox.clear()
+                request = RequestFactory().post(
+                    reverse("password_reset"), {"email": identifier}, HTTP_HOST="localhost")
+                callback = resolve(request.path).func
+                view = callback.view_class(**callback.view_initkwargs)
+                view.setup(request)
+                response = view.post(request)
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual([m.to for m in mail.outbox], [[hr.email]])
+                self.assertIn("/reset/", mail.outbox[0].body)
+
+    def test_password_reset_reports_email_delivery_failure(self):
+        self.alice.email = "alice@example.com"
+        self.alice.save(update_fields=["email"])
+
+        with (
+            self.settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend"),
+            patch(
+                "django.contrib.auth.forms.loader.render_to_string",
+                return_value="Password reset email",
+            ),
+            patch(
+                "tracker.forms.EmailMultiAlternatives.send",
+                side_effect=SMTPException("SMTP delivery failed"),
+            ),
+        ):
+            request = RequestFactory().post(
+                reverse("password_reset"),
+                {"email": self.alice.email},
+                HTTP_HOST="localhost",
+            )
+            callback = resolve(request.path).func
+            view = callback.view_class(**callback.view_initkwargs)
+            view.setup(request)
+            with self.assertLogs("tracker.views.auth", level="ERROR"):
+                response = view.post(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "We couldn't send the reset email.",
+            response.context_data["form"].errors.as_data()["__all__"][0].message,
+        )
+
     def test_login_redirects_by_role(self):
         r = self.client.post(reverse("login"), {"username": "admin", "password": "pw12345!"})
         self.assertRedirects(r, reverse("admin_dashboard"))

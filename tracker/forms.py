@@ -1,9 +1,10 @@
-import logging
-
 from django import forms
 from django.contrib.auth.forms import PasswordResetForm, UserCreationForm
 from django.contrib.auth.password_validation import validate_password
+from django.core.mail import EmailMultiAlternatives
 from django.core.validators import RegexValidator
+from django.db.models import Q
+from django.template import loader
 from django.utils import timezone
 
 from .models import (
@@ -384,14 +385,31 @@ class FinalStatusForm(Styled, forms.ModelForm):
 
 
 class StudentPasswordResetForm(PasswordResetForm):
-    def get_users(self, email):
-        return (user for user in super().get_users(email) if user.is_student)
+    email = forms.CharField(
+        label="Email or username",
+        max_length=254,
+        widget=forms.TextInput(attrs={"autocomplete": "username", "autofocus": True}),
+    )
 
-    def send_mail(self, *args, **kwargs):
-        try:
-            super().send_mail(*args, **kwargs)
-        except Exception:
-            logging.getLogger(__name__).exception("Password reset email failed")
+    def get_users(self, email):
+        identifier = email.strip()
+        return (
+            user
+            for user in User.objects.filter(
+                Q(email__iexact=identifier) | Q(username__iexact=identifier),
+                is_active=True,
+            )
+            if user.email and user.has_usable_password()
+        )
+
+    def send_mail(
+        self, subject_template_name, email_template_name, context, from_email,
+        to_email, html_email_template_name=None,
+    ):
+        # Django's default swallows delivery errors; let them reach the view.
+        subject = "".join(loader.render_to_string(subject_template_name, context).splitlines())
+        body = loader.render_to_string(email_template_name, context)
+        EmailMultiAlternatives(subject, body, from_email, [to_email]).send(fail_silently=False)
 
 
 class MockQuestionForm(Styled, forms.ModelForm):
