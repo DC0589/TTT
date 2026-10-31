@@ -79,6 +79,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"  # Added for collectstatic
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CRON_SECRET = os.environ.get("CRON_SECRET", "")
+INACTIVITY_LOCK_DAYS = int(os.environ.get("INACTIVITY_LOCK_DAYS", "2"))
 BACKGROUND_TASKS = os.environ.get("BACKGROUND_TASKS", "sync")
 MOCK_RETENTION_DAYS = int(os.environ.get("MOCK_RETENTION_DAYS", "30"))
 MOCK_SCORING_PER_MINUTE = int(os.environ.get("MOCK_SCORING_PER_MINUTE", "12"))

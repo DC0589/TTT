@@ -478,3 +478,51 @@ class MockFocusAreaTests(TestCase):
             self.assertEqual(question_sets.serve(user, "Python", "medium", "recursion").focus, "recursion")
             self.assertEqual(question_sets.serve(user, "Python", "medium").focus, "")
             self.assertIsNone(question_sets.serve(user, "Python", "medium", "generators and iterators"))
+
+
+class AccountLockTests(TestCase):
+    def setUp(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        self.now = timezone.now()
+        self.admin = User.objects.create_user("boss", password="x", is_admin=True)
+        self.student = User.objects.create_user("stu", password="x", is_student=True, created_by=self.admin)
+        self.old = self.now - timedelta(days=3)
+
+    def _age(self, user, when):
+        User.objects.filter(pk=user.pk).update(date_joined=when, last_login=when)
+        user.refresh_from_db()
+
+    def test_inactive_student_is_locked(self):
+        from .services import account_lock
+        self._age(self.student, self.old)
+        self.assertTrue(account_lock.lock_if_inactive(self.student))
+        self.assertTrue(User.objects.get(pk=self.student.pk).is_locked)
+
+    def test_recent_student_and_admin_not_locked(self):
+        from .services import account_lock
+        self.assertFalse(account_lock.lock_if_inactive(self.student))
+        self._age(self.admin, self.old)
+        self.assertFalse(account_lock.lock_if_inactive(self.admin))
+
+    def test_bulk_sweep_and_unlock_resets_clock(self):
+        from .services import account_lock
+        self._age(self.student, self.old)
+        self.assertEqual(account_lock.lock_inactive_students(), 1)
+        account_lock.unlock(self.student)
+        self.assertFalse(account_lock.lock_if_inactive(self.student))
+        self.assertEqual(account_lock.lock_inactive_students(), 0)
+
+    def test_login_form_reports_locked(self):
+        from django.test import RequestFactory
+        from .forms import LockAwareAuthenticationForm
+        self._age(self.student, self.old)
+        form = LockAwareAuthenticationForm(
+            RequestFactory().post("/login/"), data={"username": "stu", "password": "x"}
+        )
+        self.assertFalse(form.is_valid())
+        self.assertTrue(form.account_locked)
+
+    def test_managed_students_scope(self):
+        from .services import account_lock
+        self.assertIn(self.student, account_lock.managed_students(self.admin))

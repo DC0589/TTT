@@ -121,7 +121,7 @@
       <h1>Students</h1>
       <p>Search your students, track interview progress, and see who needs support.</p>
     </div>
-    <div class="dir-head-actions"><a class="dir-btn" href="{% url 'admin_dashboard' %}">← Dashboard</a><a class="dir-btn dir-btn-primary" href="{% url 'admin_student_add' %}">+ Add student</a></div>
+    <div class="dir-head-actions"><a class="dir-btn" href="{% url 'admin_dashboard' %}">← Dashboard</a><a class="dir-btn" href="{% url 'locked_students' %}">Locked accounts</a><a class="dir-btn dir-btn-primary" href="{% url 'admin_student_add' %}">+ Add student</a></div>
   </header>
 
   <section class="dir-toolbar" aria-label="Student directory controls">
@@ -169,7 +169,7 @@
     {% for student in students %}
     <article class="dir-row">
       <span class="dir-avatar {% cycle 't-a' 't-b' 't-c' %}">{{ student.username|slice:":1"|upper }}</span>
-      <div class="dir-id"><strong>{{ student.username }}</strong><small>{{ student.email|default:"No email added" }}</small></div>
+      <div class="dir-id"><strong>{{ student.username }}</strong>{% if student.is_locked %}<small>🔒 Locked</small>{% endif %}<small>{{ student.email|default:"No email added" }}</small></div>
       <div class="dir-pills">{% for membership in student.admin_memberships %}<span class="dir-pill">{{ membership.group.name }}</span>{% empty %}<span class="dir-pill none">No batches</span>{% endfor %}</div>
       <div class="dir-row-stats"><span><strong>{{ student.interview_count }}</strong><small>Interviews</small></span><span><strong>{{ student.selected_count }}</strong><small>Selected</small></span><span><strong>{{ student.upcoming_count }}</strong><small>Upcoming</small></span></div>
       <a class="dir-btn" href="{% url 'admin_student_detail' student.pk %}">View profile</a>
@@ -183,7 +183,7 @@
     <article class="dir-card">
       <div class="dir-card-top">
         <span class="dir-avatar {% cycle 't-a' 't-b' 't-c' %}">{{ student.username|slice:":1"|upper }}</span>
-        <span class="dir-status{% if not student.is_active %} off{% endif %}">{% if student.is_active %}Active{% else %}Inactive{% endif %}</span>
+        <span class="dir-status{% if not student.is_active or student.is_locked %} off{% endif %}">{% if student.is_locked %}Locked{% elif student.is_active %}Active{% else %}Inactive{% endif %}</span>
       </div>
       <div class="dir-id"><strong>{{ student.username }}</strong><small>{{ student.email|default:"No email added" }}</small></div>
       <div class="dir-pills">{% for membership in student.admin_memberships %}<span class="dir-pill">{{ membership.group.name }}</span>{% empty %}<span class="dir-pill none">No batches yet</span>{% endfor %}</div>

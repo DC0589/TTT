@@ -14,6 +14,9 @@ class User(AbstractUser):
     parent_name = models.CharField(max_length=150, blank=True)
     parent_mobile_number = models.CharField(max_length=30, blank=True)
     skills = models.TextField(blank=True)
+    is_locked = models.BooleanField(default=False)
+    locked_at = models.DateTimeField(blank=True, null=True)
+    unlocked_at = models.DateTimeField(blank=True, null=True)
     created_by = models.ForeignKey(
         "self",
         blank=True,

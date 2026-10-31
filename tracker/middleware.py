@@ -1,10 +1,11 @@
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth import logout
 from django.shortcuts import redirect
 from django.urls import Resolver404, resolve
 from django.utils import timezone
 
-from .services import attendance, sessions
+from .services import account_lock, attendance, sessions
 
 
 class LoginActivityMiddleware:
@@ -13,7 +14,27 @@ class LoginActivityMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
+    LOCK_CHECK_SECONDS = 600
+
+    def _locked_out(self, request):
+        """Sign out students who are locked, or who have been away too long on a saved session."""
+        user = request.user
+        if not user.is_student:
+            return False
+        if not user.is_locked:
+            now = timezone.now().timestamp()
+            if now - request.session.get("_lock_checked", 0) < self.LOCK_CHECK_SECONDS:
+                return False
+            request.session["_lock_checked"] = now
+            if not account_lock.lock_if_inactive(user):
+                return False
+        logout(request)
+        messages.error(request, account_lock.locked_message())
+        return True
+
     def __call__(self, request):
+        if request.user.is_authenticated and self._locked_out(request):
+            return redirect("login")
         if request.user.is_authenticated:
             try:
                 sessions.heartbeat(request)

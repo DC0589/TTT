@@ -15,6 +15,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods, require_POST
 
 from ..forms import (
+    LockAwareAuthenticationForm,
     RegistrationOTPForm,
     StudentRegistrationForm,
 )
@@ -44,6 +45,7 @@ LOGIN_FAILURE_WINDOW = 15 * 60
 
 
 class RoleLoginView(LoginView):
+    authentication_form = LockAwareAuthenticationForm
     redirect_authenticated_user = True
 
     def _failure_key(self):

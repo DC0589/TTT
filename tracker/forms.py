@@ -1,5 +1,5 @@
 from django import forms
-from django.contrib.auth.forms import PasswordResetForm, UserCreationForm
+from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm, UserCreationForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.mail import EmailMultiAlternatives
 from django.core.validators import RegexValidator
@@ -382,6 +382,18 @@ class FinalStatusForm(Styled, forms.ModelForm):
         if any(r.status == InterviewRound.PENDING for r in rounds):
             raise forms.ValidationError("Complete all rounds before setting the final result.")
         return self.cleaned_data["final_status"]
+
+
+class LockAwareAuthenticationForm(AuthenticationForm):
+    """Tells a student with the right password that the account is locked for inactivity."""
+    account_locked = False
+
+    def confirm_login_allowed(self, user):
+        from .services import account_lock
+        if account_lock.lock_if_inactive(user):
+            self.account_locked = True
+            raise forms.ValidationError(account_lock.locked_message(), code="account_locked")
+        super().confirm_login_allowed(user)
 
 
 class StudentPasswordResetForm(PasswordResetForm):

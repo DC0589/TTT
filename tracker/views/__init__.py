@@ -97,8 +97,10 @@ from .students import (  # noqa: F401
     admin_student_add,
     admin_student_detail,
     admin_student_reset_password,
+    locked_students,
+    student_unlock,
     admin_students,
     hr_students,
     student_delete,
 )
-from .system import cron_close_attendance, cron_purge_mock_data, cron_score_mock, csrf_failure  # noqa: F401
+from .system import cron_close_attendance, cron_lock_inactive_students, cron_purge_mock_data, cron_score_mock, csrf_failure  # noqa: F401
