@@ -94,6 +94,16 @@ def topic_language(topic):
     return MOCK_TOPICS.get(topic, {}).get("language", "python")
 
 
+def topic_areas(topic):
+    return list(MOCK_TOPICS.get(topic, {}).get("areas", []))
+
+
+def clean_focus(topic, focus):
+    """Return the focus area if it belongs to the topic, otherwise "" (overall)."""
+    focus = focus.strip() if isinstance(focus, str) else ""
+    return focus if focus in topic_areas(topic) else ""
+
+
 def pick_focus_areas(topic, count=6):
     areas = list(MOCK_TOPICS.get(topic, {}).get("areas", []))
     random.shuffle(areas)

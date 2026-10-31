@@ -52,6 +52,9 @@
   const csrfToken = interview.querySelector('[name="csrfmiddlewaretoken"]').value;
   const topicSelect = interview.querySelector('[data-topic-select]');
   const otherTopic = interview.querySelector('[data-other-topic]');
+  const focusField = interview.querySelector('[data-focus-field]');
+  const focusSelect = interview.querySelector('[data-focus-select]');
+  const topicAreas = JSON.parse(document.getElementById('mock-topic-areas')?.textContent || '{}');
   const codePanel = interview.querySelector('[data-code-panel]');
   const voicePanel = interview.querySelector('[data-voice-panel]');
   const textPanel = interview.querySelector('[data-text-panel]');
@@ -105,6 +108,7 @@
   let recordingTimer;
   let recordingSeconds = 0;
   let role = '';
+  let focus = '';
   let difficulty = 'medium';
   let sessionId = null;
   window.__mockReport = type => window.__mockIntegrityReport && window.__mockIntegrityReport(type);
@@ -182,7 +186,7 @@
       response = await fetch(interview.dataset.aiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-        body: JSON.stringify({ ...payload, role, difficulty, consent: true, history, ...(payload.action === 'question' ? { lite: liteMode, mode_reason: modeReason } : {}) }),
+        body: JSON.stringify({ ...payload, role, focus, difficulty, consent: true, history, ...(payload.action === 'question' ? { lite: liteMode, mode_reason: modeReason } : {}) }),
       });
     } catch (networkError) {
       const error = new Error('Network problem. Please check your connection.');
@@ -389,11 +393,19 @@
     updateCodeNote();
   });
 
+  const syncFocusOptions = () => {
+    const areas = topicAreas[topicSelect.value] || [];
+    focusSelect.replaceChildren(new Option('Overall (all topics)', ''), ...areas.map(area => new Option(area, area)));
+    focusField.hidden = areas.length === 0;
+  };
+
   topicSelect.addEventListener('change', () => {
     const isOther = topicSelect.value === '__other__';
     otherTopic.hidden = !isOther;
     otherTopic.required = isOther;
+    syncFocusOptions();
   });
+  syncFocusOptions();
 
   const wait = milliseconds => new Promise(resolve => window.setTimeout(resolve, milliseconds));
 
@@ -645,6 +657,7 @@
       return;
     }
     role = (topicSelect.value === '__other__' ? otherTopic.value : topicSelect.value).trim();
+    focus = focusField.hidden ? '' : focusSelect.value;
     difficulty = startForm.elements.difficulty ? startForm.elements.difficulty.value : 'medium';
     if (!role || !startForm.elements.consent.checked) return;
     busy = true;

@@ -4,7 +4,7 @@ from django.test import TestCase, override_settings
 
 from tracker import tasks
 from tracker.ai_interview import GeminiAPIError
-from tracker.models import Company, PlacedStudent
+from tracker.models import Company, PlacedStudent, User
 from tracker.services.placements import placed_company_names
 
 
@@ -443,3 +443,38 @@ class SharedAdminDataTests(TestCase):
         self.assertEqual(
             self.client.get(reverse("admin_group_detail", args=[batch.pk])).status_code, 200
         )
+
+
+class MockFocusAreaTests(TestCase):
+    def test_clean_focus_only_accepts_areas_of_the_topic(self):
+        from tracker.mock_topics import MOCK_TOPICS, clean_focus
+
+        self.assertEqual(clean_focus("Python", "recursion"), "recursion")
+        self.assertEqual(clean_focus("Python", "joins"), "")
+        self.assertEqual(clean_focus("Custom role", "recursion"), "")
+        self.assertEqual(clean_focus("Python", None), "")
+        for topic, info in MOCK_TOPICS.items():
+            self.assertTrue(info["areas"], topic)
+
+    def test_prompt_is_limited_to_the_chosen_focus(self):
+        from tracker.services import question_sets
+
+        focused = question_sets.build_prompt("Python", "medium", focus="recursion")
+        self.assertIn("specifically about 'recursion'", focused)
+        self.assertNotIn("Draw from these focus areas", focused)
+        overall = question_sets.build_prompt("Python", "medium")
+        self.assertIn("Draw from these focus areas", overall)
+
+    def test_stored_sets_are_kept_per_focus(self):
+        from tracker.models import MockQuestionSet
+        from tracker.services import question_sets
+
+        user = User.objects.create_user("focus-student", "f@example.com", "pw12345!", is_student=True)
+        questions = [{"text": f"Q{n}?", "type": "concept"} for n in range(10)]
+        question_sets.store("Python", "medium", questions, "recursion")
+        question_sets.store("Python", "medium", questions, "")
+        self.assertEqual(MockQuestionSet.objects.filter(topic="Python").count(), 2)
+        with override_settings(MOCK_BANK_MIN_SETS=1):
+            self.assertEqual(question_sets.serve(user, "Python", "medium", "recursion").focus, "recursion")
+            self.assertEqual(question_sets.serve(user, "Python", "medium").focus, "")
+            self.assertIsNone(question_sets.serve(user, "Python", "medium", "generators and iterators"))
