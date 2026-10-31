@@ -18,6 +18,11 @@
         <input class="form-control mock-other-topic" name="other_topic" maxlength="120" placeholder="For example, Data Analyst" data-other-topic hidden>
         <p class="field-help">Questions are shuffled for every session and avoid ones you have already been asked on this topic. Some are coding questions with a built-in editor.</p>
       </div>
+      <div class="form-field" data-focus-field hidden><label for="mock-focus">Focus area</label>
+        <select class="form-control" id="mock-focus" name="focus" data-focus-select>
+          <option value="">Overall (all topics)</option>
+        </select>
+      </div>
       <div class="form-field"><label for="mock-difficulty">Difficulty</label>
         <select class="form-control" id="mock-difficulty" name="difficulty">
           <option value="easy">Easy - fundamentals</option>
@@ -119,7 +124,7 @@
       <div class="mock-rating-list">
         {% for saved_session in recent_sessions %}
           <div class="mock-rating-row">
-            <div><strong>{{ saved_session.role }}</strong><span>{{ saved_session.created_at|date:"M j, Y" }} · {{ saved_session.scores.all|length }} answers</span></div>
+            <div><strong>{{ saved_session.role }}{% if saved_session.focus %} · {{ saved_session.focus }}{% endif %}</strong><span>{{ saved_session.created_at|date:"M j, Y" }} · {{ saved_session.scores.all|length }} answers</span></div>
             {% if saved_session.rating is not None %}<span class="mock-score">{{ saved_session.rating|floatformat:1 }}/5</span>{% else %}<span class="mock-rating-pending"{% if saved_session.completed_at %} data-pending-session="{{ saved_session.pk }}"{% endif %}>{% if saved_session.completed_at %}Feedback being prepared{% else %}No score yet{% endif %}</span>{% endif %}
           </div>
         {% endfor %}
@@ -129,4 +134,5 @@
     {% endif %}
   </section>
 </div>
+{{ topic_areas|json_script:"mock-topic-areas" }}
 {% endblock %}

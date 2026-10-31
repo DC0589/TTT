@@ -36,6 +36,7 @@ class MockInterviewSession(models.Model):
         User, on_delete=models.CASCADE, related_name="mock_interview_sessions"
     )
     role = models.CharField(max_length=120)
+    focus = models.CharField(max_length=120, blank=True)
     rating = models.DecimalField(max_digits=3, decimal_places=2, blank=True, null=True)
     expected_answers = models.PositiveSmallIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -142,6 +143,7 @@ class MockInterviewScore(models.Model):
 class MockQuestionSet(models.Model):
     """A ready-made set of interview questions served without calling the AI."""
     topic = models.CharField(max_length=120)
+    focus = models.CharField(max_length=120, blank=True)
     difficulty = models.CharField(max_length=10, default="medium")
     questions = models.JSONField(default=list)
     is_active = models.BooleanField(default=True)
@@ -149,7 +151,7 @@ class MockQuestionSet(models.Model):
 
     class Meta:
         ordering = ["topic", "difficulty", "-id"]
-        indexes = [models.Index(fields=["topic", "difficulty", "is_active"])]
+        indexes = [models.Index(fields=["topic", "focus", "difficulty", "is_active"])]
 
     def __str__(self):
         return f"{self.topic} [{self.difficulty}] set {self.pk}"

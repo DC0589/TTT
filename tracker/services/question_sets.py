@@ -16,9 +16,9 @@ class InvalidQuestions(Exception):
     pass
 
 
-def build_prompt(role, difficulty, previous_questions=()):
-    seeds = pick_seed_questions(role, difficulty, exclude=previous_questions)
-    focus_areas = pick_focus_areas(role)
+def build_prompt(role, difficulty, previous_questions=(), focus=""):
+    seeds = [] if focus else pick_seed_questions(role, difficulty, exclude=previous_questions)
+    focus_areas = [focus] if focus else pick_focus_areas(role)
     default_language = topic_language(role)
     prompt = (
         f"Create exactly {QUESTION_COUNT} distinct, concise mock interview questions "
@@ -34,7 +34,12 @@ def build_prompt(role, difficulty, previous_questions=()):
         "must be solvable with plain language features (and small sample data) in a few "
         "minutes, with a clearly stated input and expected output. "
     )
-    if focus_areas:
+    if focus:
+        prompt += (
+            f"Every question must be specifically about '{focus}' within {role}; "
+            "do not ask about other areas. "
+        )
+    elif focus_areas:
         prompt += f"Draw from these focus areas for this session: {', '.join(focus_areas)}. "
     if seeds:
         prompt += (
@@ -94,30 +99,32 @@ def parse_questions(result, role):
     return questions
 
 
-def generate(role, difficulty, previous_questions=()):
+def generate(role, difficulty, previous_questions=(), focus=""):
     """Ask the AI for a fresh question set. Raises GeminiAPIError or InvalidQuestions."""
-    prompt = build_prompt(role, difficulty, previous_questions)
+    prompt = build_prompt(role, difficulty, previous_questions, focus)
     return parse_questions(generate_json([{"text": prompt}]), role)
 
 
-def store(topic, difficulty, questions):
+def store(topic, difficulty, questions, focus=""):
     first = questions[0]["text"]
-    for existing in MockQuestionSet.objects.filter(topic__iexact=topic, difficulty=difficulty)[:50]:
+    for existing in MockQuestionSet.objects.filter(
+        topic__iexact=topic, difficulty=difficulty, focus=focus
+    )[:50]:
         if existing.questions and existing.questions[0].get("text") == first:
             return existing
     return MockQuestionSet.objects.create(
-        topic=topic, difficulty=difficulty, questions=questions
+        topic=topic, focus=focus, difficulty=difficulty, questions=questions
     )
 
 
-def serve(student, topic, difficulty):
+def serve(student, topic, difficulty, focus=""):
     """Return an unseen stored set for this student, once the bank has enough variety."""
     seen = MockInterviewSession.objects.filter(
         student=student, question_set__isnull=False
     ).values_list("question_set_id", flat=True)
     candidates = list(
         MockQuestionSet.objects.filter(
-            topic__iexact=topic, difficulty=difficulty, is_active=True
+            topic__iexact=topic, difficulty=difficulty, focus=focus, is_active=True
         ).exclude(pk__in=list(seen)).values_list("pk", flat=True)[:50]
     )
     if len(candidates) < settings.MOCK_BANK_MIN_SETS:

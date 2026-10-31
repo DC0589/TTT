@@ -15,7 +15,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from ..ai_interview import GeminiAPIError, check_health
 from ..mock_bank import normalise_difficulty
-from ..mock_topics import MOCK_TOPICS
+from ..mock_topics import MOCK_TOPICS, clean_focus
 from ..models import (
     MockInterviewScore,
     MockInterviewSession,
@@ -226,6 +226,7 @@ def student_mock_interview(request):
         "topics": list(MOCK_TOPICS) + sorted(
             set(MockQuestion.objects.filter(is_active=True).values_list("topic", flat=True)) - set(MOCK_TOPICS)
         ),
+        "topic_areas": {topic: info["areas"] for topic, info in MOCK_TOPICS.items()},
         "active_tab": "mock_interview",
         "recent_sessions": request.user.mock_interview_sessions.prefetch_related(
             "scores"
@@ -370,18 +371,25 @@ def student_mock_interview_ai(request):
             ).exclude(question="").order_by("-id").values_list("question", flat=True)[:40]
         )
         difficulty = normalise_difficulty(data.get("difficulty"))
-        bank_set = question_sets.serve(request.user, role, difficulty)
+        focus = clean_focus(role, data.get("focus"))
+        if focus:
+            previous_questions = list(
+                MockInterviewScore.objects.filter(
+                    session__student=request.user, session__role=role, session__focus=focus,
+                ).exclude(question="").order_by("-id").values_list("question", flat=True)[:40]
+            )
+        bank_set = question_sets.serve(request.user, role, difficulty, focus)
         if bank_set is None:
             try:
-                questions = question_sets.generate(role, difficulty, previous_questions)
+                questions = question_sets.generate(role, difficulty, previous_questions, focus)
             except GeminiAPIError as error:
                 status = 503 if "not configured" in str(error) else 502
                 return JsonResponse({"error": str(error)}, status=status)
             except question_sets.InvalidQuestions as error:
                 return JsonResponse({"error": str(error)}, status=502)
-            bank_set = question_sets.store(role, difficulty, questions)
+            bank_set = question_sets.store(role, difficulty, questions, focus)
         session = MockInterviewSession.objects.create(
-            student=request.user, role=role, difficulty=difficulty,
+            student=request.user, role=role, focus=focus, difficulty=difficulty,
             question_set=bank_set,
             mode=MockInterviewSession.MODE_PRACTICE if data.get("lite") is True else MockInterviewSession.MODE_FULL,
             mode_reason=" ".join(str(data.get("mode_reason", "")).split())[:200],
