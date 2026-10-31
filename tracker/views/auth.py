@@ -1,11 +1,12 @@
 import hmac
 import logging
 import secrets
+from smtplib import SMTPException
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.hashers import make_password
-from django.contrib.auth.views import LoginView
+from django.contrib.auth.views import LoginView, PasswordResetView
 from django.db import IntegrityError, transaction
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -65,6 +66,19 @@ class RoleLoginView(LoginView):
     def get_default_redirect_url(self):
         from django.urls import reverse
         return reverse(dashboard_for(self.request.user))
+
+
+class StudentPasswordResetView(PasswordResetView):
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except (OSError, SMTPException, ValueError):
+            logger.exception("Password reset email delivery failed")
+            form.add_error(
+                None,
+                "We couldn't send the reset email. Please try again later or contact your administrator.",
+            )
+            return self.form_invalid(form)
 
 
 def home(request):
