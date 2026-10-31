@@ -24,6 +24,23 @@
     });
   });
 
+  document.querySelectorAll('[data-password-toggle]').forEach(toggle => {
+    const input = toggle.closest('.password-field')?.querySelector('input');
+    if (!input) return;
+
+    const setVisible = visible => {
+      input.type = visible ? 'text' : 'password';
+      toggle.classList.toggle('is-visible', visible);
+      toggle.setAttribute('aria-pressed', String(visible));
+      toggle.setAttribute('aria-label', visible ? 'Hide password' : 'Show password');
+    };
+
+    toggle.addEventListener('click', () => {
+      setVisible(input.type === 'password');
+      input.focus({ preventScroll: true });
+    });
+  });
+
   const interview = document.querySelector('[data-mock-interview]');
   if (!interview) return;
 

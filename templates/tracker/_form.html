@@ -5,7 +5,17 @@
   {% if f.is_hidden %}{{ f }}{% else %}
   <div class="form-field">
     <label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %}<span class="required-mark" aria-hidden="true"> *</span>{% endif %}</label>
+    {% if f.field.widget.input_type == 'password' %}
+    <div class="password-field">
+      {{ f }}
+      <button type="button" class="password-toggle" data-password-toggle aria-label="Show password" aria-pressed="false">
+        <svg class="password-eye" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3.2"/></svg>
+        <svg class="password-eye-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5 20 18.5"/><path d="M9.6 6.3A9.9 9.9 0 0 1 12 6c6 0 9.5 6 9.5 6a17 17 0 0 1-3.5 3.9"/><path d="M6.3 8.7A17.4 17.4 0 0 0 2.5 12S6 18 12 18a9.6 9.6 0 0 0 3.6-.7"/><path d="M9.9 10a3.2 3.2 0 0 0 4.4 4.4"/></svg>
+      </button>
+    </div>
+    {% else %}
     {{ f }}
+    {% endif %}
     {% for e in f.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
     {% if f.help_text and f.name != 'password1' %}<p class="field-help">{{ f.help_text|safe }}</p>{% endif %}
   </div>
