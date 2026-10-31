@@ -104,3 +104,10 @@ from .students import (  # noqa: F401
     student_delete,
 )
 from .system import cron_close_attendance, cron_lock_inactive_students, cron_purge_mock_data, cron_score_mock, csrf_failure  # noqa: F401
+from .support import (  # noqa: F401
+    staff_support_chat,
+    staff_support_inbox,
+    staff_support_poll,
+    student_support,
+    student_support_poll,
+)

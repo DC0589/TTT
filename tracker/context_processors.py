@@ -81,3 +81,15 @@ def celebration_banners(request):
         "recent_selections": recent,
         "selected_loop": _loop(len(recent), SELECTED_SECONDS_PER_ITEM),
     }
+
+
+def support_unread(request):
+    user = request.user
+    if not user.is_authenticated:
+        return {}
+    from .services import support
+    if user.is_student:
+        return {"support_unread": int(support.student_has_unread(user))}
+    if user.is_admin or user.is_hr:
+        return {"support_unread": support.unread_for_staff(user)}
+    return {}

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Student chats{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">DIRECT SUPPORT</p><h1>Student chats</h1><p>Students message you directly with their issues. Replies are visible to the admin and HR who manage the student.</p></div>
+</section>
+<form class="student-search" method="get" onsubmit="return false">
+  <label class="sr-only" for="chat-start">Start a chat</label>
+  <select class="form-control" id="chat-start" onchange="if(this.value)location.href=this.value">
+    <option value="">Start a chat with a student…</option>
+    {% for s in students %}<option value="{% url 'staff_support_chat' s.pk %}">{{ s.username }}</option>{% endfor %}
+  </select>
+</form>
+<div class="table-wrap">
+  <table class="data-table">
+    <thead><tr><th>Student</th><th>Last message</th><th>When</th><th></th></tr></thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ row.thread.student.username }}{% if row.unread %} <span class="dir-status">New</span>{% endif %}</td>
+        <td>{{ row.last.body|truncatechars:80 }}</td>
+        <td>{{ row.thread.last_message_at|date:"d M, H:i" }}</td>
+        <td><a class="button button-quiet" href="{% url 'staff_support_chat' row.thread.student.pk %}">Open</a></td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4"><div class="table-empty"><strong>No conversations yet.</strong><span>Messages from students will show up here.</span></div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
