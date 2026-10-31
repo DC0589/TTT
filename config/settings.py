@@ -50,6 +50,7 @@ TEMPLATES = [{
         "django.contrib.auth.context_processors.auth",
         "django.contrib.messages.context_processors.messages",
         "tracker.context_processors.celebration_banners",
+        "tracker.context_processors.support_unread",
     ]},
 }]
 

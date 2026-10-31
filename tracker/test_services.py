@@ -526,3 +526,46 @@ class AccountLockTests(TestCase):
     def test_managed_students_scope(self):
         from .services import account_lock
         self.assertIn(self.student, account_lock.managed_students(self.admin))
+
+
+class SupportChatTests(TestCase):
+    def setUp(self):
+        from django.test import RequestFactory
+        self.rf = RequestFactory()
+        self.admin = User.objects.create_user("boss", password="x", is_admin=True)
+        self.student = User.objects.create_user("stu", password="x", is_student=True, created_by=self.admin)
+        self.other_admin = User.objects.create_user("other", password="x", is_admin=True)
+
+    def _call(self, name, user, method="get", data=None, **kwargs):
+        from django.urls import resolve, reverse
+        url = reverse(name, kwargs=kwargs)
+        request = getattr(self.rf, method)(url, data or {}, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        request.user = user
+        request.session = {}
+        match = resolve(url)
+        return match.func(request, **match.kwargs)
+
+    def test_student_message_reaches_staff_and_unread_clears(self):
+        import json
+        from .services import support
+        response = self._call("student_support", self.student, "post", {"body": " hello "})
+        self.assertEqual(json.loads(response.content)["messages"][0]["body"], "hello")
+        self.assertEqual(support.unread_for_staff(self.admin), 1)
+        self.assertEqual(support.unread_for_staff(self.other_admin), 0)
+        self._call("staff_support_poll", self.admin, pk=self.student.pk)
+        self.assertEqual(support.unread_for_staff(self.admin), 0)
+
+    def test_staff_reply_marks_student_unread_and_poll_returns_it(self):
+        import json
+        from .services import support
+        self._call("staff_support_chat", self.admin, "post", {"body": "On it"}, pk=self.student.pk)
+        self.assertTrue(support.student_has_unread(self.student))
+        data = json.loads(self._call("student_support_poll", self.student).content)
+        self.assertEqual(data["messages"][0]["role"], "Admin")
+        self.assertFalse(support.student_has_unread(self.student))
+
+    def test_empty_message_rejected_and_staff_scope_enforced(self):
+        from django.http import Http404
+        self.assertEqual(self._call("student_support", self.student, "post", {"body": "  "}).status_code, 400)
+        with self.assertRaises(Http404):
+            self._call("staff_support_chat", self.other_admin, pk=self.student.pk)
