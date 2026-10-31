@@ -1,6 +1,7 @@
 import logging
 import secrets
 
+from django.conf import settings
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Count, Prefetch, Q
@@ -22,6 +23,7 @@ from ..models import (
 logger = logging.getLogger(__name__)
 
 from ..permissions import admin_required, hr_required, staff_required
+from ..services import account_lock
 from ..services.announcements import for_login
 from .mock import _mock_progress
 
@@ -40,6 +42,7 @@ def admin_hr_user_add(request):
 
 @hr_required
 def hr_students(request):
+    account_lock.lock_inactive_students()
     search = request.GET.get("q", "").strip()[:100]
     students = User.objects.filter(is_student=True, created_by=request.user)
     if request.user.created_by_id:
@@ -97,6 +100,7 @@ def student_delete(request, pk):
 
 @admin_required
 def admin_students(request):
+    account_lock.lock_inactive_students()
     view_mode = request.GET.get("view", "table")
     if view_mode not in {"cards", "table", "list"}:
         view_mode = "table"
@@ -193,7 +197,9 @@ def admin_student_detail(request, pk):
     placements.sort(key=lambda p: p["date"], reverse=True)
     from ..services import mock_scoring
     mock_scoring.process_pending(max_items=1, time_budget=10)
+    account_lock.lock_if_inactive(student)
     return render(request, "tracker/admin/student_detail.html", {
+        "lock_days": settings.INACTIVITY_LOCK_DAYS,
         "student": student,
         "placements": placements,
         "memberships": student.memberships.filter(
@@ -201,4 +207,24 @@ def admin_student_detail(request, pk):
         "interviews": interviews,
         "progress": _mock_progress(student),
         "mock_sessions": student.mock_interview_sessions.order_by("-created_at")[:15],
+    })
+
+
+@staff_required
+@require_POST
+def student_unlock(request, pk):
+    student = get_object_or_404(account_lock.managed_students(request.user), pk=pk)
+    if student.is_locked:
+        account_lock.unlock(student)
+        messages.success(request, f"{student.username} can log in again.")
+    return redirect(request.POST.get("next") or "locked_students")
+
+
+@staff_required
+def locked_students(request):
+    account_lock.lock_inactive_students()
+    students = account_lock.managed_students(request.user).filter(is_locked=True).order_by("locked_at")
+    return render(request, "tracker/staff/locked_students.html", {
+        "students": students,
+        "limit_days": settings.INACTIVITY_LOCK_DAYS,
     })

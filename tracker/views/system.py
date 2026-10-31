@@ -36,6 +36,16 @@ def cron_close_attendance(request):
 
 
 @require_GET
+def cron_lock_inactive_students(request):
+    secret = settings.CRON_SECRET
+    supplied = request.headers.get("Authorization", "")
+    if not secret or not hmac.compare_digest(supplied, f"Bearer {secret}"):
+        raise PermissionDenied
+    from ..services import account_lock
+    return JsonResponse({"locked": account_lock.lock_inactive_students()})
+
+
+@require_GET
 def cron_purge_mock_data(request):
     secret = settings.CRON_SECRET
     supplied = request.headers.get("Authorization", "")

@@ -26,6 +26,10 @@
       "schedule": "30 21 * * *"
     },
     {
+      "path": "/cron/lock-inactive-students/",
+      "schedule": "0 1 * * *"
+    },
+    {
       "path": "/cron/close-attendance/",
       "schedule": "30 14 * * *"
     }

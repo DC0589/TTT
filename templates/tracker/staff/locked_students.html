@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Locked accounts{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">ACCOUNT SECURITY</p><h1>Locked accounts</h1><p>Students are locked when they do not log in for {{ limit_days }} days. Unlocking restarts the clock.</p></div>
+</section>
+<div class="table-wrap">
+  <table class="data-table">
+    <thead><tr><th>Student</th><th>Email</th><th>Locked on</th><th></th></tr></thead>
+    <tbody>
+      {% for student in students %}
+      <tr><td>{{ student.username }}</td><td>{{ student.email }}</td><td>{{ student.locked_at|date:"d M Y, H:i" }}</td>
+      <td><form method="post" action="{% url 'student_unlock' student.pk %}">{% csrf_token %}<button class="button button-primary" type="submit">Unlock</button></form></td></tr>
+      {% empty %}
+      <tr><td colspan="4"><div class="table-empty"><strong>No locked accounts.</strong></div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -8,7 +8,7 @@
   <p class="eyebrow">WELCOME BACK</p>
   <h2>Good to see you.</h2>
   <p class="auth-card-description">Log in to pick up where your career journey left off.</p>
-  {% if form.errors %}<div class="form-errors" role="alert">Your username or password wasn't recognized. Please try again.</div>{% endif %}
+  {% if form.account_locked %}<div class="form-errors" role="alert"><strong>Account locked.</strong> {{ form.non_field_errors.0 }}</div>{% elif form.errors %}<div class="form-errors" role="alert">Your username or password wasn't recognized. Please try again.</div>{% endif %}
   <form method="post" class="auth-form">{% csrf_token %}{% include "tracker/_form.html" %}
     <input type="hidden" name="next" value="{{ next }}">
     <button class="button button-primary button-wide" type="submit">Log in <span aria-hidden="true">→</span></button>
