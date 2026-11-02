@@ -13,6 +13,8 @@ from .attendance import (  # noqa: F401
     staff_attendance,
     staff_attendance_report,
     staff_attendance_settings,
+    staff_student_break_add,
+    staff_student_break_delete,
     staff_leave_review,
     staff_leaves,
     student_attendance,

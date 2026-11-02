@@ -5,7 +5,15 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import Attendance, Group, GroupMembership, LeaveRequest, LoginLog, User
+from .models import (
+    Attendance,
+    Group,
+    GroupMembership,
+    LeaveRequest,
+    LoginLog,
+    StudentBreak,
+    User,
+)
 
 LOC = {"latitude": "17.385", "longitude": "78.486", "accuracy": "12"}
 
@@ -268,6 +276,32 @@ class RulesTests(TestCase):
         })
         self.assertEqual(ok.status_code, 302)
         self.assertEqual(self.admin.attendance_settings.radius_m, 150)
+
+    def test_admin_can_schedule_and_remove_student_break_dates(self):
+        start = timezone.localdate() + timedelta(days=10)
+        end = start + timedelta(days=3)
+        self.client.force_login(self.admin)
+        page = self.client.get(reverse("staff_attendance_settings"))
+        self.assertContains(page, "Scheduled student breaks")
+        response = self.client.post(reverse("staff_student_break_add"), {
+            "name": "Winter break",
+            "start_date": start.isoformat(),
+            "end_date": end.isoformat(),
+        })
+        self.assertEqual(response.status_code, 302)
+        student_break = StudentBreak.objects.get(admin=self.admin)
+        self.assertEqual((student_break.start_date, student_break.end_date), (start, end))
+
+        other_admin = User.objects.create_user("other-admin", "other@example.com", "pw!", is_admin=True)
+        self.client.force_login(other_admin)
+        response = self.client.post(reverse("staff_student_break_delete", args=[student_break.pk]))
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(StudentBreak.objects.filter(pk=student_break.pk).exists())
+
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse("staff_student_break_delete", args=[student_break.pk]))
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(StudentBreak.objects.filter(pk=student_break.pk).exists())
 
     def test_cron_close_requires_secret(self):
         self.assertEqual(self.client.get(reverse("cron_close_attendance")).status_code, 403)

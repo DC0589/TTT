@@ -10,8 +10,8 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_GET, require_POST
 
-from ..forms import AttendanceSettingsForm, LeaveRequestForm
-from ..models import Attendance, AttendanceSettings, Group, GroupMembership, LeaveRequest
+from ..forms import AttendanceSettingsForm, LeaveRequestForm, StudentBreakForm
+from ..models import Attendance, AttendanceSettings, Group, GroupMembership, LeaveRequest, StudentBreak
 from ..permissions import admin_required, staff_required, student_required
 from ..services import attendance as service
 
@@ -187,4 +187,38 @@ def staff_attendance_settings(request):
         form.save()
         messages.success(request, "Attendance rules saved.")
         return redirect("staff_attendance_settings")
-    return render(request, "tracker/staff/attendance_settings.html", {"form": form})
+    return render(request, "tracker/staff/attendance_settings.html", {
+        "form": form,
+        "break_form": StudentBreakForm(),
+        "student_breaks": StudentBreak.objects.filter(admin=request.user.data_owner),
+    })
+
+
+@admin_required
+@require_POST
+def staff_student_break_add(request):
+    owner = request.user.data_owner
+    settings_obj, _ = AttendanceSettings.objects.get_or_create(admin=owner)
+    break_form = StudentBreakForm(request.POST)
+    if break_form.is_valid():
+        student_break = break_form.save(commit=False)
+        student_break.admin = owner
+        student_break.save()
+        messages.success(request, "Student break dates saved.")
+        return redirect("staff_attendance_settings")
+    return render(request, "tracker/staff/attendance_settings.html", {
+        "form": AttendanceSettingsForm(instance=settings_obj),
+        "break_form": break_form,
+        "student_breaks": StudentBreak.objects.filter(admin=owner),
+    })
+
+
+@admin_required
+@require_POST
+def staff_student_break_delete(request, pk):
+    student_break = get_object_or_404(
+        StudentBreak, pk=pk, admin=request.user.data_owner
+    )
+    student_break.delete()
+    messages.success(request, "Student break dates removed.")
+    return redirect("staff_attendance_settings")

@@ -72,6 +72,26 @@ class AttendanceSettings(models.Model):
         return f"Attendance settings for {self.admin}"
 
 
+class StudentBreak(models.Model):
+    """Admin-scheduled dates when students are not expected to log in."""
+    admin = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="student_breaks",
+        limit_choices_to={"is_admin": True},
+    )
+    name = models.CharField(max_length=100)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["start_date", "name"]
+
+    def __str__(self):
+        return f"{self.name}: {self.start_date} to {self.end_date}"
+
+
 class LeaveRequest(models.Model):
     PENDING, APPROVED, REJECTED, CANCELLED = "pending", "approved", "rejected", "cancelled"
     STATUS_CHOICES = [
