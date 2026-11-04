@@ -63,6 +63,12 @@ svg { display: block; width: 20px; height: 20px; }
 .topbar-context { display: grid; gap: 1px; }
 .topbar-kicker { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: 1.5px; }
 .topbar-caption { color: var(--ink-soft); font-size: 13px; }
+.topbar-profile { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.topbar-profile .avatar { color: #fff; background: var(--navy); }
+.topbar-profile .profile-copy { flex: none; }
+.topbar-profile .profile-copy strong { color: var(--ink); font-size: 13px; }
+.topbar-profile .profile-copy small { color: var(--ink-soft); }
+@media (max-width: 600px) { .topbar-profile .profile-copy { display: none; } }
 .topbar-user { display: inline-flex; align-items: center; gap: 9px; color: var(--ink-soft); font-size: 12px; font-weight: 600; }
 .status-dot, .mini-dot { display: inline-block; width: 7px; height: 7px; background: #59b997; border-radius: 50%; }
 .mobile-menu { display: none; color: var(--ink); }
