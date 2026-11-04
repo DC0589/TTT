@@ -663,12 +663,20 @@
     startForm.querySelector('button[type="submit"]').disabled = true;
     setStatus(setupStatus, 'Checking your connection...');
     const check = await checkConnection();
-    liteMode = !check.strong;
-    modeReason = check.summary;
+    const practiceBox = startForm.elements.practice_mode;
+    liteMode = Boolean(practiceBox && practiceBox.checked);
+    if (!liteMode && !check.strong) {
+      liteMode = window.confirm(
+        'Your internet connection looks slow, which can interrupt a video interview.\n\n' +
+        'Press OK to continue in Practice mode: you will answer by typing or coding, and your camera and screen sharing will stay off.\n\n' +
+        'Press Cancel to continue with the full interview, which needs your camera, microphone and screen share.'
+      );
+    }
+    modeReason = liteMode ? `practice mode; ${check.summary}` : check.summary;
     startForm.querySelector('button[type="submit"]').disabled = false;
     if (modeNote) {
       modeNote.hidden = !liteMode;
-      modeNote.textContent = liteMode ? `Your connection is weak (${check.summary}), so this interview uses practice mode: you answer by typing or coding, with no camera or screen sharing.` : '';
+      modeNote.textContent = liteMode ? `Practice mode is on${check.strong ? '' : ` because your connection looks slow (${check.summary})`}. You will answer by typing or coding, with your camera and screen sharing off.` : '';
     }
     if (!liteMode && (!navigator.mediaDevices?.getUserMedia || !navigator.mediaDevices?.getDisplayMedia || !window.MediaRecorder)) {
       setStatus(setupStatus, 'This browser does not support camera, screen sharing, and audio recording.', true);
