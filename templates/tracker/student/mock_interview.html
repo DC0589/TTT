@@ -9,6 +9,7 @@
   <section class="panel mock-setup" data-interview-setup>
     <div class="panel-heading"><div><p class="eyebrow">GET READY</p><h2>Set up your session</h2><p>Choose a role, then allow camera and screen sharing when prompted.</p></div></div>
     <p class="mock-health" data-ai-health role="status">Checking AI status... <button class="button button-secondary" type="button" data-ai-health-retry hidden>Re-check</button></p>
+    <p class="mock-health" data-network-status role="status">Checking your network...</p>
     <form class="stack-form" data-interview-start method="post">{% csrf_token %}
       <div class="form-field"><label for="mock-topic">Topic to practise</label>
         <select class="form-control" id="mock-topic" name="topic" data-topic-select required>
@@ -34,7 +35,6 @@
           <option value="hard">Hard - senior-level, in depth</option>
         </select>
       </div>
-      <label class="mock-consent"><input type="checkbox" name="practice_mode"><span>Use Practice mode (type your answers, no camera or screen sharing). Leave unticked for the full interview. If your internet looks slow, we will offer Practice mode automatically.</span></label>
       <p class="mock-lite" data-mode-note hidden></p>
       <label class="mock-consent"><input type="checkbox" name="consent" required><span>I agree to send recorded answers and camera and screen snapshots to Google Gemini. My ratings, written feedback, and transcripts of recorded answers will be saved and shared with my administrator. Recordings and images will not be saved.</span></label>
       <button class="button button-primary" type="submit">Start interview</button>
