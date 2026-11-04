@@ -58,7 +58,6 @@ svg { display: block; width: 20px; height: 20px; }
 .icon-button { display: grid; flex: 0 0 34px; width: 34px; height: 34px; place-items: center; color: currentColor; background: transparent; border: 0; border-radius: 9px; }
 .icon-button:hover { background: rgba(255,255,255,.09); }
 .icon-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
-.logout-button { color: #9ba4b8; }
 .app-main { display: flex; min-height: 100vh; flex-direction: column; margin-left: 252px; }
 .topbar { position: sticky; z-index: 10; top: 0; display: flex; align-items: center; justify-content: space-between; min-height: 72px; padding: 0 clamp(24px, 4vw, 58px); background: rgba(255,255,255,.9); border-bottom: 1px solid var(--line); backdrop-filter: blur(12px); }
 .topbar-context { display: grid; gap: 1px; }
