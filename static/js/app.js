@@ -109,6 +109,15 @@
     }
     return { strong, summary: parts.join(', ') };
   };
+  const networkStatus = interview.querySelector('[data-network-status]');
+  const showNetworkStatus = check => {
+    if (!networkStatus) return;
+    networkStatus.classList.toggle('is-ok', check.strong);
+    networkStatus.classList.toggle('is-degraded', !check.strong);
+    networkStatus.textContent = check.strong
+      ? `Network check: good for video and screen sharing (${check.summary}).`
+      : `Network check: slow (${check.summary}). It may not support video and screen sharing, so Practice mode (typing only) will be offered when you start.`;
+  };
   const codeLanguage = interview.querySelector('[data-code-language]');
   const codeEditor = interview.querySelector('[data-code-editor]');
   const codeRunButton = interview.querySelector('[data-code-run]');
@@ -656,6 +665,7 @@
   };
   if (healthRetry) healthRetry.addEventListener('click', () => checkHealth(true));
   checkHealth(false);
+  checkConnection().then(showNetworkStatus);
 
   startForm.addEventListener('submit', async event => {
     event.preventDefault();
@@ -663,9 +673,9 @@
     startForm.querySelector('button[type="submit"]').disabled = true;
     setStatus(setupStatus, 'Checking your connection...');
     const check = await checkConnection();
-    const practiceBox = startForm.elements.practice_mode;
-    liteMode = Boolean(practiceBox && practiceBox.checked);
-    if (!liteMode && !check.strong) {
+    liteMode = false;
+    showNetworkStatus(check);
+    if (!check.strong) {
       liteMode = window.confirm(
         'Your internet connection looks slow, which can interrupt a video interview.\n\n' +
         'Press OK to continue in Practice mode: you will answer by typing or coding, and your camera and screen sharing will stay off.\n\n' +
