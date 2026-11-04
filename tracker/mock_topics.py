@@ -1,4 +1,5 @@
 import random
+import re
 
 # language: the code editor language offered for coding questions on the topic.
 MOCK_TOPICS = {
@@ -102,6 +103,30 @@ def clean_focus(topic, focus):
     """Return the focus area if it belongs to the topic, otherwise "" (overall)."""
     focus = focus.strip() if isinstance(focus, str) else ""
     return focus if focus in topic_areas(topic) else ""
+
+
+MAX_CUSTOM_TOPICS = 8
+_CUSTOM_TOPIC_CHARS = re.compile(r"[^\w\s+#./&()-]")
+
+
+def clean_custom_topics(text):
+    """Turn student-typed 'looping, conditions' into a short comma-separated focus string."""
+    if not isinstance(text, str):
+        return ""
+    topics = []
+    for part in re.split(r"[,;\n]", text[:600]):
+        part = " ".join(_CUSTOM_TOPIC_CHARS.sub("", part).split())[:40]
+        if part and part.lower() not in {t.lower() for t in topics}:
+            topics.append(part)
+        if len(topics) == MAX_CUSTOM_TOPICS:
+            break
+    focus = ""
+    for topic in topics:
+        candidate = f"{focus}, {topic}" if focus else topic
+        if len(candidate) > 120:
+            break
+        focus = candidate
+    return focus
 
 
 def pick_focus_areas(topic, count=6):

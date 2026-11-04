@@ -2,7 +2,7 @@
 {% block title %}Locked accounts{% endblock %}
 {% block content %}
 <section class="page-heading">
-  <div><p class="eyebrow">ACCOUNT SECURITY</p><h1>Locked accounts</h1><p>Students are locked when they do not log in for {{ limit_days }} days. Unlocking restarts the clock.</p></div>
+  <div><p class="eyebrow">ACCOUNT SECURITY</p><h1>Locked accounts</h1><p>Students are locked after {{ limit_days }} inactive working days. Weekends, approved leave, and scheduled student breaks do not count. Unlocking restarts the clock.</p></div>
 </section>
 <div class="table-wrap">
   <table class="data-table">

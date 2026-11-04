@@ -30,6 +30,7 @@ Demo logins (password `demo12345`): `admin`, `alice`, `bob`, `carol`.
 - Interview records can include an HR contact name, phone number, and email address.
 - Admin-created student accounts are available immediately. External registrations receive a one-time 6-digit email verification code (valid for 10 minutes and 5 attempts); after verification, an administrator must approve the request before a student account or dashboard is created. Admins review verified requests from **Sign-up requests**.
 - The student directory supports searchable, paginated card, table, and list views.
+- Inactive student accounts lock after `INACTIVITY_LOCK_DAYS` inactive weekdays (default: 2). Weekends, approved individual leave, and admin-scheduled break date ranges do not count toward the limit. Admins manage shared break dates under attendance rules.
 - Admin analytics summarize interview outcomes and selection rate, with upcoming interview dates; student dashboards highlight their next interview dates and round progress.
 - Rounds are added via AJAX (CSRF token sent in the `X-CSRFToken` header). The final result can only be set once all rounds are cleared or rejected; adding a new round reopens the interview.
 - The responsive interface is served from `static/css/app.css` with lightweight interactions in `static/js/app.js`; no frontend build step is required. Google Fonts are optional, with system font fallbacks when they are unavailable.

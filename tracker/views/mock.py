@@ -15,7 +15,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from ..ai_interview import GeminiAPIError, check_health
 from ..mock_bank import normalise_difficulty
-from ..mock_topics import MOCK_TOPICS, clean_focus
+from ..mock_topics import MOCK_TOPICS, clean_custom_topics, clean_focus
 from ..models import (
     MockInterviewScore,
     MockInterviewSession,
@@ -371,7 +371,7 @@ def student_mock_interview_ai(request):
             ).exclude(question="").order_by("-id").values_list("question", flat=True)[:40]
         )
         difficulty = normalise_difficulty(data.get("difficulty"))
-        focus = clean_focus(role, data.get("focus"))
+        focus = clean_custom_topics(data.get("custom_topics")) or clean_focus(role, data.get("focus"))
         if focus:
             previous_questions = list(
                 MockInterviewScore.objects.filter(

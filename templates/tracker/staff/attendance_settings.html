@@ -2,11 +2,12 @@
 {% block title %}Attendance rules{% endblock %}
 {% block content %}
 <section class="page-heading">
-  <div><p class="eyebrow">ATTENDANCE</p><h1>Attendance rules</h1><p>Set where students must be when they check in, when a check-in counts as late, and when forgotten check-outs are closed automatically.</p></div>
+  <div><p class="eyebrow">ATTENDANCE</p><h1>Attendance rules</h1><p>Set where students must be when they check in, when a check-in counts as late, and when forgotten check-outs are closed automatically. Account inactivity counts weekdays only; approved student leave and scheduled breaks are excluded.</p></div>
   <a class="button button-secondary" href="{% url 'staff_attendance' %}">Back to attendance</a>
 </section>
 <section class="panel">
-  <form method="post" class="stack-form" id="rules-form">{% csrf_token %}
+  <form method="post" action="{% url 'staff_attendance_settings' %}" class="stack-form" id="rules-form">{% csrf_token %}
+    <input type="hidden" name="action" value="save_rules">
     {% include "tracker/_form.html" with form=form %}
     <div class="att-actions">
       <button type="button" class="button button-secondary" id="use-my-location">Use my current location as the centre</button>
@@ -14,6 +15,28 @@
     </div>
     <p class="geo-note" id="rules-geo-status" role="status">Leave latitude and longitude empty to turn the location check off. Blocking is off by default, so students outside the radius are only flagged.</p>
   </form>
+</section>
+<section class="content-section">
+  <div class="section-heading"><div><p class="eyebrow">STUDENT INACTIVITY</p><h2>Scheduled student breaks</h2><p>Students in your admin group are not expected to log in during these dates. Weekends and each student's approved leave are also excluded.</p></div></div>
+  <div class="panel">
+    <form method="post" action="{% url 'staff_student_break_add' %}" class="stack-form">{% csrf_token %}
+      {% include "tracker/_form.html" with form=break_form %}
+      <button class="button button-primary" type="submit">Add break dates</button>
+    </form>
+  </div>
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>Break</th><th>First day</th><th>Last day</th><th>Action</th></tr></thead>
+    <tbody>
+      {% for student_break in student_breaks %}
+      <tr>
+        <td>{{ student_break.name }}</td>
+        <td>{{ student_break.start_date|date:"d M Y" }}</td>
+        <td>{{ student_break.end_date|date:"d M Y" }}</td>
+        <td><form method="post" action="{% url 'staff_student_break_delete' student_break.pk %}" data-confirm="Remove these scheduled student break dates?">{% csrf_token %}<button class="button button-danger-outline" type="submit">Remove</button></form></td>
+      </tr>
+      {% empty %}<tr><td colspan="4" class="table-empty"><strong>No scheduled break dates.</strong></td></tr>{% endfor %}
+    </tbody>
+  </table></div>
 </section>
 {% endblock %}
 {% block scripts %}{{ block.super }}

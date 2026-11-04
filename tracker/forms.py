@@ -21,6 +21,7 @@ from .models import (
     MockQuestion,
     PlacedStudent,
     Selection,
+    StudentBreak,
     StudentRegistrationRequest,
     User,
 )
@@ -35,7 +36,29 @@ class Styled:
             f.widget.attrs.setdefault("class", INPUT)
 
 
-class StudentForm(Styled, UserCreationForm):
+class ParentDetailsMixin:
+    """Shared checks for the parent name and the student/parent phone numbers."""
+
+    @staticmethod
+    def _digits(value):
+        return "".join(ch for ch in (value or "") if ch.isdigit())
+
+    def clean_parent_name(self):
+        name = (self.cleaned_data.get("parent_name") or "").strip()
+        if name and len(name) < 6:
+            raise forms.ValidationError("Father's name must be at least 6 characters.")
+        return name
+
+    def clean(self):
+        cleaned = super().clean()
+        student = self._digits(cleaned.get("mobile_number"))
+        parent = self._digits(cleaned.get("parent_mobile_number"))
+        if student and student == parent:
+            self.add_error("parent_mobile_number", "Parent mobile number must be different from the student's number.")
+        return cleaned
+
+
+class StudentForm(ParentDetailsMixin, Styled, UserCreationForm):
     """Used by admins to create student accounts directly."""
     email = forms.EmailField(required=True)
 
@@ -88,7 +111,7 @@ class HRUserForm(Styled, UserCreationForm):
         return user
 
 
-class StudentRegistrationForm(Styled, forms.Form):
+class StudentRegistrationForm(ParentDetailsMixin, Styled, forms.Form):
     username = forms.CharField(
         max_length=150, validators=User._meta.get_field("username").validators
     )
@@ -625,4 +648,26 @@ class AttendanceSettingsForm(Styled, forms.ModelForm):
         radius = data.get("radius_m")
         if radius is not None and not (20 <= radius <= 50000):
             self.add_error("radius_m", "Use a radius between 20 m and 50,000 m.")
+        return data
+
+
+class StudentBreakForm(Styled, forms.ModelForm):
+    class Meta:
+        model = StudentBreak
+        fields = ("name", "start_date", "end_date")
+        labels = {
+            "name": "Break name",
+            "start_date": "First day",
+            "end_date": "Last day",
+        }
+        widgets = {
+            "start_date": forms.DateInput(attrs={"type": "date"}),
+            "end_date": forms.DateInput(attrs={"type": "date"}),
+        }
+
+    def clean(self):
+        data = super().clean()
+        start, end = data.get("start_date"), data.get("end_date")
+        if start and end and end < start:
+            self.add_error("end_date", "Last day must be on or after the first day.")
         return data

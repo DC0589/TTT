@@ -4,7 +4,7 @@ from django.test import TestCase, override_settings
 
 from tracker import tasks
 from tracker.ai_interview import GeminiAPIError
-from tracker.models import Company, PlacedStudent, User
+from tracker.models import Company, LeaveRequest, PlacedStudent, StudentBreak, User
 from tracker.services.placements import placed_company_names
 
 
@@ -456,6 +456,17 @@ class MockFocusAreaTests(TestCase):
         for topic, info in MOCK_TOPICS.items():
             self.assertTrue(info["areas"], topic)
 
+    def test_clean_custom_topics(self):
+        from tracker.mock_topics import clean_custom_topics
+
+        self.assertEqual(
+            clean_custom_topics("looping conditions,  data types, Data Types;\n<b>OOP>"),
+            "looping conditions, data types, bOOP",
+        )
+        self.assertEqual(clean_custom_topics(None), "")
+        self.assertEqual(clean_custom_topics(" , ;"), "")
+        self.assertLessEqual(len(clean_custom_topics(", ".join(["x" * 30] * 8))), 120)
+
     def test_prompt_is_limited_to_the_chosen_focus(self):
         from tracker.services import question_sets
 
@@ -487,7 +498,7 @@ class AccountLockTests(TestCase):
         self.now = timezone.now()
         self.admin = User.objects.create_user("boss", password="x", is_admin=True)
         self.student = User.objects.create_user("stu", password="x", is_student=True, created_by=self.admin)
-        self.old = self.now - timedelta(days=3)
+        self.old = self.now - timedelta(days=5)
 
     def _age(self, user, when):
         User.objects.filter(pk=user.pk).update(date_joined=when, last_login=when)
@@ -512,6 +523,52 @@ class AccountLockTests(TestCase):
         account_lock.unlock(self.student)
         self.assertFalse(account_lock.lock_if_inactive(self.student))
         self.assertEqual(account_lock.lock_inactive_students(), 0)
+
+    def test_weekends_do_not_count_toward_inactivity(self):
+        from datetime import datetime
+        from django.utils import timezone
+        from .services import account_lock
+
+        friday = timezone.make_aware(datetime(2026, 1, 2, 12))
+        self._age(self.student, friday)
+        with override_settings(INACTIVITY_LOCK_DAYS=2):
+            self.assertFalse(account_lock.lock_if_inactive(
+                self.student, timezone.make_aware(datetime(2026, 1, 4, 12))
+            ))
+            self.assertFalse(account_lock.lock_if_inactive(
+                self.student, timezone.make_aware(datetime(2026, 1, 5, 12))
+            ))
+            self.assertTrue(account_lock.lock_if_inactive(
+                self.student, timezone.make_aware(datetime(2026, 1, 6, 12))
+            ))
+
+    def test_approved_leave_and_admin_break_dates_do_not_count(self):
+        from datetime import date, datetime
+        from django.utils import timezone
+        from .services import account_lock
+
+        friday = timezone.make_aware(datetime(2026, 1, 2, 12))
+        self._age(self.student, friday)
+        LeaveRequest.objects.create(
+            student=self.student,
+            start_date=date(2026, 1, 5),
+            end_date=date(2026, 1, 5),
+            reason="Approved leave",
+            status=LeaveRequest.APPROVED,
+        )
+        StudentBreak.objects.create(
+            admin=self.admin,
+            name="Winter break",
+            start_date=date(2026, 1, 6),
+            end_date=date(2026, 1, 6),
+        )
+        with override_settings(INACTIVITY_LOCK_DAYS=2):
+            self.assertFalse(account_lock.lock_if_inactive(
+                self.student, timezone.make_aware(datetime(2026, 1, 7, 12))
+            ))
+            self.assertTrue(account_lock.lock_if_inactive(
+                self.student, timezone.make_aware(datetime(2026, 1, 8, 12))
+            ))
 
     def test_login_form_reports_locked(self):
         from django.test import RequestFactory
@@ -569,3 +626,27 @@ class SupportChatTests(TestCase):
         self.assertEqual(self._call("student_support", self.student, "post", {"body": "  "}).status_code, 400)
         with self.assertRaises(Http404):
             self._call("staff_support_chat", self.other_admin, pk=self.student.pk)
+
+
+class ParentDetailsValidationTests(TestCase):
+    def _form(self, **over):
+        from .forms import StudentForm
+        data = {
+            "username": "newstu", "email": "n@example.com", "password1": "Str0ng-pass-99", "password2": "Str0ng-pass-99",
+            "mobile_number": "9876543210", "parent_name": "Ramesh Kumar", "parent_mobile_number": "9876543211",
+        }
+        data.update(over)
+        return StudentForm(data)
+
+    def test_valid(self):
+        self.assertTrue(self._form().is_valid())
+
+    def test_short_parent_name_rejected(self):
+        form = self._form(parent_name="Ram")
+        self.assertFalse(form.is_valid())
+        self.assertIn("parent_name", form.errors)
+
+    def test_same_numbers_rejected_even_with_formatting(self):
+        form = self._form(parent_mobile_number="98765 43210")
+        self.assertFalse(form.is_valid())
+        self.assertIn("parent_mobile_number", form.errors)

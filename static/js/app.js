@@ -24,6 +24,23 @@
     });
   });
 
+  document.querySelectorAll('[data-password-toggle]').forEach(toggle => {
+    const input = toggle.closest('.password-field')?.querySelector('input');
+    if (!input) return;
+
+    const setVisible = visible => {
+      input.type = visible ? 'text' : 'password';
+      toggle.classList.toggle('is-visible', visible);
+      toggle.setAttribute('aria-pressed', String(visible));
+      toggle.setAttribute('aria-label', visible ? 'Hide password' : 'Show password');
+    };
+
+    toggle.addEventListener('click', () => {
+      setVisible(input.type === 'password');
+      input.focus({ preventScroll: true });
+    });
+  });
+
   const interview = document.querySelector('[data-mock-interview]');
   if (!interview) return;
 
@@ -109,6 +126,7 @@
   let recordingSeconds = 0;
   let role = '';
   let focus = '';
+  let customTopics = '';
   let difficulty = 'medium';
   let sessionId = null;
   window.__mockReport = type => window.__mockIntegrityReport && window.__mockIntegrityReport(type);
@@ -186,7 +204,7 @@
       response = await fetch(interview.dataset.aiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-        body: JSON.stringify({ ...payload, role, focus, difficulty, consent: true, history, ...(payload.action === 'question' ? { lite: liteMode, mode_reason: modeReason } : {}) }),
+        body: JSON.stringify({ ...payload, role, focus, custom_topics: customTopics, difficulty, consent: true, history, ...(payload.action === 'question' ? { lite: liteMode, mode_reason: modeReason } : {}) }),
       });
     } catch (networkError) {
       const error = new Error('Network problem. Please check your connection.');
@@ -658,6 +676,7 @@
     }
     role = (topicSelect.value === '__other__' ? otherTopic.value : topicSelect.value).trim();
     focus = focusField.hidden ? '' : focusSelect.value;
+    customTopics = startForm.elements.custom_topics ? startForm.elements.custom_topics.value : '';
     difficulty = startForm.elements.difficulty ? startForm.elements.difficulty.value : 'medium';
     if (!role || !startForm.elements.consent.checked) return;
     busy = true;

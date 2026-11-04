@@ -1,4 +1,4 @@
-"""Lock student accounts that have not been used for INACTIVITY_LOCK_DAYS days."""
+"""Lock student accounts after INACTIVITY_LOCK_DAYS inactive working days."""
 from datetime import timedelta
 
 from django.conf import settings
@@ -6,10 +6,10 @@ from django.db.models import Max, Q
 from django.db.models.functions import Coalesce, Greatest
 from django.utils import timezone
 
-from ..models import LoginLog, User
+from ..models import LeaveRequest, LoginLog, StudentBreak, User
 
 LOCKED_MESSAGE = (
-    "Your account is locked because you did not log in for {days} days. "
+    "Your account is locked because you did not log in for {days} working days. "
     "Please contact your administrator or HR to unlock it."
 )
 
@@ -34,22 +34,82 @@ def lock(user):
     user.save(update_fields=["is_locked", "locked_at"])
 
 
-def lock_if_inactive(user):
-    """Lock a student who has been away too long. Returns True when the account is locked."""
+def _owner_admin_ids(student):
+    admin_ids = set(student.student_groups.values_list("admin_id", flat=True))
+    creator = student.created_by
+    if creator:
+        if creator.is_admin:
+            admin_ids.add(creator.pk)
+        elif creator.created_by_id:
+            admin_ids.add(creator.created_by_id)
+    return {
+        admin.shares_data_with_id or admin.pk
+        for admin in User.objects.filter(pk__in=admin_ids, is_admin=True).only(
+            "pk", "shares_data_with_id"
+        )
+    }
+
+
+def _date_range(start, end):
+    day = start
+    while day <= end:
+        yield day
+        day += timedelta(days=1)
+
+
+def _inactive_working_days(student, last_active, now):
+    first_day = timezone.localdate(last_active) + timedelta(days=1)
+    last_day = timezone.localdate(now)
+    if first_day > last_day:
+        return 0
+
+    excluded = set()
+    for start, end in LeaveRequest.objects.filter(
+        student=student,
+        status=LeaveRequest.APPROVED,
+        start_date__lte=last_day,
+        end_date__gte=first_day,
+    ).values_list("start_date", "end_date"):
+        excluded.update(_date_range(max(start, first_day), min(end, last_day)))
+
+    owner_ids = _owner_admin_ids(student)
+    if owner_ids:
+        for start, end in StudentBreak.objects.filter(
+            admin_id__in=owner_ids,
+            start_date__lte=last_day,
+            end_date__gte=first_day,
+        ).values_list("start_date", "end_date"):
+            excluded.update(_date_range(max(start, first_day), min(end, last_day)))
+
+    return sum(
+        day.weekday() < 5 and day not in excluded
+        for day in _date_range(first_day, last_day)
+    )
+
+
+def _has_exceeded_inactivity(student, last_active, now):
+    if now - last_active < inactivity_limit():
+        return False
+    return _inactive_working_days(student, last_active, now) >= settings.INACTIVITY_LOCK_DAYS
+
+
+def lock_if_inactive(user, now=None):
+    """Lock a student after enough inactive working days. Returns whether it is locked."""
     if not user.is_student or user.is_admin or user.is_hr:
         return False
     if user.is_locked:
         return True
-    if timezone.now() - last_activity(user) >= inactivity_limit():
+    now = now or timezone.now()
+    if _has_exceeded_inactivity(user, last_activity(user), now):
         lock(user)
         return True
     return False
 
 
 def lock_inactive_students():
-    """Lock every inactive student in one pass. Returns the number newly locked."""
+    """Lock inactive students, excluding weekends and approved/scheduled leave."""
     now = timezone.now()
-    stale = (
+    candidates = (
         User.objects.filter(is_student=True, is_admin=False, is_hr=False, is_locked=False)
         .annotate(
             latest_seen=Max("login_logs__last_seen"),
@@ -61,9 +121,13 @@ def lock_inactive_students():
             ),
         )
         .filter(last_active__lte=now - inactivity_limit())
-        .values_list("pk", flat=True)
     )
-    return User.objects.filter(pk__in=list(stale)).update(is_locked=True, locked_at=now)
+    stale_ids = [
+        student.pk
+        for student in candidates
+        if _has_exceeded_inactivity(student, student.last_active, now)
+    ]
+    return User.objects.filter(pk__in=stale_ids).update(is_locked=True, locked_at=now)
 
 
 def unlock(user):
