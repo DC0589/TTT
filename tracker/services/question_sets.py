@@ -37,6 +37,7 @@ def build_prompt(role, difficulty, previous_questions=(), focus=""):
     if focus:
         prompt += (
             f"Every question must be specifically about '{focus}' within {role}; "
+            "if several topics are listed, spread the questions across all of them; "
             "do not ask about other areas. "
         )
     elif focus_areas:

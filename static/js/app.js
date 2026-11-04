@@ -126,6 +126,7 @@
   let recordingSeconds = 0;
   let role = '';
   let focus = '';
+  let customTopics = '';
   let difficulty = 'medium';
   let sessionId = null;
   window.__mockReport = type => window.__mockIntegrityReport && window.__mockIntegrityReport(type);
@@ -203,7 +204,7 @@
       response = await fetch(interview.dataset.aiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-        body: JSON.stringify({ ...payload, role, focus, difficulty, consent: true, history, ...(payload.action === 'question' ? { lite: liteMode, mode_reason: modeReason } : {}) }),
+        body: JSON.stringify({ ...payload, role, focus, custom_topics: customTopics, difficulty, consent: true, history, ...(payload.action === 'question' ? { lite: liteMode, mode_reason: modeReason } : {}) }),
       });
     } catch (networkError) {
       const error = new Error('Network problem. Please check your connection.');
@@ -675,6 +676,7 @@
     }
     role = (topicSelect.value === '__other__' ? otherTopic.value : topicSelect.value).trim();
     focus = focusField.hidden ? '' : focusSelect.value;
+    customTopics = startForm.elements.custom_topics ? startForm.elements.custom_topics.value : '';
     difficulty = startForm.elements.difficulty ? startForm.elements.difficulty.value : 'medium';
     if (!role || !startForm.elements.consent.checked) return;
     busy = true;

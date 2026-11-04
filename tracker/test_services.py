@@ -456,6 +456,17 @@ class MockFocusAreaTests(TestCase):
         for topic, info in MOCK_TOPICS.items():
             self.assertTrue(info["areas"], topic)
 
+    def test_clean_custom_topics(self):
+        from tracker.mock_topics import clean_custom_topics
+
+        self.assertEqual(
+            clean_custom_topics("looping conditions,  data types, Data Types;\n<b>OOP>"),
+            "looping conditions, data types, bOOP",
+        )
+        self.assertEqual(clean_custom_topics(None), "")
+        self.assertEqual(clean_custom_topics(" , ;"), "")
+        self.assertLessEqual(len(clean_custom_topics(", ".join(["x" * 30] * 8))), 120)
+
     def test_prompt_is_limited_to_the_chosen_focus(self):
         from tracker.services import question_sets
 
