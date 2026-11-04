@@ -181,11 +181,6 @@
     <div class="profile">
       <span class="avatar">{{ user.username|slice:":1"|upper }}</span>
       <span class="profile-copy"><strong>{{ user.username }}</strong><small>{% if user.is_admin %}Administrator{% elif user.is_hr %}HR staff{% else %}Student account{% endif %}</small></span>
-      <form method="post" action="{% url 'logout' %}">{% csrf_token %}
-        <button class="icon-button logout-button" type="submit" aria-label="Log out" title="Log out">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H4"/><path d="M13 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5"/></svg>
-        </button>
-      </form>
     </div>
   </aside>
   <div class="app-main">
