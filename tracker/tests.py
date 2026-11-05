@@ -447,7 +447,7 @@ class GuestShowcaseTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
-        self.assertIn("GUEST WALKTHROUGH", content)
+        self.assertIn("START YOUR JOURNEY WITH TTT", content)
         self.assertIn("FICTIONAL EXAMPLE", content)
         self.assertIn("Mock interviews with useful feedback", content)
         self.assertIn("Actual interview rounds, organized", content)
