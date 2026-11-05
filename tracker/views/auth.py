@@ -87,6 +87,10 @@ def home(request):
     return redirect(dashboard_for(request.user) if request.user.is_authenticated else "login")
 
 
+def guest_showcase(request):
+    return render(request, "tracker/guest_showcase.html")
+
+
 @throttle_post("register", 10, 3600)
 def register(request):
     form = StudentRegistrationForm(request.POST or None)

@@ -14,6 +14,7 @@
     <button class="button button-primary button-wide" type="submit">Log in <span aria-hidden="true">→</span></button>
   </form>
   <p class="auth-switch"><a href="{% url 'password_reset' %}">Forgot your password?</a></p>
+  <p class="auth-switch">Want to see how we support students? <a href="{% url 'guest_showcase' %}">Explore as a guest</a></p>
   <p class="auth-switch">New to Tweak Talent Technologies? <a href="{% url 'register' %}">Create a student account</a></p>
 </div>
 {% endblock %}

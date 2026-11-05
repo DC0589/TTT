@@ -148,6 +148,7 @@ class AuthTests(Base):
             response.context_data["form"].errors.as_data()["__all__"][0].message,
         )
 
+
     def test_login_redirects_by_role(self):
         r = self.client.post(reverse("login"), {"username": "admin", "password": "pw12345!"})
         self.assertRedirects(r, reverse("admin_dashboard"))
@@ -436,6 +437,24 @@ class AuthTests(Base):
     def test_anonymous_redirected(self):
         r = self.client.get(reverse("student_dashboard"))
         self.assertEqual(r.status_code, 302)
+
+
+class GuestShowcaseTests(TestCase):
+    def test_guest_showcase_is_public_and_uses_illustrative_examples(self):
+        request = RequestFactory().get(reverse("guest_showcase"))
+        request.user = User()
+        response = resolve(request.path).func(request)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn("GUEST WALKTHROUGH", content)
+        self.assertIn("FICTIONAL EXAMPLE", content)
+        self.assertIn("Mock interviews with useful feedback", content)
+        self.assertIn("Actual interview rounds, organized", content)
+        self.assertIn("100% Placement Institute", content)
+        self.assertIn("do not represent a measured placement rate", content)
+        self.assertIn(reverse("login"), content)
+        self.assertIn(reverse("register"), content)
 
 
 class MockInterviewTests(Base):

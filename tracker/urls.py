@@ -7,6 +7,7 @@ from .forms import StudentPasswordResetForm
 
 urlpatterns = [
     path("", v.home, name="home"),
+    path("explore/", v.guest_showcase, name="guest_showcase"),
     path("register/", v.register, name="register"),
     path("register/submitted/", v.registration_submitted, name="registration_submitted"),
     path("register/verify/<int:pk>/", v.verify_registration, name="verify_registration"),

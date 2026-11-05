@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Explore Tweak Talent{% endblock %}
+{% block content %}
+<div class="guest-showcase">
+  <header class="guest-hero">
+    <p class="eyebrow">GUEST WALKTHROUGH · READ-ONLY</p>
+    <h1>From practice to placement, see every step.</h1>
+    <p>Explore how students can practise interviews, track real interview rounds and keep their progress in one place.</p>
+    <div class="guest-hero-actions">
+      <a class="button button-primary" href="{% url 'register' %}">Create a student account <span aria-hidden="true">→</span></a>
+      <a class="button button-quiet" href="{% url 'login' %}">Back to log in</a>
+    </div>
+    <p class="guest-demo-notice"><strong>Illustrative demo:</strong> all student names, scores, companies and interview details below are fictional examples, not real student records or placement statistics.</p>
+  </header>
+
+  <section class="guest-section" aria-labelledby="guest-mock-title">
+    <div class="guest-section-heading">
+      <p class="eyebrow">01 · BUILD CONFIDENCE</p>
+      <h2 id="guest-mock-title">Mock interviews with useful feedback</h2>
+      <p>Students choose a role and topics to practise. They answer a mix of spoken and coding questions, then review feedback and scores to decide what to work on next.</p>
+    </div>
+    <article class="guest-demo-card">
+      <div class="guest-demo-title"><div><span class="guest-tag">FICTIONAL EXAMPLE</span><h3>Sample learner · Python mock</h3></div><span class="guest-score">4.2 <small>/ 5</small></span></div>
+      <div class="guest-topic-list"><span>Looping</span><span>Conditions</span><span>Data types</span></div>
+      <div class="guest-progress"><span style="width: 70%"></span></div>
+      <p class="guest-demo-caption">7 of 10 questions completed · Example feedback: “Good reasoning. Explain edge cases more clearly.”</p>
+    </article>
+  </section>
+
+  <section class="guest-section" aria-labelledby="guest-interview-title">
+    <div class="guest-section-heading">
+      <p class="eyebrow">02 · TRACK THE REAL JOURNEY</p>
+      <h2 id="guest-interview-title">Actual interview rounds, organized</h2>
+      <p>Students can log company interviews and follow each round from scheduled to completed, with progress and outcome visible in their own tracker.</p>
+    </div>
+    <article class="guest-demo-card">
+      <div class="guest-demo-title"><div><span class="guest-tag">FICTIONAL EXAMPLE</span><h3>Sample learner · Example employer</h3></div><span class="guest-status">In progress</span></div>
+      <ol class="guest-rounds">
+        <li class="is-complete"><span>1</span><div><strong>Online assessment</strong><small>Cleared · Example only</small></div></li>
+        <li class="is-complete"><span>2</span><div><strong>Technical interview</strong><small>Cleared · Example only</small></div></li>
+        <li><span>3</span><div><strong>Final discussion</strong><small>Upcoming · Example only</small></div></li>
+      </ol>
+    </article>
+  </section>
+
+  <section class="guest-placement" aria-labelledby="guest-placement-title">
+    <p class="eyebrow">SUPPORT FOR THE NEXT STEP</p>
+    <h2 id="guest-placement-title">100% Placement Institute</h2>
+    <p>This is Tweak Talent Technologies’ institute slogan. The examples on this page are illustrative and do not represent a measured placement rate or guarantee an individual outcome.</p>
+    <a class="guest-text-link" href="{% url 'register' %}">Start your journey <span aria-hidden="true">→</span></a>
+  </section>
+
+  <footer class="guest-footer">
+    <span>Only sign in to a student account to see that student’s private records.</span>
+    <a href="{% url 'login' %}">Log in</a>
+  </footer>
+</div>
+{% endblock %}
