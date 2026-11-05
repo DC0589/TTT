@@ -1,8 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Explore Tweak Talent{% endblock %}
-{% block content %}
-<div class="guest-showcase">
-  <div class="guest-layout">
+{% block aside_story %}
   <aside class="guest-story" aria-label="Illustrated story of a student learning, interviewing and getting a job">
     <svg viewBox="0 0 240 280" role="img" aria-label="Anime-style student learning in class, attending interviews and joining a dream company">
       <rect width="240" height="280" rx="18" fill="#eaf3ff"/>
@@ -44,7 +42,9 @@
     <div class="guest-story-captions" aria-hidden="true"><span>1 · Learning in class</span><span>2 · Attending interviews</span><span>3 · Joining the dream company</span></div>
     <p class="guest-story-note">Illustration for storytelling.</p>
   </aside>
-  <div class="guest-main">
+{% endblock %}
+{% block content %}
+<div class="guest-showcase">
   <header class="guest-hero">
     <p class="eyebrow">GUEST WALKTHROUGH · READ-ONLY</p>
     <h1>From practice to placement, see every step.</h1>
@@ -127,7 +127,5 @@
     <span>Only sign in to a student account to see that student’s private records.</span>
     <a href="{% url 'login' %}">Log in</a>
   </footer>
-  </div>
-  </div>
 </div>
 {% endblock %}
