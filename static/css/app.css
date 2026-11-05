@@ -469,26 +469,19 @@ select.form-control { padding-right: 30px; }
 .guest-text-link { display: inline-block; margin-top: 15px; color: var(--accent-dark); font-size: 12px; font-weight: 700; text-decoration: none; }
 .guest-footer { display: flex; justify-content: space-between; gap: 12px; padding-top: 19px; color: var(--ink-soft); font-size: 10px; }
 .guest-footer a { color: var(--accent-dark); font-weight: 700; }
-.auth-aside:has(.guest-story) { position: sticky; top: 0; align-self: start; height: 100vh; min-height: 0; }
-.auth-aside:has(.guest-story) .auth-aside-copy { display: none; }
-.guest-story { z-index: 1; width: min(100%, 320px); margin: auto 0; }
-.guest-story svg { display: block; width: 100%; height: auto; border-radius: 18px; box-shadow: 0 10px 28px rgba(16,40,59,.12); font-family: var(--font-display); }
-.story-scene, .guest-story-captions span { opacity: 0; animation: story-cycle 12s infinite; }
-.scene-interview, .guest-story-captions span:nth-child(2) { animation-delay: 4s; }
-.scene-job, .guest-story-captions span:nth-child(3) { animation-delay: 8s; }
-.story-student { animation: story-bob 3s ease-in-out infinite; transform-box: fill-box; }
-.story-eyes { animation: story-blink 4s infinite; transform-box: fill-box; transform-origin: center; }
-.story-float { animation: story-bob 2.4s ease-in-out infinite; }
-.story-pop { animation: story-bob 1.8s ease-in-out infinite; }
-.story-confetti { animation: story-fall 2s linear infinite; }
-.guest-story-captions { display: grid; margin-top: 10px; text-align: center; }
-.guest-story-captions span { grid-area: 1 / 1; color: #f8f4e8; font-size: 12px; font-weight: 700; }
-.guest-story-note { margin: 6px 0 0; color: #8993aa; font-size: 9px; text-align: center; }
-@keyframes story-cycle { 0% { opacity: 0; } 5%, 30% { opacity: 1; } 35%, 100% { opacity: 0; } }
-@keyframes story-bob { 50% { transform: translateY(-4px); } }
-@keyframes story-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
-@keyframes story-fall { from { transform: translateY(-6px); } to { transform: translateY(10px); } }
-@media (max-width: 950px) { .auth-aside:has(.guest-story) { position: static; height: auto; } .guest-story { width: min(100%, 260px); margin: 18px auto 0; } .guest-section { grid-template-columns: 1fr; gap: 14px; } }
+.auth-aside:has(.guest-story) { align-self: stretch; overflow: visible; }
+.auth-aside:has(.guest-story) :is(.auth-aside-copy, .auth-aside-footer, .auth-decoration) { display: none; }
+.guest-story { position: sticky; z-index: 1; top: 20px; display: flex; height: calc(100vh - 140px); min-height: 380px; flex-direction: column; align-items: center; margin-top: 14px; }
+.guest-story-title { margin: 0 0 10px; color: #f8f4e8; font: 700 15px var(--font-display); letter-spacing: -.2px; }
+.guest-story svg { display: block; width: auto; max-width: 100%; min-height: 0; flex: 1 1 auto; border-radius: 18px; box-shadow: 0 10px 28px rgba(0,0,0,.25); font-family: var(--font-display); }
+.guest-story-note { margin: 8px 0 0; color: #8993aa; font-size: 9px; }
+.story-walk { animation: story-bob .5s ease-in-out infinite; }
+.story-leg { transform-box: fill-box; transform-origin: top center; animation: story-step .5s ease-in-out infinite alternate; }
+.story-leg-b { animation-direction: alternate-reverse; }
+@keyframes story-bob { 50% { transform: translateY(-1.5px); } }
+@keyframes story-step { from { transform: rotate(-18deg); } to { transform: rotate(18deg); } }
+@media (max-width: 600px) { .guest-story { position: static; height: auto; } .guest-story svg { width: min(100%, 260px); } }
+@media (max-width: 950px) { .guest-section { grid-template-columns: 1fr; gap: 14px; } }
 .auth-footnote { margin: 40px 0 0; color: #b1b6c1; font-size: 9px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .student-view-link, .student-copy strong a { color: var(--accent-dark); }
@@ -897,8 +890,7 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
   .auth-footnote { margin-top: 34px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .story-scene, .guest-story-captions span, .story-student, .story-eyes, .story-float, .story-pop, .story-confetti { animation: none !important; }
-  .scene-class, .guest-story-captions span:first-child { opacity: 1; }
+  .story-walk, .story-leg { animation: none !important; }
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
 

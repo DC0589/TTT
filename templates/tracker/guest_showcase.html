@@ -1,45 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Explore Tweak Talent{% endblock %}
 {% block aside_story %}
-  <aside class="guest-story" aria-label="Illustrated story of a student learning, interviewing and getting a job">
-    <svg viewBox="0 0 240 280" role="img" aria-label="Anime-style student learning in class, attending interviews and joining a dream company">
-      <rect width="240" height="280" rx="18" fill="#eaf3ff"/>
-      <g class="story-scene scene-class">
-        <rect x="18" y="16" width="204" height="78" rx="6" fill="#fff" stroke="#9db4cc" stroke-width="3"/>
-        <text x="120" y="48" text-anchor="middle" font-size="15" font-weight="700" fill="#2b5c8a">Python · SQL · PySpark</text>
-        <text x="120" y="72" text-anchor="middle" font-size="13" fill="#4f7fa8">AWS · GCP · Databricks · AI</text>
-        <rect x="14" y="222" width="212" height="14" rx="4" fill="#b98a5c"/>
-        <rect x="76" y="198" width="88" height="24" rx="3" fill="#44556a"/>
-        <rect x="82" y="203" width="76" height="14" rx="2" fill="#9ad7ff"/>
-        <g class="story-float"><rect x="186" y="112" width="26" height="20" rx="2" fill="#ff8a5c"/><path d="M199 112v20" stroke="#fff" stroke-width="2"/></g>
-      </g>
-      <g class="story-scene scene-interview">
-        <rect x="14" y="96" width="212" height="12" rx="4" fill="#b98a5c"/>
-        <g><circle cx="46" cy="58" r="15" fill="#f4cba8"/><path d="M28 56a18 16 0 0 1 36 0c-9-5-27-5-36 0z" fill="#3a3a4a"/><rect x="28" y="73" width="36" height="25" rx="8" fill="#5a6b86"/></g>
-        <g><circle cx="194" cy="58" r="15" fill="#f4cba8"/><path d="M176 52a18 18 0 0 1 36 0v10c-4-9-32-9-36 0z" fill="#6b3f2a"/><rect x="176" y="73" width="36" height="25" rx="8" fill="#8a5a7a"/></g>
-        <g class="story-pop"><rect x="64" y="14" width="112" height="28" rx="12" fill="#fff" stroke="#9db4cc" stroke-width="2"/><text x="120" y="32" text-anchor="middle" font-size="11" fill="#2b5c8a">Tell us about yourself</text></g>
-      </g>
-      <g class="story-scene scene-job">
-        <rect x="26" y="24" width="188" height="206" rx="6" fill="#d7e4f2" stroke="#9db4cc" stroke-width="3"/>
-        <g fill="#fff"><rect x="42" y="64" width="24" height="20"/><rect x="78" y="64" width="24" height="20"/><rect x="138" y="64" width="24" height="20"/><rect x="174" y="64" width="24" height="20"/><rect x="42" y="100" width="24" height="20"/><rect x="174" y="100" width="24" height="20"/></g>
-        <rect x="52" y="30" width="136" height="24" rx="6" fill="#2b5c8a"/>
-        <text x="120" y="47" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">YOUR DREAM COMPANY</text>
-        <g class="story-confetti"><circle cx="40" cy="20" r="4" fill="#ff8a5c"/><circle cx="86" cy="10" r="3" fill="#ffd34d"/><circle cx="160" cy="16" r="4" fill="#5cc8a1"/><circle cx="206" cy="12" r="3" fill="#ff6f91"/></g>
-        <g><rect x="164" y="206" width="52" height="34" rx="3" fill="#fff" stroke="#2b5c8a" stroke-width="2"/><text x="190" y="227" text-anchor="middle" font-size="10" font-weight="700" fill="#1f6b3b">OFFER ✓</text></g>
-      </g>
-      <g class="story-student">
-        <path d="M82 280v-36c0-26 17-42 38-42s38 16 38 42v36z" fill="#2b4a73"/>
-        <path d="M108 202l12 22 12-22z" fill="#fff"/>
-        <rect x="112" y="184" width="16" height="20" rx="5" fill="#ffd9bf"/>
-        <circle cx="120" cy="150" r="38" fill="#ffd9bf"/>
-        <path d="M80 148c-6-36 16-60 42-60 28 0 46 24 38 60-4-14-10-24-18-30-12 8-34 10-52 6-4 6-8 14-10 24z" fill="#243a73"/>
-        <path d="M92 100l-8-18 20 10zM128 90l8-20 10 20zM150 102l16-12-4 24z" fill="#243a73"/>
-        <g class="story-eyes"><ellipse cx="104" cy="156" rx="7" ry="10" fill="#1d2b4f"/><ellipse cx="136" cy="156" rx="7" ry="10" fill="#1d2b4f"/><circle cx="106.5" cy="152" r="3" fill="#fff"/><circle cx="138.5" cy="152" r="3" fill="#fff"/></g>
-        <path d="M112 175q8 7 16 0" fill="none" stroke="#b5654a" stroke-width="2.5" stroke-linecap="round"/>
-        <ellipse cx="94" cy="170" rx="6" ry="3.5" fill="#ffb3a7" opacity=".7"/><ellipse cx="146" cy="170" rx="6" ry="3.5" fill="#ffb3a7" opacity=".7"/>
-      </g>
+  <aside class="guest-story" aria-label="A student's journey: joins TTT, learns in class, gives mock interviews, attends real interviews and lands the job">
+    <p class="guest-story-title">The TTT journey</p>
+    <svg viewBox="0 0 260 440" role="img" aria-label="Animated anime-style student walking from joining TTT, to class, to AI mock interviews, to real interviews and finally a job">
+      <rect width="260" height="440" rx="18" fill="#eaf3ff"/>
+      <path id="journey-path" d="M60 50 C60 90 190 90 190 130 C190 170 60 175 60 215 C60 255 190 260 190 300 C190 340 60 345 60 385" fill="none" stroke="#9db4cc" stroke-width="3" stroke-dasharray="2 7" stroke-linecap="round"/>
+      <g transform="translate(60 50)" opacity="1"><rect x="-20" y="-28" width="40" height="11" rx="2" fill="#e6383e"/><text x="0" y="-19.5" text-anchor="middle" font-size="8" font-weight="800" fill="#fff">TTT</text><rect x="-18" y="-17" width="36" height="36" fill="#2b4a73"/><g fill="#fff"><rect x="-13" y="-12" width="8" height="7"/><rect x="5" y="-12" width="8" height="7"/><rect x="-13" y="-1" width="8" height="7"/><rect x="5" y="-1" width="8" height="7"/></g><rect x="-4" y="7" width="8" height="12" fill="#ffd34d"/><text x="32" y="4" text-anchor="start" font-size="10.5" font-weight="700" fill="#2b4a73">Joins TTT</text></g><g transform="translate(190 130)" opacity=".35"><animate attributeName="opacity" values=".35;.35;1;1;.35" keyTimes="0;0.190;0.200;0.99;1" dur="14s" repeatCount="indefinite"/><rect x="-24" y="-20" width="48" height="30" rx="3" fill="#fff" stroke="#2b5c8a" stroke-width="2"/><text x="0" y="-8" text-anchor="middle" font-size="7.5" font-weight="700" fill="#2b5c8a">Python · SQL</text><text x="0" y="3" text-anchor="middle" font-size="7" fill="#4f7fa8">AWS · AI</text><rect x="-26" y="14" width="52" height="6" rx="2" fill="#b98a5c"/><text x="-32" y="4" text-anchor="end" font-size="10.5" font-weight="700" fill="#2b4a73">Learns in class</text></g><g transform="translate(60 215)" opacity=".35"><animate attributeName="opacity" values=".35;.35;1;1;.35" keyTimes="0;0.460;0.470;0.99;1" dur="14s" repeatCount="indefinite"/><rect x="-22" y="-20" width="44" height="30" rx="3" fill="#44556a"/><rect x="-18" y="-16" width="36" height="22" rx="2" fill="#9ad7ff"/><text x="0" y="-1" text-anchor="middle" font-size="11" font-weight="800" fill="#2b5c8a">AI</text><circle cx="16" cy="-12" r="2.4" fill="#e6383e"/><rect x="-28" y="12" width="56" height="5" rx="2" fill="#6f7e92"/><text x="32" y="4" text-anchor="start" font-size="10.5" font-weight="700" fill="#2b4a73">AI mock interviews</text></g><g transform="translate(190 300)" opacity=".35"><animate attributeName="opacity" values=".35;.35;1;1;.35" keyTimes="0;0.730;0.740;0.99;1" dur="14s" repeatCount="indefinite"/><rect x="-26" y="8" width="52" height="6" rx="2" fill="#b98a5c"/><circle cx="-13" cy="-12" r="7" fill="#f4cba8"/><path d="M-20 -14a7 7 0 0 1 14 0c-3-3-11-3-14 0z" fill="#3a3a4a"/><rect x="-20" y="-4" width="14" height="12" rx="4" fill="#5a6b86"/><circle cx="13" cy="-12" r="7" fill="#f4cba8"/><path d="M6 -14a7 7 0 0 1 14 0v5c-2-4-12-4-14 0z" fill="#6b3f2a"/><rect x="6" y="-4" width="14" height="12" rx="4" fill="#8a5a7a"/><text x="-32" y="4" text-anchor="end" font-size="10.5" font-weight="700" fill="#2b4a73">Real interviews</text></g><g transform="translate(60 385)" opacity=".35"><animate attributeName="opacity" values=".35;.35;1;1;.35" keyTimes="0;0.930;0.940;0.99;1" dur="14s" repeatCount="indefinite"/><rect x="-18" y="-22" width="36" height="40" fill="#d7e4f2" stroke="#2b5c8a" stroke-width="2"/><g fill="#fff"><rect x="-13" y="-16" width="8" height="7"/><rect x="5" y="-16" width="8" height="7"/><rect x="-13" y="-5" width="8" height="7"/><rect x="5" y="-5" width="8" height="7"/></g><rect x="-4" y="7" width="8" height="11" fill="#2b5c8a"/><circle cx="18" cy="-22" r="10" fill="#1f6b3b"/><text x="18" y="-18" text-anchor="middle" font-size="12" font-weight="800" fill="#fff">✓</text><circle cx="-24" cy="-20" r="2.5" fill="#ff8a5c"/><circle cx="-8" cy="-30" r="2" fill="#ffd34d"/><circle cx="26" cy="-34" r="2" fill="#ff6f91"/><text x="32" y="4" text-anchor="start" font-size="10.5" font-weight="700" fill="#2b4a73">Lands the job</text></g>
+      <g><animateMotion dur="14s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;0.25;0.25;0.5;0.5;0.75;0.75;1;1" keyTimes="0;0.04;0.2;0.27;0.47;0.54;0.74;0.81;0.94;1"><mpath href="#journey-path"/></animateMotion><g class="story-walk"><ellipse cx="0" cy="1" rx="9" ry="2.5" fill="#000" opacity=".15"/><rect x="-6" y="-9" width="4.5" height="9" rx="2" fill="#243a5a" class="story-leg"/><rect x="1.5" y="-9" width="4.5" height="9" rx="2" fill="#243a5a" class="story-leg story-leg-b"/><path d="M-9 -9v-12c0-5 4-8 9-8s9 3 9 8v12z" fill="#2b4a73"/><path d="M-3 -29l3 6 3-6z" fill="#fff"/><circle cx="0" cy="-37" r="10" fill="#ffd9bf"/><path d="M-11 -37c-2-11 6-18 11-18 8 0 13 7 11 18-2-4-4-7-8-8-4 2-10 3-14 8z" fill="#243a73"/><path d="M-7 -53l3 -6 3 7zM2 -55l5 -6 1 8z" fill="#243a73"/><ellipse cx="-4" cy="-36" rx="1.8" ry="2.6" fill="#1d2b4f"/><ellipse cx="4" cy="-36" rx="1.8" ry="2.6" fill="#1d2b4f"/><circle cx="-3.4" cy="-37" r=".8" fill="#fff"/><circle cx="4.6" cy="-37" r=".8" fill="#fff"/><path d="M-2 -31q2 2 4 0" fill="none" stroke="#b5654a" stroke-width="1" stroke-linecap="round"/><rect x="-11" y="-26" width="5" height="12" rx="2.5" fill="#e6383e"/></g></g>
     </svg>
-    <div class="guest-story-captions" aria-hidden="true"><span>1 · Learning in class</span><span>2 · Attending interviews</span><span>3 · Joining the dream company</span></div>
     <p class="guest-story-note">Illustration for storytelling.</p>
   </aside>
 {% endblock %}
