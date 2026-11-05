@@ -482,9 +482,21 @@ select.form-control { padding-right: 30px; }
 .story-label { opacity: .5; transition: opacity .35s; }
 .story-node.is-reached .story-on, .story-node.is-reached .story-label { opacity: 1; }
 .guest-stage-pill { display: inline-block; margin: 0 0 12px; padding: 5px 11px; border-radius: 20px; background: #fbe9ea; color: #b32a30; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
-.story-leg { animation: story-step .5s ease-in-out infinite alternate; }
+.story-leg, .story-arm, .story-body { transform-box: fill-box; animation-duration: .5s; animation-iteration-count: infinite; animation-timing-function: ease-in-out; animation-play-state: paused; }
+.story-leg { transform-origin: top center; animation-name: story-step; animation-direction: alternate; }
 .story-leg-b { animation-direction: alternate-reverse; }
-@keyframes story-step { from { transform: translateY(0); } to { transform: translateY(-3px); } }
+.story-arm { transform-origin: top center; animation-name: story-swing; animation-direction: alternate-reverse; }
+.story-arm-b { animation-direction: alternate; }
+.story-body { animation-name: story-bob; animation-duration: .25s; }
+#story-figure.is-walking .story-leg, #story-figure.is-walking .story-arm, #story-figure.is-walking .story-body { animation-play-state: running; }
+@keyframes story-step { from { transform: scaleY(1); } to { transform: scaleY(.72); } }
+@keyframes story-swing { from { transform: translateY(-2px) rotate(8deg); } to { transform: translateY(3px) rotate(-8deg); } }
+@keyframes story-bob { from { transform: translateY(0); } to { transform: translateY(-1.5px); } }
+.story-node.is-current .story-on circle:first-child { animation: story-pulse 1.4s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes story-pulse { from { transform: scale(.85); opacity: 1; } to { transform: scale(1.35); opacity: 0; } }
+#story-confetti { opacity: 0; transition: opacity .4s; }
+#story-confetti.is-on { opacity: 1; animation: story-fall 2.4s ease-in infinite; }
+@keyframes story-fall { from { transform: translateY(-14px); } to { transform: translateY(18px); } }
 @media (max-width: 600px) { .guest-story { position: static; height: auto; } .guest-story svg { width: min(100%, 260px); } }
 @media (max-width: 950px) { .guest-section { grid-template-columns: 1fr; gap: 14px; } }
 .auth-footnote { margin: 40px 0 0; color: #b1b6c1; font-size: 9px; }
@@ -895,7 +907,7 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
   .auth-footnote { margin-top: 34px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .story-walk, .story-leg { animation: none !important; }
+  .story-leg, .story-arm, .story-body, .story-on circle, #story-confetti { animation: none !important; }
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
 
