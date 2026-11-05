@@ -2,6 +2,49 @@
 {% block title %}Explore Tweak Talent{% endblock %}
 {% block content %}
 <div class="guest-showcase">
+  <div class="guest-layout">
+  <aside class="guest-story" aria-label="Illustrated story of a student learning, interviewing and getting a job">
+    <svg viewBox="0 0 240 280" role="img" aria-label="Anime-style student learning in class, attending interviews and joining a dream company">
+      <rect width="240" height="280" rx="18" fill="#eaf3ff"/>
+      <g class="story-scene scene-class">
+        <rect x="18" y="16" width="204" height="78" rx="6" fill="#fff" stroke="#9db4cc" stroke-width="3"/>
+        <text x="120" y="48" text-anchor="middle" font-size="15" font-weight="700" fill="#2b5c8a">Python · SQL · PySpark</text>
+        <text x="120" y="72" text-anchor="middle" font-size="13" fill="#4f7fa8">AWS · GCP · Databricks · AI</text>
+        <rect x="14" y="222" width="212" height="14" rx="4" fill="#b98a5c"/>
+        <rect x="76" y="198" width="88" height="24" rx="3" fill="#44556a"/>
+        <rect x="82" y="203" width="76" height="14" rx="2" fill="#9ad7ff"/>
+        <g class="story-float"><rect x="186" y="112" width="26" height="20" rx="2" fill="#ff8a5c"/><path d="M199 112v20" stroke="#fff" stroke-width="2"/></g>
+      </g>
+      <g class="story-scene scene-interview">
+        <rect x="14" y="96" width="212" height="12" rx="4" fill="#b98a5c"/>
+        <g><circle cx="46" cy="58" r="15" fill="#f4cba8"/><path d="M28 56a18 16 0 0 1 36 0c-9-5-27-5-36 0z" fill="#3a3a4a"/><rect x="28" y="73" width="36" height="25" rx="8" fill="#5a6b86"/></g>
+        <g><circle cx="194" cy="58" r="15" fill="#f4cba8"/><path d="M176 52a18 18 0 0 1 36 0v10c-4-9-32-9-36 0z" fill="#6b3f2a"/><rect x="176" y="73" width="36" height="25" rx="8" fill="#8a5a7a"/></g>
+        <g class="story-pop"><rect x="64" y="14" width="112" height="28" rx="12" fill="#fff" stroke="#9db4cc" stroke-width="2"/><text x="120" y="32" text-anchor="middle" font-size="11" fill="#2b5c8a">Tell us about yourself</text></g>
+      </g>
+      <g class="story-scene scene-job">
+        <rect x="26" y="24" width="188" height="206" rx="6" fill="#d7e4f2" stroke="#9db4cc" stroke-width="3"/>
+        <g fill="#fff"><rect x="42" y="64" width="24" height="20"/><rect x="78" y="64" width="24" height="20"/><rect x="138" y="64" width="24" height="20"/><rect x="174" y="64" width="24" height="20"/><rect x="42" y="100" width="24" height="20"/><rect x="174" y="100" width="24" height="20"/></g>
+        <rect x="52" y="30" width="136" height="24" rx="6" fill="#2b5c8a"/>
+        <text x="120" y="47" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">YOUR DREAM COMPANY</text>
+        <g class="story-confetti"><circle cx="40" cy="20" r="4" fill="#ff8a5c"/><circle cx="86" cy="10" r="3" fill="#ffd34d"/><circle cx="160" cy="16" r="4" fill="#5cc8a1"/><circle cx="206" cy="12" r="3" fill="#ff6f91"/></g>
+        <g><rect x="164" y="206" width="52" height="34" rx="3" fill="#fff" stroke="#2b5c8a" stroke-width="2"/><text x="190" y="227" text-anchor="middle" font-size="10" font-weight="700" fill="#1f6b3b">OFFER ✓</text></g>
+      </g>
+      <g class="story-student">
+        <path d="M82 280v-36c0-26 17-42 38-42s38 16 38 42v36z" fill="#2b4a73"/>
+        <path d="M108 202l12 22 12-22z" fill="#fff"/>
+        <rect x="112" y="184" width="16" height="20" rx="5" fill="#ffd9bf"/>
+        <circle cx="120" cy="150" r="38" fill="#ffd9bf"/>
+        <path d="M80 148c-6-36 16-60 42-60 28 0 46 24 38 60-4-14-10-24-18-30-12 8-34 10-52 6-4 6-8 14-10 24z" fill="#243a73"/>
+        <path d="M92 100l-8-18 20 10zM128 90l8-20 10 20zM150 102l16-12-4 24z" fill="#243a73"/>
+        <g class="story-eyes"><ellipse cx="104" cy="156" rx="7" ry="10" fill="#1d2b4f"/><ellipse cx="136" cy="156" rx="7" ry="10" fill="#1d2b4f"/><circle cx="106.5" cy="152" r="3" fill="#fff"/><circle cx="138.5" cy="152" r="3" fill="#fff"/></g>
+        <path d="M112 175q8 7 16 0" fill="none" stroke="#b5654a" stroke-width="2.5" stroke-linecap="round"/>
+        <ellipse cx="94" cy="170" rx="6" ry="3.5" fill="#ffb3a7" opacity=".7"/><ellipse cx="146" cy="170" rx="6" ry="3.5" fill="#ffb3a7" opacity=".7"/>
+      </g>
+    </svg>
+    <div class="guest-story-captions" aria-hidden="true"><span>1 · Learning in class</span><span>2 · Attending interviews</span><span>3 · Joining the dream company</span></div>
+    <p class="guest-story-note">Illustration for storytelling.</p>
+  </aside>
+  <div class="guest-main">
   <header class="guest-hero">
     <p class="eyebrow">GUEST WALKTHROUGH · READ-ONLY</p>
     <h1>From practice to placement, see every step.</h1>
@@ -84,5 +127,7 @@
     <span>Only sign in to a student account to see that student’s private records.</span>
     <a href="{% url 'login' %}">Log in</a>
   </footer>
+  </div>
+  </div>
 </div>
 {% endblock %}
