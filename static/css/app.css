@@ -477,16 +477,14 @@ select.form-control { padding-right: 30px; }
 .guest-story-title { margin: 8px 0 0; color: #f8f4e8; font: 700 clamp(24px, 2.4vw, 31px)/1.18 var(--font-display); letter-spacing: -1px; }
 .guest-story svg { display: block; width: auto; max-width: 100%; min-height: 0; flex: 1 1 auto; border-radius: 18px; box-shadow: 0 10px 28px rgba(0,0,0,.25); font-family: var(--font-display); }
 .guest-story-note { align-self: stretch; margin: 8px 0 0; color: #8993aa; font-size: 9px; }
-.story-walk { animation: story-bob .5s ease-in-out infinite; }
 #story-figure { transition: transform .25s linear; }
 .story-on { opacity: 0; transition: opacity .35s; }
 .story-label { opacity: .5; transition: opacity .35s; }
 .story-node.is-reached .story-on, .story-node.is-reached .story-label { opacity: 1; }
 .guest-stage-pill { display: inline-block; margin: 0 0 12px; padding: 5px 11px; border-radius: 20px; background: #fbe9ea; color: #b32a30; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
-.story-leg { transform-box: fill-box; transform-origin: top center; animation: story-step .5s ease-in-out infinite alternate; }
+.story-leg { transform-box: fill-box; transform-origin: top center; animation: story-step .6s ease-in-out infinite alternate; }
 .story-leg-b { animation-direction: alternate-reverse; }
-@keyframes story-bob { 50% { transform: translateY(-1.5px); } }
-@keyframes story-step { from { transform: rotate(-18deg); } to { transform: rotate(18deg); } }
+@keyframes story-step { from { transform: rotate(-22deg); } to { transform: rotate(22deg); } }
 @media (max-width: 600px) { .guest-story { position: static; height: auto; } .guest-story svg { width: min(100%, 260px); } }
 @media (max-width: 950px) { .guest-section { grid-template-columns: 1fr; gap: 14px; } }
 .auth-footnote { margin: 40px 0 0; color: #b1b6c1; font-size: 9px; }
