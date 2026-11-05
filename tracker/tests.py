@@ -452,7 +452,7 @@ class GuestShowcaseTests(TestCase):
         self.assertIn("Mock interviews with useful feedback", content)
         self.assertIn("Actual interview rounds, organized", content)
         self.assertIn("100% Placement Institute", content)
-        self.assertIn("do not represent a measured placement rate", content)
+        self.assertIn("Mock interviews powered by AI", content)
         self.assertIn(reverse("login"), content)
         self.assertIn(reverse("register"), content)
 
