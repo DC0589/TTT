@@ -626,6 +626,10 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
 .mock-status { margin: 14px 0 0; color: #596579; font-size: 13px; line-height: 1.5; }
 .mock-status:empty { display: none; }
 .mock-status.is-error { color: #a33f4e; }
+.mock-status.is-loading { display: flex; align-items: center; gap: 8px; }
+.mock-status.is-loading::before { width: 13px; height: 13px; flex: 0 0 13px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; content: ""; animation: mock-status-spin .8s linear infinite; }
+@keyframes mock-status-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .mock-status.is-loading::before { animation-duration: 2s; } }
 .mock-session { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(290px, .65fr); align-items: start; gap: 18px; }
 .mock-session-main { display: grid; min-width: 0; gap: 16px; }
 .mock-capture-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }

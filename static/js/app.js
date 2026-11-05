@@ -118,6 +118,25 @@
       ? `Network check: good for video and screen sharing (${check.summary}).`
       : `Network check: slow (${check.summary}). It may not support video and screen sharing, so Practice mode (typing only) will be offered when you start.`;
   };
+  let networkCheckStartedAt = Date.now();
+  let networkCheckReady = false;
+  let networkCheckPromise = checkConnection().then(check => {
+    networkCheckReady = true;
+    showNetworkStatus(check);
+    return check;
+  });
+  const getNetworkCheck = () => {
+    if (Date.now() - networkCheckStartedAt > 60_000) {
+      networkCheckStartedAt = Date.now();
+      networkCheckReady = false;
+      networkCheckPromise = checkConnection().then(check => {
+        networkCheckReady = true;
+        showNetworkStatus(check);
+        return check;
+      });
+    }
+    return networkCheckPromise;
+  };
   const codeLanguage = interview.querySelector('[data-code-language]');
   const codeEditor = interview.querySelector('[data-code-editor]');
   const codeRunButton = interview.querySelector('[data-code-run]');
@@ -154,9 +173,10 @@
   let history = [];
   let busy = false;
 
-  const setStatus = (element, message, isError = false) => {
+  const setStatus = (element, message, isError = false, isLoading = false) => {
     element.textContent = message;
     element.classList.toggle('is-error', isError);
+    element.classList.toggle('is-loading', isLoading);
   };
 
   const stopCapture = () => {
@@ -665,14 +685,13 @@
   };
   if (healthRetry) healthRetry.addEventListener('click', () => checkHealth(true));
   checkHealth(false);
-  checkConnection().then(showNetworkStatus);
-
   startForm.addEventListener('submit', async event => {
     event.preventDefault();
     if (busy) return;
     startForm.querySelector('button[type="submit"]').disabled = true;
-    setStatus(setupStatus, 'Checking your connection...');
-    const check = await checkConnection();
+    const pendingNetworkCheck = getNetworkCheck();
+    if (!networkCheckReady) setStatus(setupStatus, 'Checking your connection...');
+    const check = await pendingNetworkCheck;
     liteMode = false;
     showNetworkStatus(check);
     if (!check.strong) {
@@ -730,6 +749,7 @@
         className: 'mock-feedback-empty',
         textContent: 'Feedback for each answer will appear here.',
       }));
+      setStatus(sessionStatus, `Preparing your 10 ${role} questions. This may take a little while...`, false, true);
       const result = await requestAI({ action: 'question' });
       questions = result.questions;
       sessionId = result.session_id;
