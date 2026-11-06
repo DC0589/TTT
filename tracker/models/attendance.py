@@ -61,7 +61,7 @@ class AttendanceSettings(models.Model):
     centre_lng = models.FloatField(null=True, blank=True)
     radius_m = models.PositiveIntegerField(default=200)
     block_outside = models.BooleanField(default=False)
-    late_after = models.TimeField(default=datetime.time(10, 0))
+    late_after = models.TimeField(default=datetime.time(10, 30))
     auto_close_at = models.TimeField(default=datetime.time(18, 0))
 
     @property
