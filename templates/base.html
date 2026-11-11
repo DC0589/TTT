@@ -46,6 +46,18 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.500"/><path d="M3 19c0-3.300 2.700-5.500 6-5.500s6 2.200 6 5.500M17 7.500a3 3 0 0 1 0 5M18.500 14c1.600.8 2.500 2.500 2.500 5"/></svg>
         <span>Login activity</span>
       </a>
+      <a class="nav-link{% if request.resolver_match.url_name == 'admin_mock_interviews' %} is-active{% endif %}" href="{% url 'admin_mock_interviews' %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/></svg>
+        <span>Mock reviews</span>
+      </a>
+      <a class="nav-link{% if request.resolver_match.url_name == 'admin_students' or request.resolver_match.url_name == 'hr_students' or request.resolver_match.url_name == 'admin_student_detail' or request.resolver_match.url_name == 'admin_student_add' %} is-active{% endif %}" href="{% if user.is_hr %}{% url 'hr_students' %}{% else %}{% url 'admin_students' %}{% endif %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20v-1.4a5.5 5.5 0 0 1 11 0V20zM16 5.2a3.2 3.2 0 0 1 0 6.2M17 14a4.7 4.7 0 0 1 3.5 4.5"/></svg>
+        <span>Students</span>
+      </a>
+      <a class="nav-link{% if request.resolver_match.url_name == 'admin_groups' or request.resolver_match.url_name == 'admin_group_detail' %} is-active{% endif %}" href="{% url 'admin_groups' %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5v-1.2a5.5 5.5 0 0 1 11 0v1.2zM16 5.2a3.2 3.2 0 0 1 0 6.2M17 14a4.7 4.7 0 0 1 3.5 4.5v1"/></svg>
+        <span>Batches</span>
+      </a>
       <a class="nav-link{% if request.resolver_match.url_name == 'staff_leaves' %} is-active{% endif %}" href="{% url 'staff_leaves' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3.500v3M16 3.500v3M4 9.500h16M9 14l2 2 4-4"/></svg>
         <span>Leaves</span>
@@ -91,18 +103,6 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5M4 19h16M8 16v-4M12 16V7M16 16v-6"/></svg>
         <span>Reports</span>
       </a>
-      <a class="nav-link{% if request.resolver_match.url_name == 'admin_mock_interviews' %} is-active{% endif %}" href="{% url 'admin_mock_interviews' %}">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/></svg>
-        <span>Mock reviews</span>
-      </a>
-      <a class="nav-link{% if request.resolver_match.url_name == 'admin_groups' or request.resolver_match.url_name == 'admin_group_detail' %} is-active{% endif %}" href="{% url 'admin_groups' %}">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5v-1.2a5.5 5.5 0 0 1 11 0v1.2zM16 5.2a3.2 3.2 0 0 1 0 6.2M17 14a4.7 4.7 0 0 1 3.5 4.5v1"/></svg>
-        <span>Batches</span>
-      </a>
-      <a class="nav-link{% if request.resolver_match.url_name == 'admin_students' or request.resolver_match.url_name == 'admin_student_detail' %} is-active{% endif %}" href="{% url 'admin_students' %}">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20v-1.4a5.5 5.5 0 0 1 11 0V20zM16 5.2a3.2 3.2 0 0 1 0 6.2M17 14a4.7 4.7 0 0 1 3.5 4.5"/></svg>
-        <span>Students</span>
-      </a>
       <a class="nav-link{% if request.resolver_match.url_name == 'admin_registrations' %} is-active{% endif %}" href="{% url 'admin_registrations' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 7l8 6 8-6"/><path d="m15.5 16 2 2 3.5-4"/></svg>
         <span>Sign-up requests</span>
@@ -128,18 +128,6 @@
       <a class="nav-link{% if request.resolver_match.url_name == 'admin_calendar' %} is-active{% endif %}" href="{% url 'admin_calendar' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg>
         <span>Calendar</span>
-      </a>
-      <a class="nav-link{% if request.resolver_match.url_name == 'admin_mock_interviews' %} is-active{% endif %}" href="{% url 'admin_mock_interviews' %}">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/></svg>
-        <span>Mock reviews</span>
-      </a>
-      <a class="nav-link{% if request.resolver_match.url_name == 'hr_students' or request.resolver_match.url_name == 'admin_student_add' %} is-active{% endif %}" href="{% url 'hr_students' %}">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20v-1.4a5.5 5.5 0 0 1 11 0V20zM16 5.2a3.2 3.2 0 0 1 0 6.2M17 14a4.7 4.7 0 0 1 3.5 4.5"/></svg>
-        <span>Students</span>
-      </a>
-      <a class="nav-link{% if request.resolver_match.url_name == 'admin_groups' or request.resolver_match.url_name == 'admin_group_detail' %} is-active{% endif %}" href="{% url 'admin_groups' %}">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5v-1.2a5.5 5.5 0 0 1 11 0v1.2zM16 5.2a3.2 3.2 0 0 1 0 6.2M17 14a4.7 4.7 0 0 1 3.5 4.5v1"/></svg>
-        <span>Batches</span>
       </a>
       <a class="nav-link{% if request.resolver_match.url_name == 'admin_registrations' %} is-active{% endif %}" href="{% url 'admin_registrations' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 7l8 6 8-6"/><path d="m15.5 16 2 2 3.5-4"/></svg>

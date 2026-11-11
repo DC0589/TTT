@@ -3,6 +3,7 @@ from unittest.mock import patch
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.test import RequestFactory, TestCase
+from django.template.loader import render_to_string
 from django.urls import reverse
 
 from .models import Group, GroupMembership, User
@@ -61,3 +62,27 @@ class HRStudentDetailTests(TestCase):
         self.assertIn(reverse("admin_student_detail", args=[self.student.pk]).encode(), response.content)
         self.assertIn(reverse("admin_student_detail", args=[self.created_student.pk]).encode(), response.content)
         self.assertNotIn(self.outsider.username.encode(), response.content)
+
+    def test_staff_sidebar_order_and_role_links(self):
+        for user, students_url in ((self.admin, "admin_students"), (self.hr, "hr_students")):
+            with self.subTest(user=user.username):
+                request = RequestFactory().get("/")
+                request.user = user
+                html = render_to_string("base.html", {"user": user, "request": request})
+                sidebar = html.split('<nav class="side-nav"', 1)[1].split("</nav>", 1)[0]
+                names = ["Login activity", "Mock reviews", "Students", "Batches", "Leaves"]
+                positions = [sidebar.index(f"<span>{name}</span>") for name in names]
+                self.assertEqual(positions, sorted(positions))
+                for name in names:
+                    self.assertEqual(sidebar.count(f"<span>{name}</span>"), 1)
+                self.assertIn(f'href="{reverse(students_url)}"', sidebar)
+
+    def test_student_sidebar_has_no_staff_links(self):
+        request = RequestFactory().get("/")
+        request.user = self.student
+        html = render_to_string("base.html", {"user": self.student, "request": request})
+        sidebar = html.split('<nav class="side-nav"', 1)[1].split("</nav>", 1)[0]
+        self.assertNotIn("<span>Login activity</span>", sidebar)
+        self.assertNotIn("<span>Mock reviews</span>", sidebar)
+        self.assertNotIn("<span>Students</span>", sidebar)
+        self.assertNotIn("<span>Batches</span>", sidebar)
