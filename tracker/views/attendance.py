@@ -129,6 +129,14 @@ def staff_leave_calendar(request):
         request.user.data_owner, memberships, year, month,
         leave_student_ids=leave_memberships.values_list("student_id", flat=True),
     )
+    today = timezone.localdate()
+    selected_day = request.GET.get("day", "")
+    for day in days:
+        day["is_today"] = day["date"] == today
+        day["selected"] = day["date"].isoformat() == selected_day
+    first = datetime.date(year, month, 1)
+    previous_month = (first - datetime.timedelta(days=1)).strftime("%Y-%m") if year > 1 or month > 1 else None
+    next_month = (first.replace(day=28) + datetime.timedelta(days=4)).strftime("%Y-%m") if year < 9999 or month < 12 else None
     weeks = [
         [days[day - 1] if day else None for day in week]
         for week in calendar.monthcalendar(year, month)
@@ -139,6 +147,11 @@ def staff_leave_calendar(request):
         "month_label": datetime.date(year, month, 1),
         "batches": _staff_batches(request.user),
         "selected_batch": batch_id,
+        "previous_month": previous_month, "next_month": next_month,
+        "today_month": today.strftime("%Y-%m"),
+        "leave_days": sum(len(day["leaves"]) for day in days),
+        "late_days": sum(len(day["late"]) for day in days),
+        "absent_days": sum(len(day["absent"]) for day in days),
     })
 
 

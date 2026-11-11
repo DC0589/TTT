@@ -83,7 +83,8 @@ class LeaveCalendarTests(TestCase):
                                     end_date=datetime.date(2025, 1, 6), reason="test")
         request = self.request("get", reverse("staff_leave_calendar"), {"month": "2025-01"}, self.hr)
         response = staff_leave_calendar(request)
-        self.assertIn(b"calendar-student (Pending)", response.content)
+        self.assertIn(b"calendar-student", response.content)
+        self.assertIn(b">Pending</span>", response.content)
 
     def test_calendar_multiday_leave_and_tenant_isolation(self):
         LeaveRequest.objects.create(student=self.student, start_date=datetime.date(2024, 12, 31),
@@ -93,8 +94,19 @@ class LeaveCalendarTests(TestCase):
                                     end_date=datetime.date(2025, 1, 1), reason="private")
         request = self.request("get", reverse("staff_leave_calendar"), {"month": "2025-01"}, self.hr)
         content = staff_leave_calendar(request).content.decode()
-        self.assertEqual(content.count("calendar-student (Approved)"), 2)
+        self.assertEqual(content.count('<li>calendar-student <span class="status-badge status-selected">Approved</span></li>'), 2)
+        self.assertEqual(content.count(">Approved</span>"), 2)
         self.assertNotIn("calendar-outsider", content)
+
+    def test_calendar_navigation_and_selected_day(self):
+        request = self.request("get", reverse("staff_leave_calendar"),
+                               {"month": "2025-01", "batch": str(self.group.pk), "day": "2025-01-06"},
+                               self.hr)
+        content = staff_leave_calendar(request).content.decode()
+        self.assertIn("month=2024-12&amp;batch=", content)
+        self.assertIn("month=2025-02&amp;batch=", content)
+        self.assertIn('id="day-2025-01-06" open', content)
+        self.assertIn("Absent student-days", content)
 
     def test_monthly_report_excludes_breaks_and_today_without_checkin(self):
         GroupMembership.objects.filter(pk=self.membership.pk).update(
