@@ -3,7 +3,7 @@
 {% block content %}
 <section class="page-heading">
   <div><p class="eyebrow">ATTENDANCE</p><h1>Leave requests</h1><p>Review leave applied by students. Approved leave shows as "On leave" in attendance.</p></div>
-  <a class="button button-secondary" href="{% url 'staff_attendance' %}">Attendance</a>
+  <div><a class="button button-secondary" href="{% url 'staff_leave_calendar' %}">Leave calendar</a> <a class="button button-secondary" href="{% url 'staff_attendance' %}">Attendance</a></div>
 </section>
 <nav class="leave-tabs" aria-label="Filter leave requests">
   <a class="{% if status == 'pending' %}is-active{% endif %}" href="?status=pending">Pending{% if pending_total %} <span class="nav-badge">{{ pending_total }}</span>{% endif %}</a>

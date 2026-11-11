@@ -3,7 +3,7 @@
 {% block content %}
 <section class="page-heading">
   <div><p class="eyebrow">ACTIVE BATCHES</p><h1>Attendance</h1><p>In and out times for students in active batches. Mark a batch inactive from Batches to hide it here.</p></div>
-  <a class="button button-secondary" href="{% url 'staff_leaves' %}">Leave requests{% if pending_leave_count %} ({{ pending_leave_count }}){% endif %}</a>
+  <div><a class="button button-secondary" href="{% url 'staff_leave_calendar' %}">Leave calendar</a> <a class="button button-secondary" href="{% url 'staff_leaves' %}">Leave requests{% if pending_leave_count %} ({{ pending_leave_count }}){% endif %}</a></div>
 </section>
 <section class="panel">
   <form method="get" class="question-bank-filters">
@@ -22,19 +22,25 @@
 </section>
 <section class="content-section">
   <div class="table-wrap"><table class="data-table">
-    <thead><tr><th>Student</th><th>Batch</th><th>Status</th><th>In</th><th>Out</th><th>Hours</th><th>Location</th></tr></thead>
+    <thead><tr><th>Student</th><th>Batch</th><th>Status</th><th>In</th><th>Out</th><th>Hours</th><th>Location</th><th>Staff action</th></tr></thead>
     <tbody>
     {% for r in rows %}
     <tr>
       <td><a href="{% url 'admin_student_detail' r.student.pk %}">{{ r.student.get_full_name|default:r.student.username }}</a></td>
       <td>{{ r.group.name }}</td>
       <td><span class="status-badge {% if r.status == 'Present' %}status-selected{% elif r.status == 'On leave' %}status-in-progress{% else %}status-not-selected{% endif %}">{% if r.status == 'Absent' and is_today %}Not in yet{% else %}{{ r.status }}{% endif %}</span></td>
-      <td>{% if r.record %}{{ r.record.check_in|time:"h:i A" }}{% if r.record.is_late %} <span class="status-badge status-pending">Late</span>{% endif %}{% else %}—{% endif %}</td>
+      <td>{% if r.record %}{{ r.record.check_in|time:"h:i A" }}{% if r.record.is_late %} <span class="status-badge status-pending">Late</span>{% endif %}{% if r.record.manually_checked_in_by %}<br><small>Manual: {{ r.record.manually_checked_in_by.username }}</small>{% endif %}{% if r.record.late_marked_by %}<br><small>Status updated by {{ r.record.late_marked_by.username }}</small>{% endif %}{% else %}—{% endif %}</td>
       <td>{% if r.record.check_out %}{{ r.record.check_out|time:"h:i A" }}{% if r.record.auto_closed %} <span class="status-badge status-pending" title="Closed automatically">Auto</span>{% endif %}{% elif r.record %}<span class="status-badge status-pending">Not out</span>{% else %}—{% endif %}</td>
       <td>{{ r.record.duration|default:"—" }}</td>
       <td>{% if r.record.check_in_map_url %}<a href="{{ r.record.check_in_map_url }}" target="_blank" rel="noopener">In</a>{% if r.record.outside_geofence %} <span class="status-badge status-not-selected" title="{{ r.record.distance_m }} m away">Outside</span>{% endif %}{% endif %}{% if r.record.check_out_map_url %} · <a href="{{ r.record.check_out_map_url }}" target="_blank" rel="noopener">Out</a>{% endif %}{% if not r.record %}—{% endif %}</td>
+      <td>{% if can_mark and r.status != 'On leave' %}<form method="post" action="{% url 'staff_mark_late' r.student.pk %}">{% csrf_token %}
+        <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+        <input type="hidden" name="batch" value="{{ selected_batch }}">
+        {% if r.record %}<button class="button button-quiet" name="action" value="{% if r.record.is_late %}on_time{% else %}late{% endif %}" type="submit">{% if r.record.is_late %}Mark on time{% else %}Mark late{% endif %}</button>
+        {% else %}<label for="late-time-{{ r.group.pk }}-{{ r.student.pk }}">Check-in time</label> <input id="late-time-{{ r.group.pk }}-{{ r.student.pk }}" name="check_in_time" type="time" required><button class="button button-quiet" name="action" value="late" type="submit">Add late check-in</button>{% endif %}
+      </form>{% else %}—{% endif %}</td>
     </tr>
-    {% empty %}<tr><td colspan="7" class="table-empty"><strong>No students in active batches.</strong></td></tr>{% endfor %}
+    {% empty %}<tr><td colspan="8" class="table-empty"><strong>No students in active batches.</strong></td></tr>{% endfor %}
     </tbody>
   </table></div>
 </section>
