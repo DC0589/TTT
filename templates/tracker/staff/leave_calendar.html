@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Leave calendar{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">ATTENDANCE</p><h1>Leave calendar</h1>
+    <p>All leave applications, plus late check-ins and past weekday absences for students in active batches.</p></div>
+  <div><a class="button button-secondary" href="{% url 'staff_attendance' %}">Attendance</a>
+    <a class="button button-secondary" href="{% url 'staff_leaves' %}?status=all">All leave requests</a></div>
+</section>
+<section class="panel">
+  <form method="get" class="question-bank-filters">
+    <div class="question-bank-filter-fields">
+      <div class="form-field"><label for="calendar-month">Month</label><input class="form-control" id="calendar-month" name="month" type="month" value="{{ month_value }}"></div>
+      <div class="form-field"><label for="calendar-batch">Batch</label><select class="form-control" id="calendar-batch" name="batch"><option value="">All batches</option>{% for batch in batches %}<option value="{{ batch.pk }}"{% if selected_batch == batch.pk|stringformat:"s" %} selected{% endif %}>{{ batch.name }}{% if not batch.is_active %} (inactive){% endif %}</option>{% endfor %}</select></div>
+    </div>
+    <div class="question-bank-filter-actions"><button class="button button-primary" type="submit">Show month</button></div>
+  </form>
+</section>
+<section class="content-section">
+  <h2>{{ month_label|date:"F Y" }}</h2>
+  <p>Absent means no check-in or approved leave on a past weekday after joining an active batch. Scheduled breaks are excluded. Pending, rejected and cancelled leave does not excuse an absence.</p>
+  <div class="calendar-grid-wrap">
+    <div class="calendar-grid" aria-label="Monthly attendance calendar">
+      <strong>Mon</strong><strong>Tue</strong><strong>Wed</strong><strong>Thu</strong><strong>Fri</strong><strong>Sat</strong><strong>Sun</strong>
+      {% for week in weeks %}{% for day in week %}
+      {% if day %}<div class="calendar-day"><a href="#day-{{ day.date|date:'Y-m-d' }}">{{ day.date|date:"j" }}</a>
+        {% if day.leaves %}<small>{{ day.leaves|length }} leave</small>{% endif %}
+        {% if day.late %}<small>{{ day.late|length }} late</small>{% endif %}
+        {% if day.absent %}<small>{{ day.absent|length }} absent</small>{% endif %}
+        {% if day.is_break %}<small>Break</small>{% endif %}</div>
+      {% else %}<div class="calendar-day is-outside" aria-hidden="true"></div>{% endif %}
+      {% endfor %}{% endfor %}
+    </div>
+  </div>
+  <h2>Daily details</h2>
+  {% for day in days %}
+  <article class="panel" id="day-{{ day.date|date:'Y-m-d' }}">
+    <h3>{{ day.date|date:"D, d M Y" }}{% if day.is_break %} · Scheduled break{% endif %}</h3>
+    {% if day.leaves %}<p><strong>Leave applications:</strong>
+      {% for leave in day.leaves %}{{ leave.student.get_full_name|default:leave.student.username }} ({{ leave.get_status_display }}){% if not forloop.last %}, {% endif %}{% endfor %}
+    </p>{% endif %}
+    {% if day.late %}<p><strong>Late:</strong> {% for record in day.late %}{{ record.student.get_full_name|default:record.student.username }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+    {% if day.absent %}<p><strong>Absent:</strong> {% for student in day.absent %}{{ student.get_full_name|default:student.username }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+    {% if not day.leaves and not day.late and not day.absent %}<p>No leave, late check-ins or recorded absences.</p>{% endif %}
+    <a href="{% url 'staff_attendance' %}?date={{ day.date|date:'Y-m-d' }}{% if selected_batch %}&amp;batch={{ selected_batch|urlencode }}{% endif %}">View attendance for this day</a>
+  </article>
+  {% endfor %}
+</section>
+{% endblock %}

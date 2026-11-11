@@ -174,14 +174,10 @@ def admin_student_reset_password(request, pk):
     return redirect("admin_student_detail", pk=student.pk)
 
 
-@admin_required
+@staff_required
 def admin_student_detail(request, pk):
     student = get_object_or_404(
-        User.objects.filter(is_student=True).filter(
-            Q(memberships__group__admin=request.user.data_owner)
-            | Q(created_by__in=request.user.team_ids)
-            | Q(created_by__created_by__in=request.user.team_ids)
-        ).distinct().prefetch_related("memberships__group"),
+        account_lock.managed_students(request.user).prefetch_related("memberships__group"),
         pk=pk,
     )
     interviews = (Interview.objects.filter(

@@ -11,6 +11,8 @@ from .admin_interviews import (  # noqa: F401
 from .announcements import admin_announcement_delete, admin_announcement_edit, admin_announcements  # noqa: F401
 from .attendance import (  # noqa: F401
     staff_attendance,
+    staff_leave_calendar,
+    staff_mark_late,
     staff_attendance_report,
     staff_attendance_settings,
     staff_student_break_add,

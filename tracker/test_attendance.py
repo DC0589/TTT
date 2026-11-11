@@ -241,9 +241,12 @@ class RulesTests(TestCase):
         self.assertEqual(svc.auto_close_stale(), 0)
 
     def test_monthly_report_and_csv(self):
-        from datetime import date
+        from datetime import date, datetime
 
         from .services import attendance as svc
+        GroupMembership.objects.filter(student=self.student, group__admin=self.admin).update(
+            joined_at=timezone.make_aware(datetime(2026, 3, 1))
+        )
         days = svc.working_days(2026, 3)
         Attendance.objects.create(student=self.student, date=days[0], check_in=timezone.now(), is_late=True)
         Attendance.objects.create(student=self.student, date=days[1], check_in=timezone.now())

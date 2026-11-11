@@ -3,7 +3,7 @@
 {% block content %}
 {% include "tracker/_announcements.html" %}
 <section class="page-heading">
-  <div><p class="eyebrow">HR WORKSPACE</p><h1>Students</h1><p>Students created by your HR account.</p></div>
+  <div><p class="eyebrow">HR WORKSPACE</p><h1>Students</h1><p>Students in your batches and students created by your HR account.</p></div>
   <div class="page-heading-actions"><a class="button button-quiet" href="{% url 'locked_students' %}">Locked accounts</a><a class="button button-primary" href="{% url 'admin_student_add' %}">Add student</a></div>
 </section>
 <form class="student-search" method="get" role="search">
@@ -16,7 +16,7 @@
     <thead><tr><th>Student</th><th>Email</th><th>Added</th><th>Status</th></tr></thead>
     <tbody>
       {% for student in students %}
-      <tr><td>{{ student.username }}</td><td>{{ student.email }}</td><td>{{ student.date_joined|date:"M j, Y" }}</td><td>{% if student.is_locked %}<span class="dir-status off">Locked</span> <form method="post" action="{% url 'student_unlock' student.pk %}" style="display:inline">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="button button-quiet" type="submit">Unlock</button></form>{% else %}Active{% endif %}</td></tr>
+      <tr><td><a href="{% url 'admin_student_detail' student.pk %}">{{ student.username }}</a></td><td>{{ student.email }}</td><td>{{ student.date_joined|date:"M j, Y" }}</td><td>{% if student.is_locked %}<span class="dir-status off">Locked</span> <form method="post" action="{% url 'student_unlock' student.pk %}" style="display:inline">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="button button-quiet" type="submit">Unlock</button></form>{% else %}Active{% endif %}</td></tr>
       {% empty %}
       <tr><td colspan="4"><div class="table-empty"><strong>No students found.</strong><span>Students you add will appear here.</span></div></td></tr>
       {% endfor %}

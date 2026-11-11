@@ -1,13 +1,16 @@
+import calendar
 import csv
 import datetime
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
-from django.utils.dateparse import parse_date
+from django.utils.dateparse import parse_date, parse_time
 from django.views.decorators.http import require_GET, require_POST
 
 from ..forms import AttendanceSettingsForm, LeaveRequestForm, StudentBreakForm
@@ -106,7 +109,94 @@ def staff_attendance(request):
         "rows": rows, "counts": service.summarise(rows), "total": len(rows), "day": day,
         "batches": active, "selected_batch": batch_id,
         "is_today": day == timezone.localdate(),
+        "can_mark": day <= timezone.localdate(),
     })
+
+
+@staff_required
+@require_GET
+def staff_leave_calendar(request):
+    year, month = _month_from(request)
+    batch_id = request.GET.get("batch", "")
+    memberships = service.batch_students(
+        request.user.data_owner, batch_id=int(batch_id) if batch_id.isdigit() else None
+    )
+    leave_memberships = service.batch_students(
+        request.user.data_owner, active_only=False,
+        batch_id=int(batch_id) if batch_id.isdigit() else None,
+    )
+    days = service.leave_calendar(
+        request.user.data_owner, memberships, year, month,
+        leave_student_ids=leave_memberships.values_list("student_id", flat=True),
+    )
+    weeks = [
+        [days[day - 1] if day else None for day in week]
+        for week in calendar.monthcalendar(year, month)
+    ]
+    return render(request, "tracker/staff/leave_calendar.html", {
+        "days": days, "weeks": weeks,
+        "month_value": f"{year:04d}-{month:02d}",
+        "month_label": datetime.date(year, month, 1),
+        "batches": _staff_batches(request.user),
+        "selected_batch": batch_id,
+    })
+
+
+@staff_required
+@require_POST
+def staff_mark_late(request, student_id):
+    try:
+        day = parse_date(request.POST.get("date", ""))
+    except ValueError:
+        day = None
+    action = request.POST.get("action")
+    if not day or day > timezone.localdate() or action not in {"late", "on_time"}:
+        messages.error(request, "Choose a valid past or current date and attendance action.")
+        return redirect("staff_attendance")
+    membership = service.batch_students(request.user.data_owner).filter(
+        student_id=student_id
+    ).order_by("joined_at").first()
+    if membership is None:
+        raise Http404
+    if timezone.localtime(membership.joined_at).date() > day:
+        messages.error(request, "The student had not joined this batch on that date.")
+    else:
+        record = Attendance.objects.filter(student_id=student_id, date=day).first()
+        if record:
+            record.is_late = action == "late"
+            record.late_marked_by = request.user
+            record.save(update_fields=["is_late", "late_marked_by"])
+            messages.success(request, "Attendance status updated.")
+        elif action != "late":
+            messages.error(request, "There is no check-in to update.")
+        elif service.approved_leave_on(membership.student, day):
+            messages.error(request, "Cannot create a check-in while approved leave exists.")
+        else:
+            try:
+                check_time = parse_time(request.POST.get("check_in_time", ""))
+            except ValueError:
+                check_time = None
+            if not check_time or check_time.tzinfo is not None:
+                messages.error(request, "Enter a valid local check-in time.")
+            else:
+                check_in = timezone.make_aware(datetime.datetime.combine(day, check_time))
+                if check_in > timezone.now():
+                    messages.error(request, "Check-in time cannot be in the future.")
+                else:
+                    record, created = Attendance.objects.get_or_create(
+                        student_id=student_id, date=day,
+                        defaults={"check_in": check_in, "is_late": True,
+                                  "manually_checked_in_by": request.user, "late_marked_by": request.user},
+                    )
+                    if created:
+                        messages.success(request, "Manual late check-in recorded without location.")
+                    else:
+                        messages.error(request, "A check-in was just recorded. Refresh and update it instead.")
+    params = {"date": day.isoformat()}
+    batch = request.POST.get("batch", "")
+    if batch.isdigit():
+        params["batch"] = batch
+    return redirect(f"{reverse('staff_attendance')}?{urlencode(params)}")
 
 
 @staff_required

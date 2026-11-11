@@ -17,6 +17,12 @@ class Attendance(models.Model):
     check_out_lng = models.FloatField(null=True, blank=True)
     check_out_accuracy = models.FloatField(null=True, blank=True)
     is_late = models.BooleanField(default=False)
+    manually_checked_in_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="manual_check_ins"
+    )
+    late_marked_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="late_attendance_marks"
+    )
     outside_geofence = models.BooleanField(default=False)
     check_out_outside_geofence = models.BooleanField(default=False)
     distance_m = models.PositiveIntegerField(null=True, blank=True)

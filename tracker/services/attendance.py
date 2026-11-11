@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from django.db import transaction
 from django.utils import timezone
 
-from ..models import Attendance, AttendanceSettings, GroupMembership, LeaveRequest
+from ..models import Attendance, AttendanceSettings, GroupMembership, LeaveRequest, StudentBreak
 
 PRESENT, ON_LEAVE, ABSENT = "Present", "On leave", "Absent"
 
@@ -182,19 +182,79 @@ class DayRow:
 
 def attendance_for_day(memberships, day):
     """One row per student with their status on day, sorted by batch then username."""
+    memberships = list(memberships)
     ids = [m.student_id for m in memberships]
-    records = {a.student_id: a for a in Attendance.objects.filter(date=day, student_id__in=ids)}
+    records = {
+        a.student_id: a for a in Attendance.objects.filter(date=day, student_id__in=ids)
+        .select_related("manually_checked_in_by", "late_marked_by")
+    }
     on_leave = set(
         LeaveRequest.objects.filter(
             status=LeaveRequest.APPROVED, start_date__lte=day, end_date__gte=day, student_id__in=ids
         ).values_list("student_id", flat=True)
     )
+    owner_ids = {m.group.admin_id for m in memberships}
+    break_owners = set(StudentBreak.objects.filter(
+        admin_id__in=owner_ids, start_date__lte=day, end_date__gte=day,
+    ).values_list("admin_id", flat=True))
+    today = timezone.localdate()
     rows = []
     for m in sorted(memberships, key=lambda m: (m.group.name.lower(), m.student.username.lower())):
         record = records.get(m.student_id)
-        status = PRESENT if record else ON_LEAVE if m.student_id in on_leave else ABSENT
+        if record:
+            status = PRESENT
+        elif m.student_id in on_leave:
+            status = ON_LEAVE
+        elif (day.weekday() not in WORKING_WEEKDAYS or m.group.admin_id in break_owners
+              or day < timezone.localtime(m.joined_at).date()):
+            status = "Not expected"
+        elif day > today:
+            status = "Upcoming"
+        else:
+            status = ABSENT
         rows.append(DayRow(m.student, m.group, record, status))
     return rows
+
+
+def leave_calendar(owner, memberships, year, month, today=None, leave_student_ids=None):
+    """Return each month's leave applications, late check-ins and past weekday absences."""
+    today = today or timezone.localdate()
+    start = datetime.date(year, month, 1)
+    end = datetime.date(year, month, calendar.monthrange(year, month)[1])
+    memberships = list(memberships)
+    students = {}
+    for membership in memberships:
+        joined = timezone.localtime(membership.joined_at).date()
+        entry = students.setdefault(membership.student_id, (membership.student, joined))
+        if joined < entry[1]:
+            students[membership.student_id] = (membership.student, joined)
+    ids = list(students)
+    if leave_student_ids is None:
+        leave_student_ids = ids
+    records = {
+        (record.student_id, record.date): record
+        for record in Attendance.objects.filter(student_id__in=ids, date__range=(start, end))
+        .select_related("student")
+    }
+    leaves = list(LeaveRequest.objects.filter(
+        student_id__in=leave_student_ids, start_date__lte=end, end_date__gte=start,
+    ).select_related("student"))
+    breaks = list(StudentBreak.objects.filter(admin=owner, start_date__lte=end, end_date__gte=start))
+    result = []
+    for number in range(1, end.day + 1):
+        day = start.replace(day=number)
+        day_leaves = [leave for leave in leaves if leave.start_date <= day <= leave.end_date]
+        approved = {leave.student_id for leave in day_leaves if leave.status == LeaveRequest.APPROVED}
+        late = [record for (_, date), record in records.items() if date == day and record.is_late]
+        absent = []
+        is_break = any(item.start_date <= day <= item.end_date for item in breaks)
+        if day < today and day.weekday() in WORKING_WEEKDAYS and not is_break:
+            absent = [
+                student for student_id, (student, joined) in students.items()
+                if joined <= day and student_id not in approved and (student_id, day) not in records
+            ]
+        result.append({"date": day, "leaves": day_leaves, "late": late, "absent": absent, "is_break": is_break})
+    return result
 
 
 def summarise(rows):
@@ -235,10 +295,10 @@ class ReportRow:
 
 
 def monthly_report(memberships, year, month, today=None):
-    """Attendance figures per student for a month, counting working days up to today."""
+    """Attendance figures for working days, excluding breaks and days before joining."""
     today = today or timezone.localdate()
+    memberships = list(memberships)
     days = working_days(year, month, until=today)
-    day_set = set(days)
     ids = [m.student_id for m in memberships]
     records = {}
     for rec in Attendance.objects.filter(student_id__in=ids, date__in=days):
@@ -250,20 +310,35 @@ def monthly_report(memberships, year, month, today=None):
         end_date__gte=datetime.date(year, month, 1),
     ):
         leaves.setdefault(leave.student_id, []).append(leave)
+    breaks = {}
+    for item in StudentBreak.objects.filter(
+        admin_id__in={m.group.admin_id for m in memberships},
+        start_date__lte=datetime.date(year, month, calendar.monthrange(year, month)[1]),
+        end_date__gte=datetime.date(year, month, 1),
+    ):
+        breaks.setdefault(item.admin_id, []).append(item)
     rows = []
     for m in sorted(memberships, key=lambda m: (m.group.name.lower(), m.student.username.lower())):
-        recs = records.get(m.student_id, [])
+        joined = timezone.localtime(m.joined_at).date()
+        owner_breaks = breaks.get(m.group.admin_id, [])
+        eligible_days = {
+            day for day in days if day >= joined
+            and not any(item.start_date <= day <= item.end_date for item in owner_breaks)
+        }
+        recs = [r for r in records.get(m.student_id, []) if r.date in eligible_days]
         present_days = {r.date for r in recs}
         leave_days = {
-            d for leave in leaves.get(m.student_id, []) for d in day_set
+            d for leave in leaves.get(m.student_id, []) for d in eligible_days
             if leave.start_date <= d <= leave.end_date and d not in present_days
         }
-        expected = len(days) - len(leave_days)
+        if today not in present_days and today not in leave_days:
+            eligible_days.discard(today)
+        expected = len(eligible_days) - len(leave_days)
         absent = max(expected - len(present_days), 0)
         percent = round(100 * len(present_days) / expected, 1) if expected > 0 else 0.0
         rows.append(ReportRow(
             m.student, m.group, len(present_days), sum(r.is_late for r in recs), len(leave_days),
-            absent, len(days), percent,
+            absent, len(eligible_days), percent,
             sum(r.outside_geofence or r.check_out_outside_geofence for r in recs),
         ))
     return rows
