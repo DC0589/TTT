@@ -23,6 +23,7 @@ from ..services import attendance as service
 @require_GET
 def student_attendance(request):
     today = timezone.localdate()
+    service.auto_close_stale(student=request.user)
     return render(request, "tracker/student/attendance.html", {
         "eligible": service.is_active_batch_student(request.user),
         "today": today,
@@ -51,7 +52,9 @@ def student_attendance_mark(request, action):
                 messages.info(request, "You have already checked in today.")
         else:
             record, changed = service.check_out(request.user, location)
-            if changed:
+            if changed and record.auto_closed:
+                messages.info(request, f"Automatically checked out at {timezone.localtime(record.check_out):%I:%M %p}.")
+            elif changed:
                 messages.success(request, f"Checked out at {timezone.localtime(record.check_out):%I:%M %p}.")
             else:
                 messages.info(request, "You have already checked out today.")
@@ -98,6 +101,7 @@ def _staff_student_ids(user):
 @staff_required
 @require_GET
 def staff_attendance(request):
+    service.auto_close_stale(owner=request.user.data_owner)
     active = _staff_batches(request.user).filter(is_active=True)
     day = parse_date(request.GET.get("date", "")) or timezone.localdate()
     batch_id = request.GET.get("batch", "")

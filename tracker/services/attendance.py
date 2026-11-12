@@ -108,7 +108,14 @@ def check_out(student, location, now=None):
             raise AttendanceError("Check in first.")
         if record.check_out:
             return record, False
-        _, outside = _geofence(settings_for(student), location, "out")
+        rules = settings_for(student)
+        closing = _automatic_checkout_time(record, rules)
+        if now >= closing:
+            record.check_out = closing
+            record.auto_closed = True
+            record.save(update_fields=["check_out", "auto_closed"])
+            return record, True
+        _, outside = _geofence(rules, location, "out")
         record.check_out = now
         record.check_out_lat, record.check_out_lng, record.check_out_accuracy = location
         record.check_out_outside_geofence = outside
@@ -128,22 +135,29 @@ def needs_check_in(student, now=None):
     return approved_leave_on(student, today) is None
 
 
-def auto_close_stale(owner=None, now=None):
-    """Close open records from earlier days at the batch's auto-close time. Returns the count."""
+def _automatic_checkout_time(record, rules):
+    close_time = rules.auto_close_at if rules else datetime.time(18, 0)
+    closing = timezone.make_aware(datetime.datetime.combine(record.date, close_time))
+    return max(closing, record.check_in)
+
+
+def auto_close_stale(owner=None, now=None, student=None):
+    """Close due open records at the configured local cutoff, without overwriting check-outs."""
     now = now or timezone.now()
     today = timezone.localdate(now)
-    open_records = Attendance.objects.filter(check_out__isnull=True, date__lt=today)
+    open_records = Attendance.objects.filter(check_out__isnull=True, date__lte=today)
     if owner is not None:
         open_records = open_records.filter(student__student_groups__admin=owner)
+    if student is not None:
+        open_records = open_records.filter(student=student)
     closed = 0
-    for record in open_records.distinct():
+    for record in open_records.select_related("student").distinct():
         rules = settings_for(record.student)
-        close_time = rules.auto_close_at if rules else datetime.time(18, 0)
-        closing = timezone.make_aware(datetime.datetime.combine(record.date, close_time))
-        record.check_out = max(closing, record.check_in)
-        record.auto_closed = True
-        record.save(update_fields=["check_out", "auto_closed"])
-        closed += 1
+        closing = _automatic_checkout_time(record, rules)
+        if now >= closing:
+            closed += Attendance.objects.filter(pk=record.pk, check_out__isnull=True).update(
+                check_out=closing, auto_closed=True
+            )
     return closed
 
 
