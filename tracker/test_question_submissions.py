@@ -12,7 +12,7 @@ from .context_processors import celebration_banners
 from .models import LearningCourse, StudentQuestionSubmission, User
 from .views.courses import student_interview_questions
 from .views.question_submissions import (
-    admin_question_submission_review, admin_question_submissions,
+    admin_question_submission_delete, admin_question_submission_review, admin_question_submissions,
     student_question_upload, student_question_uploads,
 )
 
@@ -68,6 +68,41 @@ class QuestionSubmissionTests(TestCase):
         self.assertIn(item.question.encode(), student_interview_questions(student_page).content)
         self.review(item, "rejected", self.hr)
         self.assertNotIn(item.question.encode(), student_interview_questions(student_page).content)
+
+    def test_admin_can_delete_approved_submission_from_student_pages(self):
+        item = StudentQuestionSubmission.objects.create(
+            student=self.student, topic="Python", question="Unique uploaded question?",
+            course=self.python, status=StudentQuestionSubmission.APPROVED,
+        )
+        page = self.request("get", "student_interview_questions", self.other)
+        history = self.request("get", "student_question_uploads", self.student)
+        self.assertIn(b"Unique uploaded question?", student_interview_questions(page).content)
+        self.assertIn(b"Unique uploaded question?", student_question_uploads(history).content)
+        request = self.request("post", "admin_question_submission_delete", self.admin, args=[item.pk])
+        response = admin_question_submission_delete(request, item.pk)
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(StudentQuestionSubmission.objects.filter(pk=item.pk).exists())
+        self.assertNotIn(b"Unique uploaded question?", student_interview_questions(page).content)
+        self.assertNotIn(b"Unique uploaded question?", student_question_uploads(history).content)
+        self.assertIn(b"Original question?", student_interview_questions(page).content)
+
+    def test_delete_is_admin_only_and_post_only(self):
+        item = StudentQuestionSubmission.objects.create(student=self.student, topic="SQL", question="Question?")
+        url = reverse("admin_question_submission_delete", args=[item.pk])
+        for user in (self.hr, self.student):
+            with self.subTest(user=user.username), self.assertRaises(PermissionDenied):
+                admin_question_submission_delete(
+                    self.request("post", "admin_question_submission_delete", user, args=[item.pk]), item.pk
+                )
+        response = admin_question_submission_delete(
+            self.request("get", "admin_question_submission_delete", self.admin, args=[item.pk]), item.pk
+        )
+        self.assertEqual(response.status_code, 405)
+        admin_page = admin_question_submissions(self.request("get", "admin_question_submissions", self.admin))
+        hr_page = admin_question_submissions(self.request("get", "admin_question_submissions", self.hr))
+        self.assertIn(url.encode(), admin_page.content)
+        self.assertNotIn(url.encode(), hr_page.content)
+        self.assertTrue(StudentQuestionSubmission.objects.filter(pk=item.pk).exists())
 
     def test_upload_history_private_and_review_page_visible_to_admin(self):
         self.upload(b"topic,question\nPython,Question one?\n")
