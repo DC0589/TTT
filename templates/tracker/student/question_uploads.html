@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Upload questions{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">STUDENT CONTRIBUTIONS</p><h1>Upload questions</h1>
+    <p>Share interview questions for admin or HR review. Approved questions appear under their course for all students.</p></div>
+  <a class="button button-secondary" href="{% url 'student_interview_questions' %}">Interview questions</a>
+</section>
+<section class="panel">
+  <form method="post" action="{% url 'student_question_upload' %}" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="form-field"><label for="question-file">CSV file</label>
+      <input class="form-control" id="question-file" type="file" name="file" accept=".csv,text/csv" required>
+      <p class="field-help">UTF-8 CSV with headers <strong>topic,question</strong>, one question per row. Maximum 1 MB and {{ max_rows }} questions. Quote fields containing commas.</p>
+      <p class="field-help">Example: <code>Python,"What is a decorator?"</code></p>
+    </div>
+    <button class="button button-primary" type="submit">Submit for review</button>
+  </form>
+</section>
+<section class="content-section">
+  <div class="section-heading"><div><p class="eyebrow">YOUR CONTRIBUTIONS</p><h2>Submission status</h2></div></div>
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>Topic</th><th>Question</th><th>Submitted</th><th>Status</th></tr></thead>
+    <tbody>{% for item in page_obj %}<tr><td>{{ item.topic }}</td><td>{{ item.question|linebreaksbr }}</td><td>{{ item.submitted_at|date:"d M Y" }}</td><td>{{ item.get_status_display }}</td></tr>
+    {% empty %}<tr><td colspan="4" class="table-empty">You haven’t submitted any questions yet.</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% if page_obj.paginator.num_pages > 1 %}<p class="section-meta">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    {% if page_obj.has_previous %}<a class="button button-quiet" href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+    {% if page_obj.has_next %}<a class="button button-quiet" href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+  </p>{% endif %}
+</section>
+{% endblock %}

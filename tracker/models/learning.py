@@ -31,6 +31,27 @@ class LearningCourse(models.Model):
         return self.name
 
 
+class StudentQuestionSubmission(models.Model):
+    PENDING, APPROVED, REJECTED = "pending", "approved", "rejected"
+    STATUS_CHOICES = [(PENDING, "Pending"), (APPROVED, "Approved"), (REJECTED, "Rejected")]
+
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name="question_submissions")
+    topic = models.CharField(max_length=120)
+    question = models.TextField(max_length=2000)
+    course = models.ForeignKey(
+        LearningCourse, null=True, blank=True, on_delete=models.PROTECT, related_name="student_question_submissions"
+    )
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=PENDING, db_index=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="question_submissions_reviewed"
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-submitted_at", "-pk"]
+
+
 class MockInterviewSession(models.Model):
     student = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="mock_interview_sessions"

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Question submissions{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">STUDENT CONTRIBUTIONS</p><h1>Question submissions</h1>
+    <p>Review student questions and select the course where each should appear. Approval does not add questions to AI mocks.</p></div>
+  {% if user.is_admin %}<a class="button button-secondary" href="{% url 'admin_questions' %}">Mock question bank</a>{% endif %}
+</section>
+<nav class="leave-tabs" aria-label="Filter question submissions">
+  <a class="{% if status == 'pending' %}is-active{% endif %}" href="?status=pending">Pending ({{ pending_count }})</a>
+  <a class="{% if status == 'approved' %}is-active{% endif %}" href="?status=approved">Approved</a>
+  <a class="{% if status == 'rejected' %}is-active{% endif %}" href="?status=rejected">Rejected</a>
+  <a class="{% if status == 'all' %}is-active{% endif %}" href="?status=all">All</a>
+</nav>
+<section class="content-section">
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>Student</th><th>Topic</th><th>Question</th><th>Status</th><th>Review</th></tr></thead>
+    <tbody>{% for item in page_obj %}<tr>
+      <td>{{ item.student.get_full_name|default:item.student.username }}<br><small>{{ item.submitted_at|date:"d M Y" }}</small></td>
+      <td>{{ item.topic }}</td><td>{{ item.question|linebreaksbr }}</td>
+      <td>{{ item.get_status_display }}{% if item.reviewed_by %}<br><small>by {{ item.reviewed_by.username }}</small>{% endif %}</td>
+      <td class="actions-cell">
+        <form method="post" action="{% url 'admin_question_submission_review' item.pk 'approved' %}">{% csrf_token %}
+          <label for="course-{{ item.pk }}">Course</label>
+          <select class="form-control" id="course-{{ item.pk }}" name="course" required>
+            <option value="">Select course</option>{% for course in courses %}<option value="{{ course.pk }}"{% if item.suggested_course_id == course.pk %} selected{% endif %}>{{ course.name }}</option>{% endfor %}
+          </select>
+          <button class="button button-primary" type="submit">{% if item.status == 'approved' %}Update course{% else %}Approve{% endif %}</button>
+        </form>
+        {% if item.status != 'rejected' %}<form method="post" action="{% url 'admin_question_submission_review' item.pk 'rejected' %}">{% csrf_token %}<button class="button button-quiet" type="submit">Reject</button></form>{% endif %}
+      </td>
+    </tr>{% empty %}<tr><td colspan="5" class="table-empty">No submissions in this view.</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% if page_obj.paginator.num_pages > 1 %}<p class="section-meta">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    {% if page_obj.has_previous %}<a class="button button-quiet" href="?status={{ status }}&amp;page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+    {% if page_obj.has_next %}<a class="button button-quiet" href="?status={{ status }}&amp;page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+  </p>{% endif %}
+</section>
+{% endblock %}

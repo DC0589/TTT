@@ -58,10 +58,11 @@
     <header class="question-course-header">
       <span class="question-course-mark" aria-hidden="true">?</span>
       <div><p class="eyebrow">COURSE {{ forloop.counter|stringformat:"02d" }} · {{ course.level }}</p><h2>{{ course.name }}</h2><p>{{ course.summary }}</p></div>
-      <span class="question-total">{{ course.interview_questions.splitlines|length }} prompts</span>
+      {% with submitted_count=course.approved_student_questions|length %}<span class="question-total">{{ course.interview_questions.splitlines|length|add:submitted_count }} prompts</span>{% endwith %}
     </header>
     <ol class="question-prompt-list">
       {% for question in course.interview_questions.splitlines %}<li><span class="question-prompt-number">{{ forloop.counter|stringformat:"02d" }}</span><p>{{ question }}</p></li>{% endfor %}
+      {% for item in course.approved_student_questions %}<li><span class="question-prompt-number" aria-hidden="true">+</span><p>{{ item.question|linebreaksbr }}</p></li>{% endfor %}
     </ol>
   </article>
   {% empty %}

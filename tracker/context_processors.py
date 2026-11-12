@@ -3,7 +3,7 @@ from datetime import timedelta
 from django.core.cache import cache
 from django.utils import timezone
 
-from .models import GroupMembership, InterviewStatus, LeaveRequest, Selection
+from .models import GroupMembership, InterviewStatus, LeaveRequest, Selection, StudentQuestionSubmission
 from .services.placements import placed_company_names
 
 BANNER_CACHE_KEY = "celebration-banner-data"
@@ -76,6 +76,10 @@ def celebration_banners(request):
 
     return {
         "pending_leave_count": pending_leaves,
+        "pending_question_count": (
+            StudentQuestionSubmission.objects.filter(status=StudentQuestionSubmission.PENDING).count()
+            if user.is_admin or user.is_hr else 0
+        ),
         "placed_companies": placed,
         "placed_loop": _loop(len(placed) + 1, PLACED_SECONDS_PER_ITEM),
         "recent_selections": recent,
