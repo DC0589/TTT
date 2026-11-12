@@ -1,7 +1,7 @@
 """HTTP views grouped by feature. URLs and tests may import from `tracker.views`."""
 from .activity import login_activity  # noqa: F401
 from .question_submissions import (  # noqa: F401
-    admin_question_submissions, admin_question_submission_review,
+    admin_question_submissions, admin_question_submission_review, admin_question_submission_delete,
     student_question_upload, student_question_uploads,
 )
 from .admin_interviews import (  # noqa: F401

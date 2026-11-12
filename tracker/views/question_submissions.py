@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from ..models import LearningCourse, StudentQuestionSubmission
-from ..permissions import staff_required, student_required
+from ..permissions import admin_required, staff_required, student_required
 
 MAX_UPLOAD_BYTES = 1_000_000
 MAX_UPLOAD_ROWS = 500
@@ -136,4 +136,13 @@ def admin_question_submission_review(request, pk, decision):
     submission.reviewed_at = timezone.now()
     submission.save(update_fields=["status", "course", "reviewed_by", "reviewed_at"])
     messages.success(request, f"Question {submission.get_status_display().lower()}.")
+    return redirect("admin_question_submissions")
+
+
+@admin_required
+@require_POST
+def admin_question_submission_delete(request, pk):
+    submission = get_object_or_404(StudentQuestionSubmission, pk=pk)
+    submission.delete()
+    messages.success(request, "Question submission deleted.")
     return redirect("admin_question_submissions")

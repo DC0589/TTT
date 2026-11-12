@@ -49,6 +49,7 @@ urlpatterns = [
     path("admin/mock-reviews/report/", v.admin_mock_interviews_report, name="admin_mock_interviews_report"),
     path("admin/question-bank/", v.admin_questions, name="admin_questions"),
     path("admin/question-submissions/", v.admin_question_submissions, name="admin_question_submissions"),
+    path("admin/question-submissions/<int:pk>/delete/", v.admin_question_submission_delete, name="admin_question_submission_delete"),
     path("admin/question-submissions/<int:pk>/<str:decision>/", v.admin_question_submission_review, name="admin_question_submission_review"),
     path("admin/question-bank/new/", v.admin_question_add, name="admin_question_add"),
     path("admin/question-bank/import/", v.admin_questions_import, name="admin_questions_import"),
