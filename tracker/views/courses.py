@@ -1,6 +1,7 @@
 import logging
 
 from django.contrib import messages
+from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404, redirect, render
 
 from ..forms import (
@@ -8,6 +9,7 @@ from ..forms import (
 )
 from ..models import (
     LearningCourse,
+    StudentQuestionSubmission,
 )
 
 logger = logging.getLogger(__name__)
@@ -73,7 +75,12 @@ def student_courses(request):
 def student_interview_questions(request):
     return render(request, "tracker/student/curriculum.html", {
         "active_tab": "questions",
-        "courses": LearningCourse.objects.all(),
+        "courses": LearningCourse.objects.prefetch_related(Prefetch(
+            "student_question_submissions",
+            queryset=StudentQuestionSubmission.objects.filter(status=StudentQuestionSubmission.APPROVED)
+            .order_by("submitted_at", "pk"),
+            to_attr="approved_student_questions",
+        )),
         "page_title": "Interview questions",
         "page_eyebrow": "PRACTICE FOR YOUR NEXT STEP",
     })
