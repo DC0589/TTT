@@ -31,7 +31,7 @@
     },
     {
       "path": "/cron/close-attendance/",
-      "schedule": "30 14 * * *"
+      "schedule": "30 12 * * *"
     }
   ]
 }

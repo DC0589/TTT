@@ -2,7 +2,7 @@
 {% block title %}Attendance rules{% endblock %}
 {% block content %}
 <section class="page-heading">
-  <div><p class="eyebrow">ATTENDANCE</p><h1>Attendance rules</h1><p>Set where students must be when they check in, when a check-in counts as late, and when forgotten check-outs are closed automatically. Account inactivity counts weekdays only; approved student leave and scheduled breaks are excluded.</p></div>
+  <div><p class="eyebrow">ATTENDANCE</p><h1>Attendance rules</h1><p>Set where students must be when they check in, when a check-in counts as late, and when forgotten check-outs are closed automatically. The default auto check-out is 6:00 PM in the configured time zone; if a student checks in later, their check-in time is used. Account inactivity counts weekdays only; approved student leave and scheduled breaks are excluded.</p></div>
   <a class="button button-secondary" href="{% url 'staff_attendance' %}">Back to attendance</a>
 </section>
 <section class="panel">
