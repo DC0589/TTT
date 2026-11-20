@@ -1,0 +1,46 @@
+. Structure (biggest win)
+Split the single tracker app. At the moment it holds auth, interviews, learning, mock AI, placements and attendance. I'd suggest separate apps:
+accounts: users, roles, OTP registration.
+interviews: interviews, rounds, notes.
+learning: courses and the mock interview bank.
+placements: placed students, selections, banners.
+attendance: attendance and leave.
+Break up views.py and models.py. views.py is 2,484 lines and models.py is 513. Make each a package with one module per feature, e.g. views/attendance.py.
+Add a services.py layer. Business rules such as record_placement, leave validation and attendance marking currently live in views, models and forms. Moving them to services makes them reusable and easier to test. Views then only handle HTTP.
+Replace the repeated permission logic. The owner = created_by if is_hr else user line appears in many places. Put it in one helper such as user.data_owner, or a small mixin or manager like Group.objects.for_user(user).
+Move the decorators into permissions.py.
+2. Data and performance
+Add indexes on the fields you filter on most: InterviewStatus.updated_at, Attendance.date, LeaveRequest.status and PlacedStudent.company.
+Avoid N+1 queries. Only 28 select_related/prefetch_related calls cover about 105 views and classes. I'd audit the list pages for this.
+Cache the banner query. The context processor runs on every page for every user. Cache it for 5–10 minutes (Django's cache framework with a short TTL), and invalidate it when a placement is saved.
+Use Company and Role lookup tables. Company names are free text, which is why "Deloitte" and "deloitte" can appear as different entries. A normalised company table would also give you clean placement statistics.
+Keep the database changes in migrations. There are about 34 of them. I'd squash the early ones once everything is deployed.
+3. Reliability
+Apply migrations on deploy. On Vercel nothing runs them automatically. Add a build step or a documented release command, otherwise code can ship before its tables exist.
+Move OTP email and the AI mock interview calls to a background queue (Celery or similar, or a managed queue if you stay on Vercel). Serverless request timeouts are a risk for AI calls.
+Rate-limit sensitive endpoints: OTP send/verify and login. Use django-ratelimit or similar.
+Use structured logging and Sentry for error tracking. Production issues are currently hard to see.
+Move media and uploads to object storage (S3 or similar) if any exist. Vercel's filesystem is ephemeral.
+4. Quality
+Split tests.py. It is 1,880 lines in one file and hangs when run as a whole. Make it a tests/ package per feature, use setUpTestData, and run in parallel (--parallel). Find out why the suite hangs, since CI is already set up in tests.yml.
+Add lint and format tools (ruff, plus pre-commit) and type hints on the service layer.
+Add a Makefile or scripts for run/test/migrate, and update the README with the architecture.
+Remove stray files from the repo root. improvements, suggestions, mock_interview_questions and env are untracked or unclear, and the spreadsheet with phone numbers shouldn't sit in the project folder. Add them to .gitignore or move them.
+5. Frontend
+Split app.css (1,078 lines) into base, layout, components and per-feature files. Some of its rules are minified onto single lines (for example the .dir-summary rule), so it needs a formatter.
+Extract repeated template markup (page heading, status badge, table, empty state) into {% include %} partials or template tags.
+Replace the inline JS in templates with small static modules.
+Use a hashed static filename (WhiteNoise's manifest storage) in place of the manual ?v=N cache-busting.
+6. Security and privacy
+Check the student personal data (phone numbers and so on). Restrict who can export it and consider masking.
+Review every POST action for object-level ownership. I did this for the new leave and attendance views. The older views should be audited the same way.
+Add audit logging for admin actions such as deleting a student or approving a leave.
+Suggested order
+Migration and deploy step, then rate limiting and error tracking. These are quick and protect production.
+Fix and split the tests so refactors are safe.
+Split views.py and models.py into packages and add the owner helper.
+Add indexes, the query audit and banner caching.
+Introduce the Company table.
+Apply the CSS and template clean-up.
+Split into separate apps and add background jobs. This is the largest change and should come last.
+Tell me which step to start on and I'll implement it. I'd begin with 1 and 2, then the views.py split.

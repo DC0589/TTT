@@ -1,0 +1,8 @@
+git push origin feature/develop
+
+git switch main
+git merge --no-ff feature/develop -m "Merge attendance and mock test fixes" \
+  -m "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
+git push origin main
+
+git switch feature/develop

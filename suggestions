@@ -1,0 +1,27 @@
+Interview area
+
+Interview mode and location: add a field for online, on-site or phone. Online interviews get a meeting link and on-site ones get an address. Students keep the join link next to the date and time.
+Interview type: add a field for walk-in, campus drive, off-campus, referral or HR call. Admins could then filter and report by type.
+Salary and package: add an optional CTC offered or expected field. It's useful for placement reports, and you could show it publicly only after "selected".
+Offer details: when a student is marked selected, capture the package, joining date and offer letter upload. This would also feed the placed-students banner automatically instead of Excel.
+Round-by-round outcome and feedback: let students record the questions asked and the feedback received per round. Admins could then build a company-wise question bank for other students.
+Duplicate and clash warning: warn when a student already has an interview at the same date and time, or the same company and role twice.
+Admin filters and search on the Interviews page: filter by batch, company, status, date range and student. Add a CSV export of interviews with HR details.
+Admin comments or mentoring notes: a private trainer note on an interview, such as "needs mock on system design". Students would see it only if you choose.
+Quick status actions: one-click "Attended", "No-show", "Rescheduled" and "Offer received" instead of opening the detail page.
+Reschedule history: if the date or time changes, keep the old value and show "Rescheduled from…" so admins can see what changed.
+Calendar area
+
+Week and day views: an agenda or list view beside the month grid. The grid gets cramped when several students interview on one day.
+Colour coding: colour entries by status (upcoming, attended, selected, rejected) and use a different colour per batch.
+Filters for admins: besides batch, add filters for company, student and interview type. Add a "today and tomorrow" strip at the top.
+"+N more" on busy days: collapse long days and open a popup listing everyone. Right now long names are truncated.
+Clash highlight: flag the same student, or the same HR contact, with two interviews close together.
+Reminders:
+An email or WhatsApp reminder to the student one day before and one hour before.
+A daily digest to admins listing tomorrow's interviews.
+This needs a scheduled job; the Vercel cron is already set up.
+Add to Google or Apple Calendar: an "Add to calendar" (.ics) button on each interview, plus a subscribable feed link for students and admins.
+Mark rounds done from the calendar: a click-through that updates the round result without opening the interview.
+Mobile layout: switch the month grid to a vertical agenda list on phones.
+Holiday and drive markers: admins add college or company drive dates (for example "TCS campus drive") that show on every student's calendar.
