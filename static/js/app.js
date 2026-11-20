@@ -160,6 +160,7 @@
   let customTopics = '';
   let difficulty = 'medium';
   let testType = 'interview';
+  let questionStyle = 'scenario';
   let sessionId = null;
   window.__mockReport = type => window.__mockIntegrityReport && window.__mockIntegrityReport(type);
   window.__mockIntegrity = () => ({ sessionId, question: typeof questionNumber === 'number' ? questionNumber : null });
@@ -237,7 +238,7 @@
       response = await fetch(interview.dataset.aiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-        body: JSON.stringify({ ...payload, role, focus, custom_topics: customTopics, difficulty, consent: true, history, ...(payload.action === 'question' ? { lite: liteMode, mode_reason: modeReason, test_type: testType } : {}) }),
+        body: JSON.stringify({ ...payload, role, focus, custom_topics: customTopics, difficulty, consent: true, history, ...(payload.action === 'question' ? { lite: liteMode, mode_reason: modeReason, test_type: testType, question_style: questionStyle } : {}) }),
       });
     } catch (networkError) {
       const error = new Error('Network problem. Please check your connection.');
@@ -452,6 +453,11 @@
     focusSelect.replaceChildren(new Option('Overall (all topics)', ''), ...areas.map(area => new Option(area, area)));
     focusField.hidden = areas.length === 0;
   };
+  const syncQuestionStyle = () => {
+    interview.querySelector('[data-question-style-field]').hidden = startForm.elements.test_type.value !== 'interview';
+  };
+  startForm.elements.test_type.addEventListener('change', syncQuestionStyle);
+  syncQuestionStyle();
 
   topicSelect.addEventListener('change', () => {
     const isOther = topicSelect.value === '__other__';
@@ -723,6 +729,7 @@
     customTopics = startForm.elements.custom_topics ? startForm.elements.custom_topics.value : '';
     difficulty = startForm.elements.difficulty ? startForm.elements.difficulty.value : 'medium';
     testType = startForm.elements.test_type.value;
+    questionStyle = testType === 'interview' ? startForm.elements.question_style.value : '';
     if (!role || !startForm.elements.consent.checked) return;
     busy = true;
     startForm.querySelector('button[type="submit"]').disabled = true;

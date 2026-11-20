@@ -1,57 +1,88 @@
 {% extends "base.html" %}
-{% block title %}Chat{% endblock %}
+{% block title %}Support chat{% endblock %}
 {% block content %}
-<style>
-.chat{max-width:760px;display:flex;flex-direction:column;gap:12px}
-.chat-log{height:55vh;overflow-y:auto;padding:14px;border:1px solid var(--line,#e2e5ea);border-radius:12px;background:var(--surface,#fff);display:flex;flex-direction:column;gap:10px}
-.chat-msg{max-width:78%;padding:9px 12px;border-radius:12px;background:#eef1f5;white-space:pre-wrap;word-break:break-word}
-.chat-msg.mine{align-self:flex-end;background:#dbe8ff}
-.chat-msg small{display:block;opacity:.65;margin-bottom:2px}
-.chat-form{display:flex;gap:8px}.chat-form textarea{flex:1;resize:none}
-.chat-empty{margin:auto;opacity:.6}
-</style>
 <div class="breadcrumb">{% if not as_student %}<a href="{% url 'staff_support_inbox' %}">Student chats</a><span aria-hidden="true">/</span>{% endif %}<span>{{ peer }}</span></div>
-<section class="page-heading"><div><p class="eyebrow">DIRECT SUPPORT</p><h1>{% if as_student %}Chat with Admin &amp; HR{% else %}{{ peer }}{% endif %}</h1>
-<p>{% if as_student %}Tell us about any issue. Your admin and HR see it straight away.{% else %}Reply directly to the student.{% endif %}</p></div></section>
-<div class="chat">
-  <div class="chat-log" id="chat-log" aria-live="polite"></div>
-  <form class="chat-form" id="chat-form" method="post" action="{{ send_url }}">{% csrf_token %}
-    <textarea class="form-control" name="body" id="chat-body" rows="2" maxlength="2000" placeholder="Type your message…" required></textarea>
-    <button class="button button-primary" type="submit">Send</button>
+<section class="page-heading">
+  <div><p class="eyebrow">DIRECT SUPPORT</p><h1>{% if as_student %}Chat with Admin &amp; HR{% else %}Chat with {{ peer }}{% endif %}</h1>
+    <p>{% if as_student %}Get in touch with your support team whenever you need a hand.{% else %}Respond to the student's questions and concerns.{% endif %}</p>
+  </div>
+</section>
+<section class="support-chat" aria-label="Support conversation">
+  <header class="support-chat-header">
+    <div class="support-chat-avatar" aria-hidden="true">{% if as_student %}<svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4 4v-4h-.5A1.5 1.5 0 0 1 4 14.5z"/></svg>{% else %}{{ peer|slice:":1"|upper }}{% endif %}</div>
+    <div class="support-chat-title"><h2>{{ peer }}</h2><p>{% if as_student %}Your support team{% else %}Student conversation{% endif %}</p></div>
+    <span class="support-chat-label">Support</span>
+  </header>
+  <div class="support-chat-log" id="chat-log" role="log" aria-label="Conversation messages" aria-live="polite">
+    <div class="support-chat-empty" id="chat-empty">
+      <span class="support-chat-empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4 4v-4h-.5A1.5 1.5 0 0 1 4 14.5z"/></svg></span>
+      <strong>Start a conversation</strong>
+      <p>{% if as_student %}Send a message to your admin and HR team. They'll reply here.{% else %}Send a message to start the conversation with this student.{% endif %}</p>
+    </div>
+  </div>
+  <form class="support-chat-form" id="chat-form" method="post" action="{{ send_url }}">{% csrf_token %}
+    <label class="sr-only" for="chat-body">Your message</label>
+    <textarea class="form-control" name="body" id="chat-body" rows="2" maxlength="2000" placeholder="Write your message..." required aria-describedby="chat-help chat-status"></textarea>
+    <div class="support-chat-form-footer">
+      <span id="chat-help">Enter to send &middot; Shift + Enter for a new line</span>
+      <button class="button button-primary" type="submit" id="chat-send">Send message <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 12 17-8-5 16-3-7-9-1zm9 1 8-9"/></svg></button>
+    </div>
+    <p class="support-chat-status" id="chat-status" role="status" aria-live="polite"></p>
   </form>
-</div>
+</section>
 {{ messages_json|json_script:"chat-initial" }}
 {% endblock %}
 {% block scripts %}
 <script>
 (function(){
   var log=document.getElementById('chat-log'),form=document.getElementById('chat-form'),body=document.getElementById('chat-body');
-  var pollUrl="{{ poll_url }}",asStudent={{ as_student|yesno:'true,false' }},last=0,sending=false;
-  function add(m){
-    if(m.id<=last)return; last=m.id;
-    var empty=log.querySelector('.chat-empty'); if(empty)empty.remove();
-    var d=document.createElement('div'),mine=m.from_student===asStudent;
-    d.className='chat-msg'+(mine?' mine':'');
-    var s=document.createElement('small'); s.textContent=(mine?'You':m.sender+' ('+m.role+')')+' · '+m.at;
-    var t=document.createElement('span'); t.textContent=m.body;
-    d.appendChild(s); d.appendChild(t); log.appendChild(d); log.scrollTop=log.scrollHeight;
+  var button=document.getElementById('chat-send'),status=document.getElementById('chat-status');
+  var pollUrl="{{ poll_url|escapejs }}",asStudent={{ as_student|yesno:'true,false' }},last=0,sending=false,seen=new Set();
+  function add(m,forceScroll){
+    if(seen.has(m.id))return;
+    seen.add(m.id);
+    var empty=document.getElementById('chat-empty'); if(empty)empty.remove();
+    var nearBottom=log.scrollHeight-log.scrollTop-log.clientHeight<80;
+    var row=document.createElement('article'),mine=m.from_student===asStudent;
+    row.className='support-message'+(mine?' is-mine':''); row.dataset.messageId=m.id;
+    var meta=document.createElement('div'); meta.className='support-message-meta';
+    var sender=document.createElement('strong'); sender.textContent=mine?'You':m.sender+' ('+m.role+')';
+    var time=document.createElement('time'); time.textContent=m.at;
+    var text=document.createElement('div'); text.className='support-message-bubble'; text.textContent=m.body;
+    meta.appendChild(sender); meta.appendChild(time); row.appendChild(meta); row.appendChild(text);
+    var next=Array.from(log.querySelectorAll('[data-message-id]')).find(function(item){return Number(item.dataset.messageId)>m.id;});
+    log.insertBefore(row,next||null);
+    if(forceScroll||nearBottom)log.scrollTop=log.scrollHeight;
   }
-  JSON.parse(document.getElementById('chat-initial').textContent).forEach(add);
-  if(!last){var e=document.createElement('p');e.className='chat-empty';e.textContent='No messages yet. Say hello!';log.appendChild(e);}
+  JSON.parse(document.getElementById('chat-initial').textContent).forEach(function(m){add(m,true);last=Math.max(last,m.id);});
   function poll(){
     if(document.hidden)return;
-    fetch(pollUrl+'?after='+last,{credentials:'same-origin'}).then(function(r){return r.ok?r.json():null})
-      .then(function(j){if(j)j.messages.forEach(add)}).catch(function(){});
+    fetch(pollUrl+'?after='+last,{credentials:'same-origin'}).then(function(r){
+      if(!r.ok)throw new Error('Unable to refresh messages.');
+      return r.json();
+    }).then(function(j){
+      j.messages.forEach(function(m){add(m,false);last=Math.max(last,m.id);});
+      if(status.dataset.kind==='poll'){status.textContent='';status.dataset.kind='';}
+    }).catch(function(){
+      if(!status.textContent||status.dataset.kind==='poll'){
+        status.dataset.kind='poll'; status.textContent='Unable to refresh messages. We will try again shortly.';
+      }
+    });
   }
   setInterval(poll,4000);
   form.addEventListener('submit',function(ev){
-    ev.preventDefault(); if(sending||!body.value.trim())return; sending=true;
+    ev.preventDefault(); if(sending||!body.value.trim())return;
+    sending=true; button.disabled=true; body.readOnly=true; status.textContent=''; status.dataset.kind='';
     fetch(form.action,{method:'POST',body:new FormData(form),credentials:'same-origin',headers:{'X-Requested-With':'XMLHttpRequest'}})
-      .then(function(r){return r.ok?r.json():null})
-      .then(function(j){if(j){j.messages.forEach(add);body.value='';}})
-      .catch(function(){}).then(function(){sending=false;body.focus();});
+      .then(function(r){
+        if(!r.ok)throw new Error('Message could not be sent. Please try again.');
+        return r.json();
+      }).then(function(j){j.messages.forEach(function(m){add(m,true);});body.value='';poll();})
+      .catch(function(){
+        status.dataset.kind='send'; status.textContent='Could not confirm your message was sent. Check the conversation before trying again.';
+      }).finally(function(){sending=false;button.disabled=false;body.readOnly=false;body.focus();});
   });
-  body.addEventListener('keydown',function(ev){if(ev.key==='Enter'&&!ev.shiftKey){ev.preventDefault();form.requestSubmit();}});
+  body.addEventListener('keydown',function(ev){if(ev.key==='Enter'&&!ev.shiftKey&&!ev.isComposing){ev.preventDefault();form.requestSubmit();}});
 })();
 </script>
 {% endblock %}

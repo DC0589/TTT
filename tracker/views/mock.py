@@ -22,7 +22,9 @@ from ..models import (
     MockQuestion,
     User,
 )
-from ..models.learning import MOCK_TYPE_CODING, MOCK_TYPE_INTERVIEW
+from ..models.learning import (
+    MOCK_STYLE_DEFINITION, MOCK_STYLE_SCENARIO, MOCK_TYPE_CODING, MOCK_TYPE_INTERVIEW,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +135,7 @@ def admin_mock_interviews_export(request):
     writer = csv.writer(response)
     writer.writerow([
         "Date (IST)", "Student", "Topic", "Level", "Rating (out of 5)", "Answers submitted",
-        "Answers expected", "Mode", "Mode reason", "Integrity score", "Integrity flags", "Auto-ended", "Flag summary", "Test type",
+        "Answers expected", "Mode", "Mode reason", "Integrity score", "Integrity flags", "Auto-ended", "Flag summary", "Test type", "Question style",
     ])
     for session in f["sessions"].order_by("-created_at"):
         counts = {}
@@ -150,6 +152,7 @@ def admin_mock_interviews_export(request):
             "yes" if session.auto_ended else "no",
             "; ".join(f"{k}: {n}" for k, n in sorted(counts.items())),
             session.get_test_type_display(),
+            session.get_question_style_display() if session.question_style else "",
         ]])
     return response
 
@@ -367,6 +370,9 @@ def student_mock_interview_ai(request):
         test_type = data.get("test_type", MOCK_TYPE_INTERVIEW)
         if test_type not in (MOCK_TYPE_INTERVIEW, MOCK_TYPE_CODING):
             return JsonResponse({"error": "Select a valid test type."}, status=400)
+        question_style = data.get("question_style", MOCK_STYLE_SCENARIO) if test_type == MOCK_TYPE_INTERVIEW else ""
+        if test_type == MOCK_TYPE_INTERVIEW and question_style not in (MOCK_STYLE_SCENARIO, MOCK_STYLE_DEFINITION):
+            return JsonResponse({"error": "Select a valid interview question style."}, status=400)
         previous_questions = list(
             MockInterviewScore.objects.filter(
                 session__student=request.user, session__role=role,
@@ -380,18 +386,19 @@ def student_mock_interview_ai(request):
                     session__student=request.user, session__role=role, session__focus=focus,
                 ).exclude(question="").order_by("-id").values_list("question", flat=True)[:40]
             )
-        bank_set = question_sets.serve(request.user, role, difficulty, focus, test_type)
+        bank_set = question_sets.serve(request.user, role, difficulty, focus, test_type, question_style)
         if bank_set is None:
             try:
-                questions = question_sets.generate(role, difficulty, previous_questions, focus, test_type)
+                questions = question_sets.generate(role, difficulty, previous_questions, focus, test_type, question_style)
             except GeminiAPIError as error:
                 status = 503 if "not configured" in str(error) else 502
                 return JsonResponse({"error": str(error)}, status=status)
             except question_sets.InvalidQuestions as error:
                 return JsonResponse({"error": str(error)}, status=502)
-            bank_set = question_sets.store(role, difficulty, questions, focus, test_type)
+            bank_set = question_sets.store(role, difficulty, questions, focus, test_type, question_style)
         session = MockInterviewSession.objects.create(
             student=request.user, role=role, focus=focus, difficulty=difficulty, test_type=test_type,
+            question_style=question_style,
             question_set=bank_set,
             mode=MockInterviewSession.MODE_PRACTICE if data.get("lite") is True else MockInterviewSession.MODE_FULL,
             mode_reason=" ".join(str(data.get("mode_reason", "")).split())[:200],

@@ -7,7 +7,7 @@ from ..ai_interview import generate_json
 from ..mock_bank import DIFFICULTY_GUIDE, pick_seed_questions
 from ..mock_topics import pick_focus_areas, topic_language
 from ..models import MockInterviewSession, MockQuestionSet
-from ..models.learning import MOCK_TYPE_CODING, MOCK_TYPE_INTERVIEW
+from ..models.learning import MOCK_STYLE_SCENARIO, MOCK_TYPE_CODING, MOCK_TYPE_INTERVIEW
 
 QUESTION_COUNT = 10
 
@@ -16,7 +16,8 @@ class InvalidQuestions(Exception):
     pass
 
 
-def build_prompt(role, difficulty, previous_questions=(), focus="", test_type=MOCK_TYPE_INTERVIEW):
+def build_prompt(role, difficulty, previous_questions=(), focus="", test_type=MOCK_TYPE_INTERVIEW,
+                 question_style=MOCK_STYLE_SCENARIO):
     seeds = (
         [q for q in pick_seed_questions(role, difficulty, exclude=previous_questions) if q.startswith("[code] ")]
         if not focus and test_type == MOCK_TYPE_CODING else []
@@ -43,12 +44,21 @@ def build_prompt(role, difficulty, previous_questions=(), focus="", test_type=MO
             "the expected output. Starter data must match the example input. "
         )
     else:
+        if question_style == MOCK_STYLE_SCENARIO:
+            prompt += (
+                "Every question must present a realistic scenario or practical situation and ask "
+                "the candidate how they would reason about or handle it. Do not ask standalone definitions. "
+            )
+        else:
+            prompt += (
+                "Every question must ask for a definition or conceptual explanation of a specific term "
+                "or principle. Do not ask scenario-based questions. "
+            )
         prompt += (
-            "Mix definitions, conceptual explanations and realistic scenario-based questions "
-        "about the selected topic. Phrase each question clearly and provide enough context "
-        "to understand what is being asked. Every question must be answerable verbally "
-        "without writing, reading, completing, debugging, tracing or predicting the output "
-        "of code or SQL queries. Do not include code snippets or ask for syntax. "
+            "Phrase each question clearly and provide enough context to understand what is being asked. "
+            "Every question must be answerable verbally without writing, reading, completing, "
+            "debugging, tracing or predicting the output of code or SQL queries. "
+            "Do not include code snippets or ask for syntax. "
         )
     if focus:
         prompt += (
@@ -150,16 +160,19 @@ def has_coding_examples(questions):
     return True
 
 
-def generate(role, difficulty, previous_questions=(), focus="", test_type=MOCK_TYPE_INTERVIEW):
+def generate(role, difficulty, previous_questions=(), focus="", test_type=MOCK_TYPE_INTERVIEW,
+             question_style=MOCK_STYLE_SCENARIO):
     """Ask the AI for a fresh question set. Raises GeminiAPIError or InvalidQuestions."""
-    prompt = build_prompt(role, difficulty, previous_questions, focus, test_type)
+    prompt = build_prompt(role, difficulty, previous_questions, focus, test_type, question_style)
     return parse_questions(generate_json([{"text": prompt}]), role, test_type)
 
 
-def store(topic, difficulty, questions, focus="", test_type=MOCK_TYPE_INTERVIEW):
+def store(topic, difficulty, questions, focus="", test_type=MOCK_TYPE_INTERVIEW,
+          question_style=MOCK_STYLE_SCENARIO):
+    question_style = "" if test_type == MOCK_TYPE_CODING else question_style
     first = questions[0]["text"]
     for existing in MockQuestionSet.objects.filter(
-        topic__iexact=topic, difficulty=difficulty, focus=focus, test_type=test_type
+        topic__iexact=topic, difficulty=difficulty, focus=focus, test_type=test_type, question_style=question_style
     )[:50]:
         if (
             existing.questions and existing.questions[0].get("text") == first
@@ -167,18 +180,21 @@ def store(topic, difficulty, questions, focus="", test_type=MOCK_TYPE_INTERVIEW)
         ):
             return existing
     return MockQuestionSet.objects.create(
-        topic=topic, focus=focus, difficulty=difficulty, questions=questions, test_type=test_type
+        topic=topic, focus=focus, difficulty=difficulty, questions=questions,
+        test_type=test_type, question_style=question_style
     )
 
 
-def serve(student, topic, difficulty, focus="", test_type=MOCK_TYPE_INTERVIEW):
+def serve(student, topic, difficulty, focus="", test_type=MOCK_TYPE_INTERVIEW,
+          question_style=MOCK_STYLE_SCENARIO):
     """Return an unseen stored set for this student, once the bank has enough variety."""
     seen = MockInterviewSession.objects.filter(
         student=student, question_set__isnull=False
     ).values_list("question_set_id", flat=True)
     candidates = []
     for candidate in MockQuestionSet.objects.filter(
-            topic__iexact=topic, difficulty=difficulty, focus=focus, test_type=test_type, is_active=True
+            topic__iexact=topic, difficulty=difficulty, focus=focus, test_type=test_type,
+            question_style="" if test_type == MOCK_TYPE_CODING else question_style, is_active=True
         ).exclude(pk__in=seen).iterator():
         if test_type == MOCK_TYPE_CODING and not has_coding_examples(candidate.questions):
             continue

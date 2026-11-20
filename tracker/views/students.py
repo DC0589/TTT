@@ -4,6 +4,7 @@ import secrets
 from django.conf import settings
 from django.contrib import messages
 from django.core.paginator import Paginator
+from django.db import DatabaseError, transaction
 from django.db.models import Count, Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -191,9 +192,15 @@ def admin_student_detail(request, pk):
         for x in student.selections.all()
     ]
     placements.sort(key=lambda p: p["date"], reverse=True)
-    from ..services import mock_scoring
-    mock_scoring.process_pending(max_items=1, time_budget=10)
     account_lock.lock_if_inactive(student)
+    try:
+        with transaction.atomic():
+            progress = _mock_progress(student)
+            mock_sessions = list(student.mock_interview_sessions.order_by("-created_at")[:15])
+    except DatabaseError:
+        logger.exception("Unable to load mock interview progress for student %s", student.pk)
+        progress = None
+        mock_sessions = None
     return render(request, "tracker/admin/student_detail.html", {
         "lock_days": settings.INACTIVITY_LOCK_DAYS,
         "student": student,
@@ -201,8 +208,8 @@ def admin_student_detail(request, pk):
         "memberships": student.memberships.filter(
             group__admin=request.user.data_owner).select_related("group"),
         "interviews": interviews,
-        "progress": _mock_progress(student),
-        "mock_sessions": student.mock_interview_sessions.order_by("-created_at")[:15],
+        "progress": progress,
+        "mock_sessions": mock_sessions,
     })
 
 

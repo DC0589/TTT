@@ -154,7 +154,7 @@ class MockQueueTests(TestCase):
         questions = [{"text": f"Q{n}?", "type": "concept"} for n in range(10)]
         for n in range(3):
             MockQuestionSet.objects.create(
-                topic="Python", difficulty="medium", test_type="interview",
+                topic="Python", difficulty="medium", test_type="interview", question_style="scenario",
                 questions=[{**q, "text": f"{q['text']} v{n}"} for q in questions],
             )
         served = set()
@@ -626,6 +626,16 @@ class SupportChatTests(TestCase):
         self.assertEqual(self._call("student_support", self.student, "post", {"body": "  "}).status_code, 400)
         with self.assertRaises(Http404):
             self._call("staff_support_chat", self.other_admin, pk=self.student.pk)
+
+    def test_chat_renders_for_student_and_staff(self):
+        student_page = self._call("student_support", self.student).content.decode()
+        self.assertIn("Chat with Admin &amp; HR", student_page)
+        self.assertIn("Start a conversation", student_page)
+        self.assertIn('aria-label="Conversation messages"', student_page)
+        self.assertIn("Send message", student_page)
+        staff_page = self._call("staff_support_chat", self.admin, pk=self.student.pk).content.decode()
+        self.assertIn("Chat with stu", staff_page)
+        self.assertIn("Student chats", staff_page)
 
 
 class ParentDetailsValidationTests(TestCase):
