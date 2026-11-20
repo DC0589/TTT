@@ -1056,6 +1056,11 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
 
 /* Interview journey workspace */
 .interview-list-heading { align-items: flex-end; }
+.admin-interview-filters { display: grid; gap: 16px; }
+.admin-interview-filter-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 16px; }
+.admin-interview-filter-fields .form-field { min-width: 0; }
+.admin-interview-filter-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.admin-interview-filter-actions .button { min-height: 42px; white-space: nowrap; }
 .interview-filters { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 12px; margin-bottom: 12px; padding: 13px; background: #fff; border: 1px solid var(--hair); border-radius: 12px; box-shadow: 0 1px 2px rgba(20,27,45,.04); }
 .interview-search { display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 13px; color: #8991a3; border: 1px solid var(--hair); border-radius: 9px; }
 .interview-search > span:first-child { font-size: 19px; line-height: 1; }
@@ -1157,6 +1162,9 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
   .interview-journey-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .interview-workspace-grid { grid-template-columns: minmax(0, 1fr) minmax(250px, 290px); gap: 14px; }
 }
+@media (max-width: 950px) {
+  .admin-interview-filter-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 760px) {
   .interview-setup-layout, .interview-workspace-grid { grid-template-columns: minmax(0, 1fr); }
   .interview-setup-aside { position: static; }
@@ -1164,6 +1172,8 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
   .interview-prep-panel { grid-column: 1 / -1; }
 }
 @media (max-width: 600px) {
+  .admin-interview-filter-fields { grid-template-columns: minmax(0, 1fr); }
+  .admin-interview-filter-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .interview-filters { grid-template-columns: minmax(0, 1fr); gap: 9px; padding: 10px; }
   .interview-journey-cards { grid-template-columns: minmax(0, 1fr); }
   .interview-workspace-aside { grid-template-columns: minmax(0, 1fr); }

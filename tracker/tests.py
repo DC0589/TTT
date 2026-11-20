@@ -1897,6 +1897,9 @@ class InterviewManagementTests(TestCase):
             date_of_interview=self.today, interview_type="hr_call", hr_name="Zed", hr_contact_number="999")
         self.client.force_login(self.admin)
         page = self.client.get(reverse("admin_interviews") + "?type=hr_call")
+        self.assertContains(page, 'class="admin-interview-filters"')
+        self.assertContains(page, 'class="admin-interview-filter-fields"')
+        self.assertContains(page, 'class="form-control" id="f-student"')
         self.assertContains(page, "Globex")
         self.assertNotContains(page, ">Acme<")
         page = self.client.get(reverse("admin_interviews") + "?company=acm&view=table")
@@ -1949,6 +1952,8 @@ class InterviewManagementTests(TestCase):
         self.client.force_login(self.admin)
         base = reverse("admin_calendar")
         month = self.client.get(base)
+        self.assertContains(month, "<title>Interview calendar", html=False)
+        self.assertContains(month, ">Interview calendar</span>", html=False)
         self.assertContains(month, "more</button>")
         self.assertContains(month, "calendar-mobile-agenda")
         for view in ("week", "day", "list"):
@@ -1956,7 +1961,10 @@ class InterviewManagementTests(TestCase):
             self.assertContains(page, "Co3")
         self.assertContains(self.client.get(base + "?view=week&date=bogus"), "calendar-week")
         self.client.force_login(self.stu)
-        self.assertContains(self.client.get(reverse("student_calendar") + "?view=list"), "Acme")
+        student_calendar = self.client.get(reverse("student_calendar") + "?view=list")
+        self.assertContains(student_calendar, "<title>Interview calendar", html=False)
+        self.assertContains(student_calendar, ">Interview calendar</span>", html=False)
+        self.assertContains(student_calendar, "Acme")
 
     def test_calendar_status_colour(self):
         self.client.force_login(self.stu)

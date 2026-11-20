@@ -8,7 +8,7 @@
 </section>
 {% if reminders %}
 <section class="panel reminder-panel" aria-label="Reminders">
-  <div class="section-heading"><div><p class="eyebrow">REMINDERS</p><h2>Coming up this week</h2></div><a class="section-meta" href="{% url 'student_calendar' %}">Open calendar</a></div>
+  <div class="section-heading"><div><p class="eyebrow">REMINDERS</p><h2>Coming up this week</h2></div><a class="section-meta" href="{% url 'student_calendar' %}">Open interview calendar</a></div>
   <ul class="reminder-list">
     {% for item in reminders %}<li class="reminder-item{% if item.urgent %} is-urgent{% endif %}"><span class="reminder-when">{{ item.when }}</span><a href="{{ item.url }}"><strong>{{ item.title }}</strong><small>{{ item.date|date:"D, d M" }} · {{ item.detail }}</small></a></li>{% endfor %}
   </ul>

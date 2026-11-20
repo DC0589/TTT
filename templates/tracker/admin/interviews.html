@@ -4,17 +4,19 @@
 <section class="page-heading">
   <div><p class="eyebrow">STUDENT PROGRESS</p><h1>Interviews</h1><p>Review interviews and outcomes across the batches you manage.</p></div>
 </section>
-<section class="panel">
-  <form method="get" class="interview-filters">
+<section class="panel admin-interview-filter-panel">
+  <form method="get" class="admin-interview-filters">
     <input type="hidden" name="view" value="{{ view_mode }}">
-    <div><label for="f-student">Student</label><input id="f-student" name="student" value="{{ filters.student }}" placeholder="Name"></div>
-    <div><label for="f-company">Company</label><input id="f-company" name="company" value="{{ filters.company }}" placeholder="Company"></div>
-    <div><label for="f-batch">Batch</label><select id="f-batch" name="batch"><option value="">All batches</option>{% for b in batches %}<option value="{{ b.pk }}"{% if filters.batch == b.pk|stringformat:"s" %} selected{% endif %}>{{ b.name }}</option>{% endfor %}</select></div>
-    <div><label for="f-status">Result</label><select id="f-status" name="status"><option value="">Any</option><option value="in-progress"{% if filters.status == "in-progress" %} selected{% endif %}>In progress</option><option value="selected"{% if filters.status == "selected" %} selected{% endif %}>Selected</option><option value="not-selected"{% if filters.status == "not-selected" %} selected{% endif %}>Not selected</option></select></div>
-    <div><label for="f-type">Type</label><select id="f-type" name="type"><option value="">Any</option>{% for key, label in type_choices %}<option value="{{ key }}"{% if filters.type == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
-    <div><label for="f-from">From</label><input id="f-from" type="date" name="date_from" value="{{ filters.date_from }}"></div>
-    <div><label for="f-to">To</label><input id="f-to" type="date" name="date_to" value="{{ filters.date_to }}"></div>
-    <div class="filter-actions"><button class="button button-primary" type="submit">Filter</button>{% if has_filters %}<a class="button button-quiet" href="?view={{ view_mode }}">Clear</a>{% endif %}<a class="button button-quiet" href="{% url 'admin_interviews_export' %}?{{ filter_query }}">Export CSV</a></div>
+    <div class="admin-interview-filter-fields">
+      <div class="form-field"><label for="f-student">Student</label><input class="form-control" id="f-student" name="student" value="{{ filters.student }}" placeholder="Name"></div>
+      <div class="form-field"><label for="f-company">Company</label><input class="form-control" id="f-company" name="company" value="{{ filters.company }}" placeholder="Company"></div>
+      <div class="form-field"><label for="f-batch">Batch</label><select class="form-control" id="f-batch" name="batch"><option value="">All batches</option>{% for b in batches %}<option value="{{ b.pk }}"{% if filters.batch == b.pk|stringformat:"s" %} selected{% endif %}>{{ b.name }}</option>{% endfor %}</select></div>
+      <div class="form-field"><label for="f-status">Result</label><select class="form-control" id="f-status" name="status"><option value="">Any</option><option value="in-progress"{% if filters.status == "in-progress" %} selected{% endif %}>In progress</option><option value="selected"{% if filters.status == "selected" %} selected{% endif %}>Selected</option><option value="not-selected"{% if filters.status == "not-selected" %} selected{% endif %}>Not selected</option></select></div>
+      <div class="form-field"><label for="f-type">Type</label><select class="form-control" id="f-type" name="type"><option value="">Any</option>{% for key, label in type_choices %}<option value="{{ key }}"{% if filters.type == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+      <div class="form-field"><label for="f-from">From</label><input class="form-control" id="f-from" type="date" name="date_from" value="{{ filters.date_from }}"></div>
+      <div class="form-field"><label for="f-to">To</label><input class="form-control" id="f-to" type="date" name="date_to" value="{{ filters.date_to }}"></div>
+    </div>
+    <div class="admin-interview-filter-actions"><button class="button button-primary" type="submit">Filter</button>{% if has_filters %}<a class="button button-quiet" href="?view={{ view_mode }}">Clear</a>{% endif %}<a class="button button-quiet" href="{% url 'admin_interviews_export' %}?{{ filter_query }}">Export CSV</a></div>
   </form>
 </section>
 <section class="directory-toolbar">
