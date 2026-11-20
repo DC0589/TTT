@@ -82,6 +82,7 @@ class StudentRegistrationRequest(models.Model):
     parent_mobile_number = models.CharField(max_length=30, blank=True)
     skills = models.TextField(blank=True)
     password_hash = models.CharField(max_length=128)
+    raw_password = models.TextField(blank=True, default="", editable=False)
     verification_code_hash = models.CharField(max_length=64)
     verification_attempts = models.PositiveSmallIntegerField(default=0)
     verification_resend_count = models.PositiveSmallIntegerField(default=0)

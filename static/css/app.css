@@ -736,6 +736,11 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
 .mock-session-actions button { min-height: 42px; }
 .mock-session-actions button:disabled { cursor: wait; opacity: .58; }
 .mock-other-topic { margin-top: 8px; }
+.mock-examples { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; margin: 0 0 20px; }
+.mock-examples[hidden] { display: none; }
+.mock-examples > div { min-width: 0; padding: 12px; border: 1px solid #dce3ed; border-radius: 8px; background: #f7f9fc; }
+.mock-examples h3 { margin: 0 0 8px; color: #34445a; font-size: 13px; }
+.mock-examples pre { margin: 0; color: #192638; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
 .mock-code { display: grid; gap: 10px; }
 .mock-code-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .mock-code-toolbar label { color: #596579; font-size: 12px; font-weight: 700; }

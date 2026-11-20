@@ -4,6 +4,16 @@ from django.utils import timezone
 from .users import User
 
 
+MOCK_TYPE_LEGACY = "legacy"
+MOCK_TYPE_INTERVIEW = "interview"
+MOCK_TYPE_CODING = "coding"
+MOCK_TYPE_CHOICES = [
+    (MOCK_TYPE_LEGACY, "Earlier mixed mock"),
+    (MOCK_TYPE_INTERVIEW, "Interview"),
+    (MOCK_TYPE_CODING, "Coding test"),
+]
+
+
 class LearningCourse(models.Model):
     name = models.CharField(max_length=100, unique=True)
     summary = models.TextField()
@@ -58,6 +68,7 @@ class MockInterviewSession(models.Model):
     )
     role = models.CharField(max_length=120)
     focus = models.CharField(max_length=120, blank=True)
+    test_type = models.CharField(max_length=10, choices=MOCK_TYPE_CHOICES, default=MOCK_TYPE_LEGACY)
     rating = models.DecimalField(max_digits=3, decimal_places=2, blank=True, null=True)
     expected_answers = models.PositiveSmallIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -165,6 +176,7 @@ class MockQuestionSet(models.Model):
     """A ready-made set of interview questions served without calling the AI."""
     topic = models.CharField(max_length=120)
     focus = models.CharField(max_length=120, blank=True)
+    test_type = models.CharField(max_length=10, choices=MOCK_TYPE_CHOICES, default=MOCK_TYPE_LEGACY)
     difficulty = models.CharField(max_length=10, default="medium")
     questions = models.JSONField(default=list)
     is_active = models.BooleanField(default=True)
