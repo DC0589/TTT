@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=61">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=62">
 </head>
 <body class="{% if user.is_authenticated %}app-body{% else %}auth-body{% endif %}">
 {% if user.is_authenticated %}
@@ -224,6 +224,15 @@
     </div>
     {% endif %}
     <main class="page-content" id="main-content">
+      {% if banner_unavailable or leave_count_unavailable or question_count_unavailable or support_count_unavailable %}
+      <div class="feature-availability" role="status">Some information is temporarily unavailable:
+        {% if banner_unavailable %} celebration banners;{% endif %}
+        {% if leave_count_unavailable %} leave notification count;{% endif %}
+        {% if question_count_unavailable %} question notification count;{% endif %}
+        {% if support_count_unavailable %} chat notification count;{% endif %}
+        please try again later.
+      </div>
+      {% endif %}
 {% else %}
 <main class="auth-shell" id="main-content">
   <section class="auth-aside">
@@ -283,7 +292,7 @@
   });
 </script>
 {% if user.is_authenticated and user.is_admin or user.is_authenticated and user.is_hr %}<script>window.SIGNUP_POLL_URL="{% url 'registrations_pending_count' %}";</script>{% endif %}
-<script src="{% static 'js/app.js' %}?v=26" defer></script>
+<script src="{% static 'js/app.js' %}?v=27" defer></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -12,7 +12,7 @@
     <tbody>
     {% for s in sessions %}
     <tr>
-      <td>{{ s.created_at|date:"M j, Y H:i" }}</td><td>{{ s.student.username }}</td><td>{{ s.role }} · {{ s.get_test_type_display }}</td><td>{{ s.difficulty|default:"-"|title }}</td>
+      <td>{{ s.created_at|date:"M j, Y H:i" }}</td><td>{{ s.student.username }}</td><td>{{ s.role }} · {{ s.get_test_type_display }}{% if s.question_style %} · {{ s.get_question_style_display }}{% endif %}</td><td>{{ s.difficulty|default:"-"|title }}</td>
       <td>{% if s.rating is not None %}{{ s.rating|floatformat:1 }}/5{% elif s.completed_at %}-{% else %}In progress{% endif %}</td>
       <td title="{{ s.mode_reason }}">{{ s.get_mode_display }}</td>
       <td>{{ s.scores.all|length }}{% if s.expected_answers %} / {{ s.expected_answers }}{% endif %}</td>

@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand
 from tracker.ai_interview import GeminiAPIError
 from tracker.mock_topics import MOCK_TOPICS
 from tracker.models import MockQuestionSet
-from tracker.models.learning import MOCK_TYPE_CODING, MOCK_TYPE_INTERVIEW
+from tracker.models.learning import MOCK_STYLE_DEFINITION, MOCK_STYLE_SCENARIO, MOCK_TYPE_CODING, MOCK_TYPE_INTERVIEW
 from tracker.services import question_sets
 
 
@@ -21,15 +21,21 @@ class Command(BaseCommand):
             "--difficulty", action="append", choices=["easy", "medium", "hard"],
             help="Limit to these levels.",
         )
+        parser.add_argument(
+            "--question-style", choices=[MOCK_STYLE_SCENARIO, MOCK_STYLE_DEFINITION],
+            default=MOCK_STYLE_SCENARIO, help="Interview style (ignored for coding tests).",
+        )
 
     def handle(self, *args, **options):
         topics = options["topic"] or list(MOCK_TOPICS)
         levels = options["difficulty"] or ["easy", "medium", "hard"]
         test_type = options["test_type"]
+        question_style = options["question_style"] if test_type == MOCK_TYPE_INTERVIEW else ""
         for topic in topics:
             for level in levels:
                 sets = MockQuestionSet.objects.filter(
-                    topic__iexact=topic, focus="", difficulty=level, test_type=test_type, is_active=True
+                    topic__iexact=topic, focus="", difficulty=level, test_type=test_type,
+                    question_style=question_style, is_active=True
                 )
                 have = (
                     sum(question_sets.has_coding_examples(item.questions) for item in sets.iterator())
@@ -37,9 +43,9 @@ class Command(BaseCommand):
                 )
                 for _ in range(max(0, options["per"] - have)):
                     try:
-                        questions = question_sets.generate(topic, level, test_type=test_type)
+                        questions = question_sets.generate(topic, level, test_type=test_type, question_style=question_style)
                     except (GeminiAPIError, question_sets.InvalidQuestions) as error:
                         self.stderr.write(f"{topic}/{level}: {error}")
                         break
-                    question_sets.store(topic, level, questions, test_type=test_type)
+                    question_sets.store(topic, level, questions, test_type=test_type, question_style=question_style)
                     self.stdout.write(f"{topic}/{level}/{test_type}: added a set")

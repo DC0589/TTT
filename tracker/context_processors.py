@@ -1,17 +1,29 @@
 from datetime import timedelta
+import logging
 
 from django.core.cache import cache
+from django.db import DatabaseError, transaction
 from django.utils import timezone
 
 from .models import GroupMembership, InterviewStatus, LeaveRequest, Selection, StudentQuestionSubmission
 from .services.placements import placed_company_names
 
+logger = logging.getLogger(__name__)
 BANNER_CACHE_KEY = "celebration-banner-data"
 BANNER_CACHE_SECONDS = 300
 CELEBRATION_DAYS = 7
 MIN_ITEMS_PER_LOOP = 12
 PLACED_SECONDS_PER_ITEM = 3
 SELECTED_SECONDS_PER_ITEM = 12
+
+
+def _optional_data(label, load):
+    try:
+        with transaction.atomic():
+            return load()
+    except DatabaseError:
+        logger.exception("Unable to load optional %s", label)
+        return None
 
 
 def _loop(count, seconds_per_item):
@@ -63,28 +75,41 @@ def celebration_banners(request):
     if not user or not user.is_authenticated:
         return {}
 
-    banners = _banner_data()
-    placed, recent = banners["placed"], banners["recent"]
+    banners = _optional_data("celebration banners", _banner_data)
+    result = {}
+    if banners is None:
+        result["banner_unavailable"] = True
+    else:
+        placed, recent = banners["placed"], banners["recent"]
+        result.update({
+            "placed_companies": placed,
+            "placed_loop": _loop(len(placed) + 1, PLACED_SECONDS_PER_ITEM),
+            "recent_selections": recent,
+            "selected_loop": _loop(len(recent), SELECTED_SECONDS_PER_ITEM),
+        })
 
-    pending_leaves = 0
     if user.is_admin or user.is_hr:
-        owner = user.data_owner
-        pending_leaves = LeaveRequest.objects.filter(
-            status=LeaveRequest.PENDING,
-            student__in=GroupMembership.objects.filter(group__admin=owner).values("student"),
-        ).count()
+        def leave_count():
+            owner = user.data_owner
+            return LeaveRequest.objects.filter(
+                status=LeaveRequest.PENDING,
+                student__in=GroupMembership.objects.filter(group__admin=owner).values("student"),
+            ).count()
 
-    return {
-        "pending_leave_count": pending_leaves,
-        "pending_question_count": (
-            StudentQuestionSubmission.objects.filter(status=StudentQuestionSubmission.PENDING).count()
-            if user.is_admin or user.is_hr else 0
-        ),
-        "placed_companies": placed,
-        "placed_loop": _loop(len(placed) + 1, PLACED_SECONDS_PER_ITEM),
-        "recent_selections": recent,
-        "selected_loop": _loop(len(recent), SELECTED_SECONDS_PER_ITEM),
-    }
+        pending_leaves = _optional_data("leave notification count", leave_count)
+        pending_questions = _optional_data(
+            "question notification count",
+            lambda: StudentQuestionSubmission.objects.filter(status=StudentQuestionSubmission.PENDING).count(),
+        )
+        if pending_leaves is None:
+            result["leave_count_unavailable"] = True
+        else:
+            result["pending_leave_count"] = pending_leaves
+        if pending_questions is None:
+            result["question_count_unavailable"] = True
+        else:
+            result["pending_question_count"] = pending_questions
+    return result
 
 
 def support_unread(request):
@@ -93,7 +118,11 @@ def support_unread(request):
         return {}
     from .services import support
     if user.is_student:
-        return {"support_unread": int(support.student_has_unread(user))}
-    if user.is_admin or user.is_hr:
-        return {"support_unread": support.unread_for_staff(user)}
-    return {}
+        count = _optional_data("support notification count", lambda: int(support.student_has_unread(user)))
+    elif user.is_admin or user.is_hr:
+        count = _optional_data("support notification count", lambda: support.unread_for_staff(user))
+    else:
+        return {}
+    if count is None:
+        return {"support_count_unavailable": True}
+    return {"support_unread": count}

@@ -13,9 +13,16 @@
     <form class="stack-form" data-interview-start method="post">{% csrf_token %}
       <div class="form-field"><label for="mock-test-type">Session type</label>
         <select class="form-control" id="mock-test-type" name="test_type">
-          <option value="interview">Interview - definitions and scenarios, no coding</option>
+          <option value="interview">Interview - spoken questions, no coding</option>
           <option value="coding">Coding test - hands-on coding questions</option>
         </select>
+      </div>
+      <div class="form-field" data-question-style-field><label for="mock-question-style">Interview question style</label>
+        <select class="form-control" id="mock-question-style" name="question_style">
+          <option value="scenario">Scenario-based questions</option>
+          <option value="definition">Definition and concept questions</option>
+        </select>
+        <p class="field-help">Choose the type of spoken questions for this interview.</p>
       </div>
       <div class="form-field"><label for="mock-topic">Topic to practise</label>
         <select class="form-control" id="mock-topic" name="topic" data-topic-select required>
@@ -139,7 +146,7 @@
       <div class="mock-rating-list">
         {% for saved_session in recent_sessions %}
           <div class="mock-rating-row">
-            <div><strong>{{ saved_session.role }}{% if saved_session.focus %} · {{ saved_session.focus }}{% endif %}</strong><span>{{ saved_session.get_test_type_display }} · {{ saved_session.created_at|date:"M j, Y" }} · {{ saved_session.scores.all|length }} answers</span></div>
+            <div><strong>{{ saved_session.role }}{% if saved_session.focus %} · {{ saved_session.focus }}{% endif %}</strong><span>{{ saved_session.get_test_type_display }}{% if saved_session.question_style %} · {{ saved_session.get_question_style_display }}{% endif %} · {{ saved_session.created_at|date:"M j, Y" }} · {{ saved_session.scores.all|length }} answers</span></div>
             {% if saved_session.rating is not None %}<span class="mock-score">{{ saved_session.rating|floatformat:1 }}/5</span>{% else %}<span class="mock-rating-pending"{% if saved_session.completed_at %} data-pending-session="{{ saved_session.pk }}"{% endif %}>{% if saved_session.completed_at %}Feedback being prepared{% else %}No score yet{% endif %}</span>{% endif %}
           </div>
         {% endfor %}

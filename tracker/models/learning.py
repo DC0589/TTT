@@ -12,6 +12,12 @@ MOCK_TYPE_CHOICES = [
     (MOCK_TYPE_INTERVIEW, "Interview"),
     (MOCK_TYPE_CODING, "Coding test"),
 ]
+MOCK_STYLE_SCENARIO = "scenario"
+MOCK_STYLE_DEFINITION = "definition"
+MOCK_STYLE_CHOICES = [
+    (MOCK_STYLE_SCENARIO, "Scenario-based"),
+    (MOCK_STYLE_DEFINITION, "Definitions"),
+]
 
 
 class LearningCourse(models.Model):
@@ -69,6 +75,7 @@ class MockInterviewSession(models.Model):
     role = models.CharField(max_length=120)
     focus = models.CharField(max_length=120, blank=True)
     test_type = models.CharField(max_length=10, choices=MOCK_TYPE_CHOICES, default=MOCK_TYPE_LEGACY)
+    question_style = models.CharField(max_length=10, choices=MOCK_STYLE_CHOICES, blank=True, default="")
     rating = models.DecimalField(max_digits=3, decimal_places=2, blank=True, null=True)
     expected_answers = models.PositiveSmallIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -177,6 +184,7 @@ class MockQuestionSet(models.Model):
     topic = models.CharField(max_length=120)
     focus = models.CharField(max_length=120, blank=True)
     test_type = models.CharField(max_length=10, choices=MOCK_TYPE_CHOICES, default=MOCK_TYPE_LEGACY)
+    question_style = models.CharField(max_length=10, choices=MOCK_STYLE_CHOICES, blank=True, default="")
     difficulty = models.CharField(max_length=10, default="medium")
     questions = models.JSONField(default=list)
     is_active = models.BooleanField(default=True)

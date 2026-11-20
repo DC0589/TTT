@@ -37,8 +37,11 @@ class MockTypeTests(TestCase):
     def test_prompts_for_both_types_and_focus(self):
         for focus in ("", "recursion"):
             interview = question_sets.build_prompt("Python", "medium", focus=focus)
-            self.assertIn("definitions", interview)
-            self.assertIn("scenario-based", interview)
+            self.assertIn("realistic scenario", interview)
+            self.assertIn("Do not ask standalone definitions", interview)
+            definition = question_sets.build_prompt("Python", "medium", focus=focus, question_style="definition")
+            self.assertIn("Every question must ask for a definition", definition)
+            self.assertIn("Do not ask scenario-based questions", definition)
             self.assertIn("Do not include code snippets", interview)
             self.assertNotIn("[code]", interview)
             coding = question_sets.build_prompt("Python", "medium", focus=focus, test_type="coding")
@@ -126,8 +129,10 @@ class MockTypeTests(TestCase):
     def test_setup_shows_both_choices_and_default(self):
         response = student_mock_interview(self.request("get", "student_mock_interview"))
         content = response.content.decode()
-        self.assertIn('value="interview">Interview - definitions and scenarios, no coding', content)
+        self.assertIn('value="interview">Interview - spoken questions, no coding', content)
         self.assertIn('value="coding">Coding test - hands-on coding questions', content)
+        self.assertIn('value="scenario">Scenario-based questions', content)
+        self.assertIn('value="definition">Definition and concept questions', content)
         self.assertLess(content.index('value="interview"'), content.index('value="coding"'))
         self.assertIn("Example input", content)
         self.assertIn("Expected output", content)
@@ -173,7 +178,7 @@ class MockTypeTests(TestCase):
             "fill_mock_bank", "--topic", "Python", "--difficulty", "medium",
             "--test-type", "coding", "--per", "1", stdout=StringIO(),
         )
-        generate.assert_called_once_with("Python", "medium", test_type="coding")
+        generate.assert_called_once_with("Python", "medium", test_type="coding", question_style="")
         sets = MockQuestionSet.objects.filter(test_type="coding", focus="")
         self.assertEqual(sets.count(), 2)
         self.assertEqual(sum(question_sets.has_coding_examples(item.questions) for item in sets), 1)
@@ -189,3 +194,48 @@ class MockTypeTests(TestCase):
         self.assertEqual(response.status_code, 502)
         self.assertIn("example input and output", json.loads(response.content)["error"])
         self.assertFalse(MockInterviewSession.objects.exists())
+
+    @override_settings(MOCK_BANK_MIN_SETS=1)
+    def test_interview_banks_are_separate_and_old_mixed_sets_are_not_used(self):
+        MockQuestionSet.objects.create(
+            topic="Python", difficulty="medium", test_type="interview", questions=self.questions("concept")
+        )
+        self.assertIsNone(question_sets.serve(self.student, "Python", "medium"))
+        scenario = question_sets.store("Python", "medium", self.questions("concept"), question_style="scenario")
+        definition = question_sets.store("Python", "medium", self.questions("concept"), question_style="definition")
+        self.assertNotEqual(scenario.pk, definition.pk)
+        self.assertEqual(question_sets.serve(self.student, "Python", "medium", question_style="scenario"), scenario)
+        self.assertEqual(question_sets.serve(self.student, "Python", "medium", question_style="definition"), definition)
+
+    @patch("tracker.services.question_sets.generate_json")
+    def test_style_is_sent_to_generator_and_stored_with_session(self, generate):
+        generate.return_value = {"questions": self.questions("concept")}
+        for style, phrase in (("scenario", "realistic scenario"), ("definition", "Every question must ask for a definition")):
+            response = student_mock_interview_ai(self.request("post", "student_mock_interview_ai", {
+                "action": "question", "consent": True, "role": "Python", "question_style": style,
+            }))
+            self.assertEqual(response.status_code, 200)
+            session = MockInterviewSession.objects.get(pk=json.loads(response.content)["session_id"])
+            self.assertEqual(session.question_style, style)
+            self.assertEqual(session.question_set.question_style, style)
+            self.assertIn(phrase, generate.call_args.args[0][0]["text"])
+
+    @patch("tracker.services.question_sets.generate_json")
+    def test_invalid_style_is_rejected(self, generate):
+        for invalid in ("mixed", "", None, []):
+            response = student_mock_interview_ai(self.request("post", "student_mock_interview_ai", {
+                "action": "question", "consent": True, "role": "Python", "question_style": invalid,
+            }))
+            self.assertEqual(response.status_code, 400)
+        generate.assert_not_called()
+
+    @patch("tracker.services.question_sets.generate")
+    def test_prefill_only_counts_the_selected_interview_style(self, generate):
+        question_sets.store("Python", "medium", self.questions("concept"), question_style="scenario")
+        generate.return_value = self.questions("concept")
+        call_command(
+            "fill_mock_bank", "--topic", "Python", "--difficulty", "medium",
+            "--question-style", "definition", "--per", "1", stdout=StringIO(),
+        )
+        generate.assert_called_once_with("Python", "medium", test_type="interview", question_style="definition")
+        self.assertTrue(MockQuestionSet.objects.filter(question_style="definition").exists())
