@@ -22,6 +22,7 @@ from ..models import (
     MockQuestion,
     User,
 )
+from ..models.learning import MOCK_TYPE_CODING, MOCK_TYPE_INTERVIEW
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +32,6 @@ from ..services import mock_scoring, question_sets
 MOCK_QUESTION_COUNT = 10
 DRAIN_SECONDS = 25
 MAX_TAB_WARNINGS = 7
-
-
-MOCK_CODING_QUESTION_COUNT = 3
 
 
 def _mock_review_filters(request):
@@ -135,7 +133,7 @@ def admin_mock_interviews_export(request):
     writer = csv.writer(response)
     writer.writerow([
         "Date (IST)", "Student", "Topic", "Level", "Rating (out of 5)", "Answers submitted",
-        "Answers expected", "Mode", "Mode reason", "Integrity score", "Integrity flags", "Auto-ended", "Flag summary",
+        "Answers expected", "Mode", "Mode reason", "Integrity score", "Integrity flags", "Auto-ended", "Flag summary", "Test type",
     ])
     for session in f["sessions"].order_by("-created_at"):
         counts = {}
@@ -151,6 +149,7 @@ def admin_mock_interviews_export(request):
             session.integrity_score, session.integrity_flag_count,
             "yes" if session.auto_ended else "no",
             "; ".join(f"{k}: {n}" for k, n in sorted(counts.items())),
+            session.get_test_type_display(),
         ]])
     return response
 
@@ -365,6 +364,9 @@ def student_mock_interview_ai(request):
 
     session = None
     if action == "question":
+        test_type = data.get("test_type", MOCK_TYPE_INTERVIEW)
+        if test_type not in (MOCK_TYPE_INTERVIEW, MOCK_TYPE_CODING):
+            return JsonResponse({"error": "Select a valid test type."}, status=400)
         previous_questions = list(
             MockInterviewScore.objects.filter(
                 session__student=request.user, session__role=role,
@@ -378,18 +380,18 @@ def student_mock_interview_ai(request):
                     session__student=request.user, session__role=role, session__focus=focus,
                 ).exclude(question="").order_by("-id").values_list("question", flat=True)[:40]
             )
-        bank_set = question_sets.serve(request.user, role, difficulty, focus)
+        bank_set = question_sets.serve(request.user, role, difficulty, focus, test_type)
         if bank_set is None:
             try:
-                questions = question_sets.generate(role, difficulty, previous_questions, focus)
+                questions = question_sets.generate(role, difficulty, previous_questions, focus, test_type)
             except GeminiAPIError as error:
                 status = 503 if "not configured" in str(error) else 502
                 return JsonResponse({"error": str(error)}, status=status)
             except question_sets.InvalidQuestions as error:
                 return JsonResponse({"error": str(error)}, status=502)
-            bank_set = question_sets.store(role, difficulty, questions, focus)
+            bank_set = question_sets.store(role, difficulty, questions, focus, test_type)
         session = MockInterviewSession.objects.create(
-            student=request.user, role=role, focus=focus, difficulty=difficulty,
+            student=request.user, role=role, focus=focus, difficulty=difficulty, test_type=test_type,
             question_set=bank_set,
             mode=MockInterviewSession.MODE_PRACTICE if data.get("lite") is True else MockInterviewSession.MODE_FULL,
             mode_reason=" ".join(str(data.get("mode_reason", "")).split())[:200],
@@ -427,6 +429,12 @@ def student_mock_interview_ai(request):
                 or not isinstance(code_output, str)
             ):
                 return JsonResponse({"error": "Write your code before submitting."}, status=400)
+            if session.question_set and question_sets.has_coding_examples(session.question_set.questions):
+                selected = session.question_set.questions[question_number - 1]
+                question = (
+                    f"{selected['text']}\n\nExample input:\n{selected['example_input']}"
+                    f"\n\nExpected output:\n{selected['example_output']}"
+                )
         elif text_answer is not None:
             if (
                 not lite or not isinstance(text_answer, str)
@@ -459,7 +467,7 @@ def student_mock_interview_ai(request):
                 "framing, lighting, and visibility. Use the screen image only for readability and "
                 "relevance to the role. Return JSON with integer score from 1 to 5, "
                 "and strings answer_feedback, camera_feedback, and screen_feedback.\n"
-                f"Topic: {role}\nQuestion {question_number}: {question[:500]}\n"
+                f"Topic: {role}\nQuestion {question_number}: {question[:2600]}\n"
                 f"Language: {language}\nCandidate code:\n{code}\n"
                 f"Output from the candidate's last run:\n{code_output[:2000] or '(not run)'}"
             )}]
@@ -514,7 +522,7 @@ def student_mock_interview_ai(request):
             session=session,
             question_number=question_number,
             defaults={
-                "question": question[:500],
+                "question": question[:2600] if code is not None else question[:500],
                 "status": MockInterviewScore.PENDING,
                 "score": None,
                 "answer_transcript": "",

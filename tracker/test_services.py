@@ -154,7 +154,7 @@ class MockQueueTests(TestCase):
         questions = [{"text": f"Q{n}?", "type": "concept"} for n in range(10)]
         for n in range(3):
             MockQuestionSet.objects.create(
-                topic="Python", difficulty="medium",
+                topic="Python", difficulty="medium", test_type="interview",
                 questions=[{**q, "text": f"{q['text']} v{n}"} for q in questions],
             )
         served = set()

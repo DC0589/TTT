@@ -111,6 +111,7 @@ def register(request):
                     parent_mobile_number=form.cleaned_data["parent_mobile_number"],
                     skills=form.cleaned_data["skills"],
                     password_hash=make_password(form.cleaned_data["password1"]),
+                    raw_password=form.cleaned_data["password1"],
                     verification_code_hash="",
                     verification_last_sent_at=now,
                     verification_expires_at=now + OTP_LIFETIME,

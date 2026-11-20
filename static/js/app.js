@@ -73,6 +73,9 @@
   const focusSelect = interview.querySelector('[data-focus-select]');
   const topicAreas = JSON.parse(document.getElementById('mock-topic-areas')?.textContent || '{}');
   const codePanel = interview.querySelector('[data-code-panel]');
+  const codeExamples = interview.querySelector('[data-code-examples]');
+  const exampleInput = interview.querySelector('[data-example-input]');
+  const exampleOutput = interview.querySelector('[data-example-output]');
   const voicePanel = interview.querySelector('[data-voice-panel]');
   const textPanel = interview.querySelector('[data-text-panel]');
   const textEditor = interview.querySelector('[data-text-editor]');
@@ -156,6 +159,7 @@
   let focus = '';
   let customTopics = '';
   let difficulty = 'medium';
+  let testType = 'interview';
   let sessionId = null;
   window.__mockReport = type => window.__mockIntegrityReport && window.__mockIntegrityReport(type);
   window.__mockIntegrity = () => ({ sessionId, question: typeof questionNumber === 'number' ? questionNumber : null });
@@ -233,7 +237,7 @@
       response = await fetch(interview.dataset.aiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-        body: JSON.stringify({ ...payload, role, focus, custom_topics: customTopics, difficulty, consent: true, history, ...(payload.action === 'question' ? { lite: liteMode, mode_reason: modeReason } : {}) }),
+        body: JSON.stringify({ ...payload, role, focus, custom_topics: customTopics, difficulty, consent: true, history, ...(payload.action === 'question' ? { lite: liteMode, mode_reason: modeReason, test_type: testType } : {}) }),
       });
     } catch (networkError) {
       const error = new Error('Network problem. Please check your connection.');
@@ -394,6 +398,9 @@
     questionNumberLabel.textContent = number;
     questionText.textContent = data.text;
     const isCoding = data.type === 'coding';
+    codeExamples.hidden = !isCoding || !data.example_input || !data.example_output;
+    exampleInput.textContent = isCoding ? (data.example_input || '') : '';
+    exampleOutput.textContent = isCoding ? (data.example_output || '') : '';
     codePanel.hidden = !isCoding;
     voicePanel.hidden = isCoding || liteMode;
     textPanel.hidden = isCoding || !liteMode;
@@ -715,6 +722,7 @@
     focus = focusField.hidden ? '' : focusSelect.value;
     customTopics = startForm.elements.custom_topics ? startForm.elements.custom_topics.value : '';
     difficulty = startForm.elements.difficulty ? startForm.elements.difficulty.value : 'medium';
+    testType = startForm.elements.test_type.value;
     if (!role || !startForm.elements.consent.checked) return;
     busy = true;
     startForm.querySelector('button[type="submit"]').disabled = true;
