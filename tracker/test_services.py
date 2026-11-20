@@ -492,6 +492,15 @@ class MockFocusAreaTests(TestCase):
 
 
 class AccountLockTests(TestCase):
+    DESKTOP_AGENT = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "Chrome/120.0.0.0 Safari/537.36"
+    )
+    MOBILE_AGENT = (
+        "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 "
+        "Chrome/120.0.0.0 Mobile Safari/537.36"
+    )
+
     def setUp(self):
         from datetime import timedelta
         from django.utils import timezone
@@ -503,6 +512,100 @@ class AccountLockTests(TestCase):
     def _age(self, user, when):
         User.objects.filter(pk=user.pk).update(date_joined=when, last_login=when)
         user.refresh_from_db()
+
+    def _login_log(self, user, agent, last_seen):
+        from .models import LoginLog
+
+        log = LoginLog.objects.create(user=user, user_agent=agent)
+        LoginLog.objects.filter(pk=log.pk).update(last_seen=last_seen)
+        return log
+
+    def test_device_classification_filters_existing_logs(self):
+        from .models import LoginLog
+        from .services import account_lock
+
+        agents = (
+            (self.DESKTOP_AGENT, True),
+            ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/605.1.15", True),
+            ("Mozilla/5.0 (X11; Linux x86_64) Firefox/120.0", True),
+            ("Mozilla/5.0 (X11; CrOS x86_64 15000.0.0) Chrome/120.0", True),
+            (self.MOBILE_AGENT, False),
+            ("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0) Mobile Safari/605.1.15", False),
+            ("Mozilla/5.0 (iPad; CPU OS 17_0) Safari/605.1.15", False),
+            ("Mozilla/5.0 (Linux; Android 13; Tablet) Safari/537.36", False),
+            ("", False),
+            ("unrecognized browser", False),
+        )
+        for agent, expected in agents:
+            with self.subTest(agent=agent):
+                log = self._login_log(self.student, agent, self.now)
+                self.assertEqual(
+                    LoginLog.objects.filter(account_lock.desktop_login_filter(), pk=log.pk).exists(),
+                    expected,
+                )
+
+    def test_mobile_and_last_login_do_not_reset_clock_but_desktop_activity_does(self):
+        from datetime import datetime
+        from django.utils import timezone
+        from .services import account_lock
+
+        friday = timezone.make_aware(datetime(2026, 1, 2, 12))
+        monday = timezone.make_aware(datetime(2026, 1, 5, 12))
+        tuesday = timezone.make_aware(datetime(2026, 1, 6, 12))
+        self._age(self.student, friday)
+        User.objects.filter(pk=self.student.pk).update(last_login=tuesday)
+        self.student.refresh_from_db()
+        self._login_log(self.student, self.MOBILE_AGENT, tuesday)
+        self.assertEqual(account_lock.last_activity(self.student), friday)
+        with override_settings(INACTIVITY_LOCK_DAYS=2):
+            self.assertTrue(account_lock.lock_if_inactive(self.student, tuesday))
+            User.objects.filter(pk=self.student.pk).update(is_locked=False, locked_at=None)
+            self.student.refresh_from_db()
+            self._login_log(self.student, self.DESKTOP_AGENT, monday)
+            self.assertEqual(account_lock.last_activity(self.student), monday)
+            self.assertFalse(account_lock.lock_if_inactive(self.student, tuesday))
+
+    def test_bulk_sweep_uses_same_device_rule_and_unlock_resets_clock(self):
+        from datetime import datetime
+        from django.utils import timezone
+        from .services import account_lock
+
+        friday = timezone.make_aware(datetime(2026, 1, 2, 12))
+        monday = timezone.make_aware(datetime(2026, 1, 5, 12))
+        tuesday = timezone.make_aware(datetime(2026, 1, 6, 12))
+        self._age(self.student, friday)
+        self._login_log(self.student, self.MOBILE_AGENT, tuesday)
+        other = User.objects.create_user("desktop-student", is_student=True)
+        self._age(other, friday)
+        self._login_log(other, self.DESKTOP_AGENT, monday)
+        with override_settings(INACTIVITY_LOCK_DAYS=2), patch(
+            "tracker.services.account_lock.timezone.now", return_value=tuesday
+        ):
+            self.assertEqual(account_lock.lock_inactive_students(), 1)
+            self.student.refresh_from_db()
+            other.refresh_from_db()
+            self.assertTrue(self.student.is_locked)
+            self.assertFalse(other.is_locked)
+            account_lock.unlock(self.student)
+            self.assertEqual(account_lock.lock_inactive_students(), 0)
+
+    def test_login_signal_and_heartbeat_keep_mobile_activity_out_of_clock(self):
+        from django.contrib.auth import login
+        from django.contrib.sessions.middleware import SessionMiddleware
+        from django.test import RequestFactory
+        from .models import LoginLog
+        from .services import account_lock, sessions
+
+        self._age(self.student, self.old)
+        request = RequestFactory().get("/", HTTP_USER_AGENT=self.MOBILE_AGENT)
+        SessionMiddleware(lambda req: None).process_request(request)
+        login(request, self.student, backend="django.contrib.auth.backends.ModelBackend")
+        request.user = self.student
+        sessions.heartbeat(request)
+        self.student.refresh_from_db()
+        self.assertEqual(LoginLog.objects.get(user=self.student).user_agent, self.MOBILE_AGENT)
+        self.assertGreater(self.student.last_login, self.old)
+        self.assertEqual(account_lock.last_activity(self.student), self.old)
 
     def test_inactive_student_is_locked(self):
         from .services import account_lock
