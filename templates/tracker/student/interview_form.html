@@ -2,12 +2,84 @@
 {% block title %}{{ page_title }}{% endblock %}
 {% block content %}
 <div class="breadcrumb"><a href="{% url 'student_interviews' %}">My interviews</a>{% if iv %}<span aria-hidden="true">/</span><a href="{% url 'student_interview_detail' iv.pk %}">{{ iv.company_name }}</a>{% endif %}<span aria-hidden="true">/</span><span>{{ page_title }}</span></div>
-<section class="page-heading">
-  <div><p class="eyebrow">YOUR OPPORTUNITY</p><h1>{{ page_title }}</h1><p>Add the role, timeline and recruiter information for this opportunity.</p></div>
-</section>
+<section class="page-heading"><div><p class="eyebrow">YOUR OPPORTUNITY</p><h1>{{ page_title }}</h1><p>Add the role, timeline and recruiter information for this opportunity.</p></div></section>
 <section class="panel standalone-form-panel interview-form-panel">
-  <form method="post" class="stack-form">{% csrf_token %}{% include "tracker/_form.html" %}
-    <div class="form-page-actions"><button class="button button-primary" type="submit">{{ submit_label }}</button><a class="button button-quiet" href="{% if iv %}{% url 'student_interview_detail' iv.pk %}{% else %}{% url 'student_interviews' %}{% endif %}">Cancel</a></div>
+  <form method="post" class="stack-form" id="interview-setup" data-has-errors="{% if form.errors %}true{% else %}false{% endif %}">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="form-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    {% if not iv %}<ol class="journey-steps" aria-label="Interview setup progress"><li data-journey-indicator="1">1. Opportunity</li><li data-journey-indicator="2">2. Interview rounds</li><li data-journey-indicator="3">3. Review</li></ol>{% endif %}
+    <div data-journey-step="1">
+      <h2>Opportunity details</h2>
+      {% for f in form %}{% if f.name != "first_round_type" and f.name != "first_round_description" and f.name != "round_count" and f.name|slice:":6" != "round_" %}
+      {% if f.is_hidden %}{{ f }}{% else %}
+      <div class="form-field"><label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %}<span class="required-mark" aria-hidden="true"> *</span>{% endif %}</label>{{ f }}{% for e in f.errors %}<p class="field-error">{{ e }}</p>{% endfor %}{% if f.help_text %}<p class="field-help">{{ f.help_text }}</p>{% endif %}</div>
+      {% endif %}{% endif %}{% endfor %}
+      {% if not iv %}<button type="button" class="button button-primary journey-next-step" hidden>Continue to rounds →</button>{% endif %}
+    </div>
+    {% if not iv %}
+    <div data-journey-step="2">
+      <h2>Plan your interview rounds</h2><p class="field-help">Select the total and choose a type for each round. Select Other to write your own name, such as Client round or Casual manager discussion. Uncertain rounds can be filled in later.</p>
+      {% for f in form %}{% if f.name == "first_round_type" or f.name == "first_round_description" or f.name == "round_count" or f.name|slice:":6" == "round_" %}
+      <div class="form-field" data-round-field="{{ f.name }}"><label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %}<span class="required-mark" aria-hidden="true"> *</span>{% endif %}</label>{{ f }}{% for e in f.errors %}<p class="field-error">{{ e }}</p>{% endfor %}{% if f.help_text %}<p class="field-help">{{ f.help_text }}</p>{% endif %}</div>
+      {% endif %}{% endfor %}
+      <div class="form-page-actions"><button type="button" class="button button-quiet journey-back-step" hidden>← Back</button><button type="button" class="button button-primary journey-next-step" hidden>Review choices →</button></div>
+    </div>
+    <div data-journey-step="3" hidden><h2>Review your interview</h2><p class="field-help">Confirm the opportunity and planned rounds before saving.</p><dl class="journey-review"><div><dt>Company</dt><dd data-review-company></dd></div><div><dt>Role</dt><dd data-review-role></dd></div><div><dt>Planned rounds</dt><dd data-review-count></dd></div></dl><ol data-review-rounds></ol><button type="button" class="button button-quiet journey-back-step">← Edit choices</button></div>
+    {% endif %}
+    <div class="form-page-actions" data-journey-submit><button class="button button-primary" type="submit">{{ submit_label }}</button><a class="button button-quiet" href="{% if iv %}{% url 'student_interview_detail' iv.pk %}{% else %}{% url 'student_interviews' %}{% endif %}">Cancel</a></div>
   </form>
 </section>
+{% if not iv %}
+<script>
+(() => {
+  const form = document.getElementById('interview-setup');
+  const steps = [...form.querySelectorAll('[data-journey-step]')];
+  const count = form.elements.round_count;
+  const fields = [...form.querySelectorAll('[data-round-field]')];
+  const updateRounds = () => {
+    const total = Number(count.value) || 1;
+    fields.forEach(field => {
+      const match = field.dataset.roundField.match(/^round_(\d+)_/);
+      if (match) field.hidden = Number(match[1]) > total;
+    });
+  };
+  count.addEventListener('input', updateRounds);
+  updateRounds();
+  if (form.dataset.hasErrors === 'true') return;
+  let step = 1;
+  const show = value => {
+    step = value;
+    steps.forEach(panel => { panel.hidden = Number(panel.dataset.journeyStep) !== step; });
+    form.querySelectorAll('[data-journey-indicator]').forEach(item => {
+      if (Number(item.dataset.journeyIndicator) === step) item.setAttribute('aria-current', 'step');
+      else item.removeAttribute('aria-current');
+    });
+    form.querySelector('[data-journey-submit]').hidden = step !== 3;
+  };
+  form.querySelectorAll('.journey-next-step, .journey-back-step').forEach(button => { button.hidden = false; });
+  form.querySelectorAll('.journey-next-step').forEach(button => button.addEventListener('click', () => {
+    const panel = steps[step - 1];
+    for (const field of panel.querySelectorAll('input, select, textarea')) {
+      if (!field.closest('[hidden]') && field.willValidate && !field.reportValidity()) return;
+    }
+    if (step === 2) {
+      form.querySelector('[data-review-company]').textContent = form.elements.company_name.value;
+      form.querySelector('[data-review-role]').textContent = form.elements.role.value;
+      form.querySelector('[data-review-count]').textContent = count.value || '1';
+      const list = form.querySelector('[data-review-rounds]');
+      list.replaceChildren();
+      for (let n = 1; n <= (Number(count.value) || 1); n++) {
+        const type = n === 1 ? form.elements.first_round_type : form.elements[`round_${n}_type`];
+        const custom = n === 1 ? form.elements.first_round_description : form.elements[`round_${n}_description`];
+        const li = document.createElement('li');
+        li.textContent = custom.value.trim() || type.options[type.selectedIndex].text;
+        list.append(li);
+      }
+    }
+    show(step + 1);
+  }));
+  form.querySelectorAll('.journey-back-step').forEach(button => button.addEventListener('click', () => show(step - 1)));
+  show(1);
+})();
+</script>
+{% endif %}
 {% endblock %}

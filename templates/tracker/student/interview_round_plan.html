@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Edit interview plan{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="{% url 'student_interviews' %}">My interviews</a><span aria-hidden="true">/</span><a href="{% url 'student_interview_detail' iv.pk %}">{{ iv.company_name }}</a><span aria-hidden="true">/</span><span>Edit plan</span></div>
+<section class="page-heading"><div><p class="eyebrow">INTERVIEW JOURNEY</p><h1>Edit interview plan</h1><p>Choose how many rounds are planned. You can update each round's details separately.</p></div></section>
+<section class="panel standalone-form-panel"><form method="post" class="stack-form">{% csrf_token %}
+  {% include "tracker/_form.html" %}
+  <p class="field-help">Only empty pending rounds at the end can be removed. Rounds with a type, notes, date, time or result are preserved.</p>
+  <div class="form-page-actions"><button class="button button-primary" type="submit">Save plan</button><a class="button button-quiet" href="{% url 'student_interview_detail' iv.pk %}">Cancel</a></div>
+</form></section>
+{% endblock %}

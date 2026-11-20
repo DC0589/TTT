@@ -114,7 +114,6 @@ def _apply_quick_action(iv, action, allow_override):
             return "This interview already has a final result."
         InterviewStatus.objects.update_or_create(
             interview=iv, defaults={"final_status": InterviewStatus.SELECTED})
-        iv.rounds.update(status=InterviewRound.CLEARED)
         if not iv.attendance:
             iv.attendance = Interview.ATTENDED
             iv.save(update_fields=["attendance"])

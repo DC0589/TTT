@@ -1444,10 +1444,10 @@ class ViewTests(Base):
         )
         self.assertEqual(self.client.get(reverse("admin_reports")).status_code, 403)
 
-    def test_final_result_updates_rounds_and_redirects_to_interview_list(self):
+    def test_final_result_preserves_rounds_and_redirects_to_interview_list(self):
         first = InterviewRound.objects.create(
             interview=self.iv, round_number=1, description="Screening",
-            status=InterviewRound.REJECTED,
+            status=InterviewRound.CLEARED,
         )
         last = InterviewRound.objects.create(
             interview=self.iv, round_number=2, description="Final",
@@ -1473,7 +1473,7 @@ class ViewTests(Base):
         first.refresh_from_db()
         last.refresh_from_db()
         self.assertEqual(first.status, InterviewRound.CLEARED)
-        self.assertEqual(last.status, InterviewRound.REJECTED)
+        self.assertEqual(last.status, InterviewRound.CLEARED)
 
     def test_finalized_interview_requires_edit_mode_for_round_changes(self):
         rnd = InterviewRound.objects.create(
@@ -1822,15 +1822,18 @@ class InterviewTimeAndAdminCalendarTests(TestCase):
         self.group = Group.objects.create(name="B7", admin=self.admin)
         GroupMembership.objects.create(group=self.group, student=self.stu)
 
-    def test_time_and_hr_details_required(self):
+    def test_time_and_hr_details_optional_when_adding_interview(self):
         self.client.force_login(self.stu)
         response = self.client.post(reverse("student_interview_add"), {
             "group": self.group.pk, "company_name": "Acme", "role": "Dev",
             "date_of_interview": "2026-01-10"})
         self.assertEqual(response.status_code, 200)
-        for field in ("time_of_interview", "hr_name", "hr_contact_number", "interview_type"):
-            self.assertIn(field, response.context["form"].errors)
-        self.assertFalse(Interview.objects.exists())
+        self.assertIn("first_round_type", response.context["form"].errors)
+        response = self.client.post(reverse("student_interview_add"), {
+            "group": self.group.pk, "company_name": "Acme", "role": "Dev",
+            "date_of_interview": "2026-01-10", "first_round_type": "coding"})
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Interview.objects.exists())
 
     def test_admin_calendar_shows_student_company_and_time(self):
         import datetime

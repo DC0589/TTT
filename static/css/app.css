@@ -741,6 +741,33 @@ a.deadline-row:hover .deadline-copy strong { color: var(--accent); }
 .mock-interview [hidden] { display: none !important; }
 .mock-privacy-note { margin: 0; padding: 14px 17px; color: #354a5a; background: #fff8ef; border: 1px solid #eadfce; border-left: 4px solid var(--accent); border-radius: 8px; font-size: 13px; line-height: 1.65; }
 .mock-privacy-note strong { color: #1c3154; }
+.journey-progress, .journey-rounds, .journey-result { margin-bottom: 20px; }
+.journey-count { margin: 0 0 10px; }
+.journey-track { height: 9px; overflow: hidden; background: #eaf0f0; border-radius: 9px; }
+.journey-track span { display: block; height: 100%; background: #e46b52; border-radius: inherit; }
+.journey-metrics { display: flex; gap: 30px; margin: 20px 0; }
+.journey-metrics div { display: grid; gap: 3px; min-width: 90px; }
+.journey-metrics strong { font-size: 20px; }
+.journey-metrics span, .journey-next span, .journey-outcome { color: var(--muted); font-size: 12px; }
+.journey-next { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; border-radius: 10px; background: #f3f8f7; }
+.journey-next .eyebrow { margin-bottom: 5px; }
+.journey-rounds .round-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.journey-rounds .round-copy { flex: 1; min-width: 140px; }
+.journey-steps { display: flex; gap: 16px; padding: 0; list-style: none; color: var(--muted); font-size: 12px; font-weight: 700; }
+.journey-steps li { flex: 1; padding-bottom: 10px; border-bottom: 3px solid #e8eeee; }
+.journey-steps li[aria-current] { color: var(--accent); border-color: var(--accent); }
+.interview-form-panel [hidden] { display: none !important; }
+.interview-form-panel [data-journey-step] { display: grid; gap: 16px; }
+.journey-review { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.journey-review div { padding: 14px; border-radius: 8px; background: #f3f8f7; }
+.journey-review dt { color: var(--muted); font-size: 12px; }
+.journey-review dd { margin: 5px 0 0; font-weight: 700; overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  .journey-metrics { gap: 12px; justify-content: space-between; }
+  .journey-metrics div { min-width: 0; }
+  .journey-next { align-items: flex-start; flex-direction: column; }
+  .interview-hero-actions { flex-wrap: wrap; justify-content: flex-start; }
+}
 .mock-setup { width: min(100%, 920px); padding: 0; overflow: hidden; }
 .mock-setup .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .mock-readiness { padding: 16px 24px; background: #f7faf9; border-bottom: 1px solid var(--line); }

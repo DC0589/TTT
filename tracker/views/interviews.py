@@ -11,6 +11,8 @@ from django.views.decorators.http import require_GET, require_POST
 from ..forms import (
     FinalStatusForm,
     InterviewForm,
+    RoundCountForm,
+    RoundDetailsForm,
     RoundForm,
     RoundScheduleForm,
     RoundStatusForm,
@@ -60,15 +62,31 @@ def student_interviews(request):
 def student_interview_add(request):
     form = InterviewForm(request.POST or None, student=request.user)
     if request.method == "POST" and form.is_valid():
-        iv = form.save(commit=False)
-        iv.student = request.user
-        iv.save()
-        round_type = form.cleaned_data["first_round_type"]
-        InterviewRound.objects.create(
-            interview=iv, round_number=1, round_type=round_type,
-            description=dict(InterviewRound.TYPE_CHOICES)[round_type],
-            scheduled_date=iv.date_of_interview, scheduled_time=iv.time_of_interview)
-        messages.success(request, "Interview added. After it happens, update the round result and add your feedback.")
+        with transaction.atomic():
+            iv = form.save(commit=False)
+            iv.student = request.user
+            iv.save()
+            round_type = form.cleaned_data["first_round_type"]
+            description = form.cleaned_data.get("first_round_description") or dict(
+                InterviewRound.TYPE_CHOICES
+            )[round_type]
+            count = form.cleaned_data.get("round_count") or 1
+            InterviewRound.objects.create(
+                interview=iv, round_number=1, round_type=round_type,
+                description=description,
+                scheduled_date=iv.date_of_interview, scheduled_time=iv.time_of_interview)
+            additional = []
+            for number in range(2, count + 1):
+                kind = form.cleaned_data.get(f"round_{number}_type") or ""
+                name = (form.cleaned_data.get(f"round_{number}_description") or "").strip()
+                name = name or dict(InterviewRound.TYPE_CHOICES).get(
+                    kind, f"Round {number} (details not set)"
+                )
+                additional.append(InterviewRound(
+                    interview=iv, round_number=number, round_type=kind, description=name
+                ))
+            InterviewRound.objects.bulk_create(additional)
+        messages.success(request, "Interview added. You can update each planned round as details become available.")
         return redirect("student_interview_detail", pk=iv.pk)
     return render(request, "tracker/student/interview_form.html", {
         "form": form,
@@ -125,6 +143,63 @@ def student_interview_progress(request, pk):
 
 
 @student_required
+def interview_round_plan(request, pk):
+    iv = _own_interview(request, pk)
+    form = RoundCountForm(request.POST or None, initial={"round_count": iv.rounds.count() or 1})
+    if request.method == "POST" and form.is_valid():
+        with transaction.atomic():
+            iv = get_object_or_404(
+                Interview.objects.select_for_update(), pk=pk, student=request.user
+            )
+            rounds = list(iv.rounds.select_for_update().order_by("round_number"))
+            count = form.cleaned_data["round_count"]
+            removed = rounds[count:]
+            if any(r.status != InterviewRound.PENDING or r.round_type or r.feedback
+                   or r.scheduled_date or r.scheduled_time
+                   or r.description != f"Round {r.round_number} (details not set)" for r in removed):
+                form.add_error("round_count", "Only empty pending rounds at the end can be removed.")
+            else:
+                InterviewRound.objects.filter(pk__in=[r.pk for r in removed]).delete()
+                next_number = rounds[-1].round_number + 1 if rounds and not removed else (
+                    rounds[count - 1].round_number + 1 if count <= len(rounds) else 1
+                )
+                InterviewRound.objects.bulk_create([
+                    InterviewRound(interview=iv, round_number=number,
+                                   description=f"Round {number} (details not set)")
+                    for number in range(next_number, next_number + max(0, count - len(rounds)))
+                ])
+                if count > len(rounds) and iv.final_status == "selected":
+                    InterviewStatus.objects.filter(interview=iv).delete()
+                messages.success(request, "Interview plan updated.")
+                return redirect("student_interview_detail", pk=iv.pk)
+    return render(request, "tracker/student/interview_round_plan.html", {"iv": iv, "form": form})
+
+
+@student_required
+def interview_round_edit(request, pk):
+    rnd = get_object_or_404(InterviewRound.objects.select_related("interview"),
+                            pk=pk, interview__student=request.user)
+    if request.method == "POST":
+        with transaction.atomic():
+            iv = get_object_or_404(
+                Interview.objects.select_for_update(), pk=rnd.interview_id, student=request.user
+            )
+            rnd = get_object_or_404(InterviewRound.objects.select_for_update(), pk=pk, interview=iv)
+            form = RoundDetailsForm(request.POST, instance=rnd)
+            if form.is_valid():
+                form.save()
+                if rnd.status != InterviewRound.CLEARED:
+                    InterviewStatus.objects.filter(
+                        interview=iv, final_status=InterviewStatus.SELECTED
+                    ).delete()
+                messages.success(request, "Round updated.")
+                return redirect("student_interview_detail", pk=iv.pk)
+    else:
+        form = RoundDetailsForm(instance=rnd)
+    return render(request, "tracker/student/interview_round_edit.html", {"round": rnd, "form": form})
+
+
+@student_required
 @require_POST
 def interview_status(request, pk):
     iv = _own_interview(request, pk)
@@ -136,14 +211,6 @@ def interview_status(request, pk):
         obj = form.save(commit=False)
         obj.interview = iv
         obj.save()
-        rounds = iv.rounds.order_by("round_number")
-        if obj.final_status == InterviewStatus.SELECTED:
-            rounds.update(status=InterviewRound.CLEARED)
-        else:
-            last_round = rounds.last()
-            if last_round:
-                last_round.status = InterviewRound.REJECTED
-                last_round.save(update_fields=["status"])
         messages.success(request, "Final result saved.")
         return redirect("student_interviews")
     else:
@@ -198,8 +265,10 @@ def round_update(request, pk):
     if not form.is_valid():
         return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
     form.save()
-    if rnd.interview.rounds.filter(status=InterviewRound.PENDING).exists():
-        InterviewStatus.objects.filter(interview=rnd.interview).delete()
+    if rnd.interview.rounds.exclude(status=InterviewRound.CLEARED).exists():
+        InterviewStatus.objects.filter(
+            interview=rnd.interview, final_status=InterviewStatus.SELECTED
+        ).delete()
     return JsonResponse({
         "status": rnd.status,
         "feedback": rnd.feedback,

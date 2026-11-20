@@ -88,6 +88,22 @@ class Interview(models.Model):
         rounds = list(self.rounds.all())
         return f"{sum(r.status == 'cleared' for r in rounds)}/{len(rounds)} cleared"
 
+    @property
+    def journey(self):
+        rounds = list(self.rounds.all())
+        cleared = sum(r.status == InterviewRound.CLEARED for r in rounds)
+        rejected = sum(r.status == InterviewRound.REJECTED for r in rounds)
+        completed = cleared + rejected
+        return {
+            "total": len(rounds),
+            "cleared": cleared,
+            "rejected": rejected,
+            "completed": completed,
+            "pending": len(rounds) - completed,
+            "percentage": round(100 * completed / len(rounds)) if rounds else 0,
+            "next": next((r for r in rounds if r.status == InterviewRound.PENDING), None),
+        }
+
 
 class InterviewNote(models.Model):
     interview = models.ForeignKey(Interview, on_delete=models.CASCADE, related_name="trainer_notes")

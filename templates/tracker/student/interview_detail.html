@@ -17,6 +17,20 @@
     </form>
   </div>
 </section>
+{% include "tracker/_journey_progress.html" %}
+<section class="panel rounds-panel journey-rounds">
+  <div class="section-heading section-heading-panel"><div><p class="eyebrow">STEP BY STEP</p><h2>Interview rounds</h2><p>Track each stage of the process.</p></div><a class="button button-quiet" href="{% url 'interview_round_plan' iv.pk %}">Edit plan</a></div>
+  <ul class="round-list">
+    {% for r in iv.rounds.all %}
+    <li class="round-row"><span class="round-index">{{ r.round_number|stringformat:"02d" }}</span><span class="round-copy"><strong>{{ r.description }}</strong><small>{% if r.scheduled_date %}{{ r.scheduled_date|date:"d M Y" }}{% if r.scheduled_time %} at {{ r.scheduled_time|time:"h:i A" }}{% endif %}{% else %}Date not scheduled{% endif %}{% if r.feedback %} · Feedback added{% endif %}</small></span><span class="status-badge {{ r.badge }}">{{ r.get_status_display }}</span><a class="button button-quiet" href="{% url 'interview_round_edit' r.pk %}">Update</a></li>
+    {% empty %}<li class="inline-empty">No rounds planned yet. Select Edit plan to get started.</li>{% endfor %}
+  </ul>
+</section>
+{% if not editable %}
+<section class="panel journey-result">
+  <div class="section-heading section-heading-panel"><div><p class="eyebrow">THE OUTCOME</p><h2>Final result</h2><p>{% if iv.final_status == "in-progress" %}Awaiting outcome. You can record an early rejection without changing the remaining rounds.{% else %}{{ iv.final_label }}{% endif %}</p></div><a class="button button-quiet" href="{% url 'student_interview_progress' iv.pk %}">Manage result</a></div>
+</section>
+{% endif %}
 {% with notes=iv.visible_trainer_notes %}{% if notes %}
 <section class="panel trainer-note"><div class="section-heading"><div><p class="eyebrow">FROM YOUR TRAINER</p><h2>Trainer notes</h2></div></div>
   {% for n in notes %}<div class="note-item"><small>{{ n.created_at|date:"d M Y, h:i A" }}</small><p>{{ n.text|linebreaksbr }}</p></div>{% endfor %}
@@ -40,7 +54,7 @@
     <div><button class="button button-primary" type="submit">Save notes</button></div>
   </form>
 </section>
-<div class="interview-detail-grid{% if not editable %} interview-detail-readonly{% endif %}">
+{% if editable %}<div class="interview-detail-grid">
   <section class="panel rounds-panel">
     <div class="section-heading section-heading-panel"><div><p class="eyebrow">YOUR PROGRESS</p><h2>Interview rounds</h2></div><span class="round-progress">{{ iv.progress }}</span></div>
     <ul id="rounds" class="round-list">
@@ -71,7 +85,7 @@
   <section class="panel final-result-panel">
     <span class="result-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.5 19 7v5.1c0 4.2-2.9 7.2-7 8.4-4.1-1.2-7-4.2-7-8.4V7z"/><path d="m9 12 2 2 4-4"/></svg></span>
     <p class="eyebrow">THE OUTCOME</p><h2>Final result</h2>
-    <p class="panel-description">Once every round is cleared or rejected, you can record the final outcome here.</p>
+    <p class="panel-description">Record an early rejection without changing remaining rounds. For a selection, clear every round first.</p>
     <form method="post" action="{% url 'interview_status' iv.pk %}" class="stack-form">{% csrf_token %}
       {% if edit_mode %}<input type="hidden" name="edit_mode" value="1">{% endif %}
       {% with form=status_form %}{% include "tracker/_form.html" %}{% endwith %}
@@ -80,6 +94,7 @@
   </section>
   {% endif %}
 </div>
+{% endif %}
 {% endblock %}
 {% block scripts %}
 {% if editable %}
@@ -133,6 +148,7 @@
       updateResultBadge('In progress', 'in-progress');
       const finalStatus = document.querySelector('[name=final_status]');
       if (finalStatus) finalStatus.value = '';
+      window.location.reload();
     } catch {
       showError(error, 'We couldn’t save this round. Check your connection and try again.');
     }
@@ -187,6 +203,7 @@
         const finalStatus = document.querySelector('[name=final_status]');
         if (finalStatus) finalStatus.value = '';
       }
+      window.location.reload();
     } catch {
       showError(statusError, 'We couldn’t update this round. Refresh the page and try again.');
       select.value = select.dataset.previousValue;
