@@ -9,9 +9,27 @@ from django.utils import timezone
 from ..models import LeaveRequest, LoginLog, StudentBreak, User
 
 LOCKED_MESSAGE = (
-    "Your account is locked because you did not log in for {days} working days. "
+    "Your account is locked because you did not use a desktop or laptop for {days} working days. "
     "Please contact your administrator or HR to unlock it."
 )
+
+DESKTOP_MARKERS = ("windows nt", "macintosh", "x11", "linux", "cros")
+NON_DESKTOP_MARKERS = (
+    "mobile", "android", "iphone", "ipad", "ipod", "tablet", "kindle", "silk",
+    "playbook", "windows phone", "iemobile", "opera mini", "opera mobi",
+)
+
+
+def desktop_login_filter(prefix=""):
+    """Recognize desktop browser user agents; ambiguous or missing agents do not count."""
+    field = f"{prefix}user_agent__icontains"
+    desktop = Q()
+    for marker in DESKTOP_MARKERS:
+        desktop |= Q(**{field: marker})
+    non_desktop = Q()
+    for marker in NON_DESKTOP_MARKERS:
+        non_desktop |= Q(**{field: marker})
+    return desktop & ~non_desktop
 
 
 def inactivity_limit():
@@ -23,9 +41,11 @@ def locked_message():
 
 
 def last_activity(user):
-    """Most recent sign-in, activity heartbeat, unlock or account creation."""
-    seen = LoginLog.objects.filter(user=user).aggregate(latest=Max("last_seen"))["latest"]
-    return max(t for t in (user.last_login, user.date_joined, user.unlocked_at, seen) if t)
+    """Most recent desktop activity, unlock or account creation."""
+    seen = LoginLog.objects.filter(desktop_login_filter(), user=user).aggregate(
+        latest=Max("last_seen")
+    )["latest"]
+    return max(t for t in (user.date_joined, user.unlocked_at, seen) if t)
 
 
 def lock(user):
@@ -112,10 +132,11 @@ def lock_inactive_students():
     candidates = (
         User.objects.filter(is_student=True, is_admin=False, is_hr=False, is_locked=False)
         .annotate(
-            latest_seen=Max("login_logs__last_seen"),
+            latest_seen=Max(
+                "login_logs__last_seen", filter=desktop_login_filter("login_logs__")
+            ),
             last_active=Greatest(
                 "date_joined",
-                Coalesce("last_login", "date_joined"),
                 Coalesce("unlocked_at", "date_joined"),
                 Coalesce("latest_seen", "date_joined"),
             ),
