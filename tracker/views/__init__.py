@@ -59,6 +59,8 @@ from .courses import (  # noqa: F401
 from .dashboard import admin_dashboard, student_dashboard  # noqa: F401
 from .interviews import (  # noqa: F401
     interview_delete,
+    interview_round_edit,
+    interview_round_plan,
     interview_status,
     round_add,
     round_schedule,

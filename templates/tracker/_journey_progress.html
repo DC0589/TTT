@@ -1,0 +1,21 @@
+{% with journey=iv.journey %}
+<section class="panel journey-progress">
+  <div class="section-heading section-heading-panel">
+    <div><p class="eyebrow">YOUR JOURNEY</p><h2>Interview progress</h2><p>Track each stage of the interview process.</p></div>
+    <strong>{{ journey.percentage }}%</strong>
+  </div>
+  <p class="journey-count"><strong>{{ journey.completed }} of {{ journey.total }} rounds completed</strong></p>
+  <div class="journey-track" role="progressbar" aria-label="Completed interview rounds" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ journey.percentage }}"><span style="width: {{ journey.percentage }}%"></span></div>
+  <div class="journey-metrics">
+    <div><strong>{{ journey.cleared }}</strong><span>Cleared</span></div>
+    <div><strong>{{ journey.rejected }}</strong><span>Rejected</span></div>
+    <div><strong>{{ journey.pending }}</strong><span>Pending</span></div>
+  </div>
+  {% if journey.next and iv.final_status == "in-progress" %}
+  <div class="journey-next"><div><p class="eyebrow">NEXT PENDING ROUND</p><strong>{{ journey.next.description }}</strong>{% if journey.next.scheduled_date %}<span> · {{ journey.next.scheduled_date|date:"d M Y" }}{% if journey.next.scheduled_time %} at {{ journey.next.scheduled_time|time:"h:i A" }}{% endif %}</span>{% else %}<span> · Date not scheduled</span>{% endif %}</div>
+    {% if user.is_student %}<a class="button button-quiet" href="{% url 'interview_round_edit' journey.next.pk %}">Update round</a>{% endif %}
+  </div>
+  {% elif iv.final_status != "in-progress" %}<p class="journey-outcome">Process ended: {{ iv.final_label }}. Pending rounds remain unchanged.</p>
+  {% endif %}
+</section>
+{% endwith %}

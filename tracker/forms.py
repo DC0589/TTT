@@ -286,11 +286,21 @@ class InterviewForm(Styled, forms.ModelForm):
         self.fields["group"].empty_label = "Select a batch"
         self.student = student
         if not self.instance.pk:
+            self.fields["round_count"] = forms.IntegerField(
+                label="Number of planned rounds", min_value=1, max_value=20, initial=1,
+                required=False, help_text="You can name and schedule the other rounds later.")
             self.fields["first_round_type"] = forms.ChoiceField(
                 label="Which round is this?",
                 choices=[("", "Select the round"), *InterviewRound.TYPE_CHOICES])
-        for name in ("time_of_interview", "hr_name", "hr_contact_number", "interview_type"):
-            self.fields[name].required = True
+            self.fields["first_round_description"] = forms.CharField(
+                label="Custom first round name", required=False, max_length=255,
+                help_text="Required when the first round type is Other.")
+            for number in range(2, 21):
+                self.fields[f"round_{number}_type"] = forms.ChoiceField(
+                    label=f"Round {number} type", required=False,
+                    choices=[("", "Decide later"), *InterviewRound.TYPE_CHOICES])
+                self.fields[f"round_{number}_description"] = forms.CharField(
+                    label=f"Round {number} custom name", required=False, max_length=255)
         self.fields["interview_type"].choices = [("", "Select a type")] + list(Interview.TYPE_CHOICES)
         self.fields["confirm_clash"] = forms.BooleanField(
             required=False, widget=forms.HiddenInput(), label="Save anyway")
@@ -298,6 +308,14 @@ class InterviewForm(Styled, forms.ModelForm):
 
     def clean(self):
         data = super().clean()
+        if not self.instance.pk and data.get("first_round_type") == "other" and not (
+            data.get("first_round_description") or "").strip():
+            self.add_error("first_round_description", "Enter a name for the custom round.")
+        if not self.instance.pk:
+            for number in range(2, (data.get("round_count") or 1) + 1):
+                if data.get(f"round_{number}_type") == "other" and not (
+                    data.get(f"round_{number}_description") or "").strip():
+                    self.add_error(f"round_{number}_description", "Enter a name for the custom round.")
         if self.errors or self.cleaned_data.get("confirm_clash"):
             return data
         others = Interview.objects.filter(student=self.student)
@@ -385,6 +403,48 @@ class RoundStatusForm(forms.ModelForm):
         return data
 
 
+class RoundDetailsForm(Styled, forms.ModelForm):
+    class Meta:
+        model = InterviewRound
+        fields = ("round_type", "description", "scheduled_date", "scheduled_time", "status", "feedback")
+        widgets = {
+            "scheduled_date": forms.DateInput(attrs={"type": "date"}),
+            "scheduled_time": forms.TimeInput(attrs={"type": "time"}, format="%H:%M"),
+            "feedback": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["description"].required = False
+
+    def clean(self):
+        data = super().clean()
+        kind = data.get("round_type")
+        description = (data.get("description") or "").strip()
+        if description == f"Round {self.instance.round_number} (details not set)":
+            description = ""
+        if kind == "other" and not description:
+            self.add_error("description", "Enter a name for the custom round.")
+        elif kind and not description:
+            description = dict(InterviewRound.TYPE_CHOICES)[kind]
+        elif not kind and not description:
+            description = f"Round {self.instance.round_number} (details not set)"
+        data["description"] = description
+        if data.get("status") in (InterviewRound.CLEARED, InterviewRound.REJECTED):
+            if not (data.get("feedback") or "").strip():
+                self.add_error("feedback", "Add your feedback on how the round went.")
+            if data.get("scheduled_date"):
+                from datetime import datetime, time
+                when = datetime.combine(data["scheduled_date"], data.get("scheduled_time") or time.min)
+                if timezone.make_aware(when) > timezone.now():
+                    raise forms.ValidationError("You can update the result only after the round time has passed.")
+        return data
+
+
+class RoundCountForm(Styled, forms.Form):
+    round_count = forms.IntegerField(label="Number of planned rounds", min_value=1, max_value=20)
+
+
 class FinalStatusForm(Styled, forms.ModelForm):
     class Meta:
         model = InterviewStatus
@@ -402,7 +462,9 @@ class FinalStatusForm(Styled, forms.ModelForm):
         rounds = list(self.interview.rounds.all())
         if not rounds:
             raise forms.ValidationError("Add at least one round first.")
-        if any(r.status == InterviewRound.PENDING for r in rounds):
+        if self.cleaned_data.get("final_status") != InterviewStatus.NOT_SELECTED and any(
+            r.status != InterviewRound.CLEARED for r in rounds
+        ):
             raise forms.ValidationError("Complete all rounds before setting the final result.")
         return self.cleaned_data["final_status"]
 
