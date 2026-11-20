@@ -1,13 +1,23 @@
 {% extends "base.html" %}
 {% block title %}My interviews{% endblock %}
 {% block content %}
-<section class="page-heading">
-  <div><p class="eyebrow">YOUR OPPORTUNITIES</p><h1>My interviews</h1><p>Keep every opportunity, round and result in one place.</p></div>
+<section class="page-heading interview-list-heading">
+  <div><p class="eyebrow">YOUR OPPORTUNITIES</p><h1>My interviews</h1><p>Every opportunity, every round, all in one place.</p></div>
   <a class="button button-primary" href="{% url 'student_interview_add' %}"><span class="button-plus" aria-hidden="true">+</span> Add interview</a>
 </section>
-<section class="directory-toolbar">
+{% if interviews %}
+<section class="interview-filters" aria-label="Filter interviews">
+  <label class="interview-search"><span aria-hidden="true">⌕</span><span class="visually-hidden">Search interviews</span><input id="interview-search" type="search" placeholder="Search company or role" autocomplete="off"></label>
+  <label class="interview-status-filter"><span class="visually-hidden">Filter by interview status</span><select id="interview-status-filter" class="form-control">
+    <option value="">All interviews</option>
+    <option value="in-progress">In progress</option>
+    <option value="selected">Selected</option>
+    <option value="not-selected">Not selected</option>
+  </select></label>
+</section>
+<section class="directory-toolbar interview-list-toolbar">
   <div class="directory-toolbar-meta">
-    <span><strong>{{ interviews|length }}</strong> interview{{ interviews|length|pluralize }}</span>
+    <span><strong id="interview-visible-count">{{ interviews|length }}</strong> of {{ interviews|length }} interview{{ interviews|length|pluralize }}</span>
     <nav class="view-switch" aria-label="Interview display format">
       <a href="?view=cards" class="{% if view_mode == 'cards' %}is-selected{% endif %}"{% if view_mode == "cards" %} aria-current="page"{% endif %}>Cards</a>
       <a href="?view=table" class="{% if view_mode == 'table' %}is-selected{% endif %}"{% if view_mode == "table" %} aria-current="page"{% endif %}>Table</a>
@@ -15,48 +25,89 @@
     </nav>
   </div>
 </section>
-{% if interviews %}
-  {% if view_mode == "table" %}
+<p id="interview-filter-empty" class="interview-filter-empty" hidden>No interviews match these filters. Try another search or status.</p>
+{% if view_mode == "table" %}
+  <div id="interview-table-wrap">
   {% include "tracker/_interview_table.html" with interviews=interviews link=True quick=True %}
-  {% elif view_mode == "list" %}
-  <section class="directory-rows" aria-label="My interviews">
+  </div>
+{% elif view_mode == "list" %}
+  <section class="directory-rows interview-directory-rows" aria-label="My interviews">
     {% for interview in interviews %}
-    <article class="directory-row-card interview-directory-row">
+    {% with journey=interview.journey %}
+    <article class="directory-row-card interview-directory-row" data-interview-item data-status="{{ interview.final_status }}" data-search="{{ interview.company_name }} {{ interview.role }} {{ interview.group.name }}">
       <span class="interview-company-mark interview-company-mark-small" aria-hidden="true">{{ interview.company_name|slice:":1"|upper }}</span>
       <span class="directory-row-copy"><strong><a href="{% url 'student_interview_detail' interview.pk %}">{{ interview.company_name }}</a></strong><small>{{ interview.role }} · {{ interview.group.name }} · {{ interview.date_of_interview|date:"d M Y" }}</small></span>
-      <span class="directory-row-count"><strong>{{ interview.progress }}</strong><small>Rounds cleared</small></span>
+      <span class="directory-row-count"><strong>{{ journey.completed }}/{{ journey.total }}</strong><small>Rounds completed</small></span>
       <span class="status-badge {{ interview.badge }}">{{ interview.final_label }}</span>
-      <span>{% include "tracker/_quick_actions.html" with iv=interview %}</span>
-      <a class="button button-quiet" href="{% url 'student_interview_edit' interview.pk %}">Edit details</a>
+      <a class="button button-primary" href="{% url 'student_interview_detail' interview.pk %}">Open journey <span aria-hidden="true">→</span></a>
     </article>
+    {% endwith %}
     {% endfor %}
   </section>
-  {% else %}
-  <section class="interview-directory-cards" aria-label="My interviews">
+{% else %}
+  <section class="interview-directory-cards interview-journey-cards" aria-label="My interviews">
     {% for interview in interviews %}
-    <article class="panel interview-directory-card">
+    {% with journey=interview.journey %}
+    <article class="panel interview-directory-card interview-journey-card" data-interview-item data-status="{{ interview.final_status }}" data-search="{{ interview.company_name }} {{ interview.role }} {{ interview.group.name }}">
       <div class="interview-card-top">
         <span class="interview-company-mark interview-company-mark-small" aria-hidden="true">{{ interview.company_name|slice:":1"|upper }}</span>
         <span class="status-badge {{ interview.badge }}">{{ interview.final_label }}</span>
       </div>
-      <p class="eyebrow">{{ interview.date_of_interview|date:"d M Y" }}</p>
+      <p class="eyebrow">{{ interview.date_of_interview|date:"d M Y" }}{% if interview.time_of_interview %} · {{ interview.time_of_interview|time:"h:i A" }}{% endif %}</p>
       <h2><a href="{% url 'student_interview_detail' interview.pk %}">{{ interview.company_name }}</a></h2>
       <p class="interview-card-role">{{ interview.role }}</p>
-      <div class="interview-card-meta"><span>{{ interview.group.name }}</span><span>{{ interview.progress }} rounds cleared</span></div>
-      {% include "tracker/_quick_actions.html" with iv=interview %}
+      <div class="interview-card-meta"><span>{{ interview.group.name }}</span><span>{{ journey.total }} round{{ journey.total|pluralize }} planned</span></div>
+      <div class="interview-card-progress">
+        <div><strong>{{ journey.completed }} of {{ journey.total }} rounds completed</strong><span>{{ journey.percentage }}%</span></div>
+        <div class="journey-track" role="progressbar" aria-label="Completed rounds for {{ interview.company_name }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ journey.percentage }}"><span style="width: {{ journey.percentage }}%"></span></div>
+      </div>
+      {% if journey.next and interview.final_status == "in-progress" %}
+      <p class="interview-card-next"><span>Next up</span><strong>{{ journey.next.description }}</strong></p>
+      {% endif %}
       <div class="interview-card-actions">
-        <a class="button button-quiet" href="{% url 'student_interview_detail' interview.pk %}">View interview</a>
-        <a class="button button-primary" href="{% url 'student_interview_edit' interview.pk %}">Edit details</a>
+        <a class="button button-primary" href="{% url 'student_interview_detail' interview.pk %}">Open journey <span aria-hidden="true">→</span></a>
+        <a class="button button-quiet" href="{% url 'student_interview_edit' interview.pk %}">Edit details</a>
       </div>
     </article>
+    {% endwith %}
     {% endfor %}
   </section>
-  {% endif %}
+{% endif %}
 {% else %}
-<div class="directory-empty-state">
+<div class="directory-empty-state interview-first-empty">
   <span class="empty-icon">✦</span><h2>Your interview list is ready.</h2>
-  <p>Add your first opportunity to keep its rounds and outcome organized.</p>
+  <p>Add your first opportunity to keep its rounds, progress and outcome organized.</p>
   <a class="button button-primary" href="{% url 'student_interview_add' %}">Add your first interview</a>
 </div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if interviews %}
+<script>
+(() => {
+  const search = document.getElementById('interview-search');
+  const status = document.getElementById('interview-status-filter');
+  const items = [...document.querySelectorAll('[data-interview-item], .data-table tbody tr[data-interview-item]')];
+  const count = document.getElementById('interview-visible-count');
+  const empty = document.getElementById('interview-filter-empty');
+  const tableWrap = document.getElementById('interview-table-wrap');
+  const applyFilters = () => {
+    const query = search.value.trim().toLocaleLowerCase();
+    const selectedStatus = status.value;
+    let visible = 0;
+    items.forEach(item => {
+      const matches = (!query || item.dataset.search.toLocaleLowerCase().includes(query))
+        && (!selectedStatus || item.dataset.status === selectedStatus);
+      item.hidden = !matches;
+      if (matches) visible += 1;
+    });
+    count.textContent = visible;
+    empty.hidden = visible !== 0;
+    if (tableWrap) tableWrap.hidden = visible === 0;
+  };
+  search.addEventListener('input', applyFilters);
+  status.addEventListener('change', applyFilters);
+})();
+</script>
 {% endif %}
 {% endblock %}
