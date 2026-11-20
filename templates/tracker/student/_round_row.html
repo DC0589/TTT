@@ -1,4 +1,4 @@
-<li class="round-row" data-round>
+<li class="round-row" data-round data-round-type="{{ r.round_type }}" data-round-name="{{ r.description }}" data-scheduled-date="{{ r.scheduled_date|date:'Y-m-d' }}" data-scheduled-time="{{ r.scheduled_time|time:'H:i' }}" data-round-status="{{ r.status }}" data-round-feedback="{{ r.feedback }}">
   <span class="round-index">{{ r.round_number|stringformat:"02d" }}</span>
   <span class="round-copy"><strong>{{ r.description }}</strong><small>Interview round {{ r.round_number }}{% if r.scheduled_date %} · {{ r.scheduled_date|date:"d M Y" }}{% if r.scheduled_time %} {{ r.scheduled_time|time:"h:i A" }}{% endif %}{% endif %}</small></span>
   <span class="status-badge {{ r.badge }}">{{ r.get_status_display }}</span>
@@ -12,6 +12,7 @@
   <label class="visually-hidden" for="round-feedback-{{ r.pk }}">Feedback for {{ r.description }}</label>
   <textarea id="round-feedback-{{ r.pk }}" rows="2" class="form-control round-feedback" placeholder="After the round: how did it go? What was asked, what to improve?">{{ r.feedback }}</textarea>
   <button type="button" class="button button-secondary round-save">Save result &amp; feedback</button>
+  <button type="button" class="button button-quiet round-edit-button" data-update-url="{% url 'interview_round_edit' r.pk %}" aria-label="Edit details for {{ r.description }}">Edit details</button>
   {% elif r.feedback %}
   <p class="round-feedback-text"><strong>Your feedback:</strong> {{ r.feedback|linebreaksbr }}</p>
   {% endif %}

@@ -22,11 +22,13 @@
     {% include "tracker/_journey_progress.html" %}
     <section class="panel rounds-panel journey-rounds interview-rounds-workspace">
       <div class="section-heading section-heading-panel"><div><p class="eyebrow">STEP BY STEP</p><h2>Interview rounds</h2><p>See each stage and what comes next.</p></div><div class="interview-round-heading-actions"><span class="round-progress">{{ iv.journey.completed }}/{{ iv.journey.total }} complete</span><a class="button button-quiet" href="{% url 'interview_round_plan' iv.pk %}">Edit plan</a></div></div>
-      <ul {% if editable %}id="rounds"{% endif %} class="round-list interview-round-list">
+      <ul id="rounds" class="round-list interview-round-list">
         {% for r in iv.rounds.all %}
           {% if editable %}{% include "tracker/student/_round_row.html" %}
           {% else %}
-          <li class="round-row interview-round-row"><span class="round-index">{{ r.round_number|stringformat:"02d" }}</span><span class="round-copy"><strong>{{ r.description }}</strong><small>{% if r.scheduled_date %}{{ r.scheduled_date|date:"d M Y" }}{% if r.scheduled_time %} · {{ r.scheduled_time|time:"h:i A" }}{% endif %}{% else %}Date to be confirmed{% endif %}{% if r.feedback %} · Feedback saved{% endif %}</small></span><span class="status-badge {{ r.badge }}">{{ r.get_status_display }}</span><a class="button button-quiet" href="{% url 'interview_round_edit' r.pk %}">Update</a></li>
+          <li class="round-row interview-round-row" data-round data-round-type="{{ r.round_type }}" data-round-name="{{ r.description }}" data-scheduled-date="{{ r.scheduled_date|date:'Y-m-d' }}" data-scheduled-time="{{ r.scheduled_time|time:'H:i' }}" data-round-status="{{ r.status }}" data-round-feedback="{{ r.feedback }}">
+            <span class="round-index">{{ r.round_number|stringformat:"02d" }}</span><span class="round-copy"><strong>{{ r.description }}</strong><small>{% if r.scheduled_date %}{{ r.scheduled_date|date:"d M Y" }}{% if r.scheduled_time %} · {{ r.scheduled_time|time:"h:i A" }}{% endif %}{% else %}Date to be confirmed{% endif %}{% if r.feedback %} · Feedback saved{% endif %}</small></span><span class="status-badge {{ r.badge }}">{{ r.get_status_display }}</span><button type="button" class="button button-quiet round-edit-button" data-update-url="{% url 'interview_round_edit' r.pk %}" aria-label="Update {{ r.description }}">Update</button>
+          </li>
           {% endif %}
         {% empty %}
           {% if editable %}
@@ -102,8 +104,94 @@
     </section>
   </aside>
 </div>
+<dialog id="round-edit-dialog" class="interview-round-dialog" aria-labelledby="round-edit-title">
+  <div class="interview-round-dialog-header">
+    <div><p class="eyebrow">INTERVIEW ROUND</p><h2 id="round-edit-title">Update round</h2></div>
+    <button type="button" class="interview-dialog-close" data-close-round-dialog aria-label="Close dialog">×</button>
+  </div>
+  <form id="round-edit-form" method="post" class="stack-form interview-round-dialog-form">
+    {% csrf_token %}
+    <div id="round-edit-error" class="form-errors" role="alert" hidden></div>
+    <div class="interview-round-dialog-grid">
+      <div class="form-field"><label for="round-edit-type">Round type</label><select id="round-edit-type" name="round_type" class="form-control"><option value="">Choose later</option>{% for value, label in round_type_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+      <div class="form-field"><label for="round-edit-name">Round name</label><input id="round-edit-name" name="description" maxlength="255" class="form-control"></div>
+      <div class="form-field"><label for="round-edit-date">Date</label><input id="round-edit-date" name="scheduled_date" type="date" class="form-control"></div>
+      <div class="form-field"><label for="round-edit-time">Time</label><input id="round-edit-time" name="scheduled_time" type="time" class="form-control"></div>
+      <div class="form-field"><label for="round-edit-status">Result</label><select id="round-edit-status" name="status" class="form-control">{% for value, label in round_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+      <div class="form-field interview-round-dialog-feedback"><label for="round-edit-feedback">Feedback / questions asked</label><textarea id="round-edit-feedback" name="feedback" rows="4" class="form-control" placeholder="Record what happened and what you learned."></textarea></div>
+    </div>
+    <div class="form-page-actions"><button type="button" class="button button-quiet" data-close-round-dialog>Cancel</button><button type="submit" class="button button-primary">Save round</button></div>
+  </form>
+</dialog>
 {% endblock %}
 {% block scripts %}
+<script>
+(() => {
+  const dialog = document.getElementById('round-edit-dialog');
+  const form = document.getElementById('round-edit-form');
+  const error = document.getElementById('round-edit-error');
+  const fields = {
+    type: document.getElementById('round-edit-type'),
+    name: document.getElementById('round-edit-name'),
+    date: document.getElementById('round-edit-date'),
+    time: document.getElementById('round-edit-time'),
+    status: document.getElementById('round-edit-status'),
+    feedback: document.getElementById('round-edit-feedback')
+  };
+  const closeDialog = () => dialog.close();
+  document.querySelectorAll('[data-close-round-dialog]').forEach(button => button.addEventListener('click', closeDialog));
+
+  document.getElementById('rounds').addEventListener('click', event => {
+    const button = event.target.closest('.round-edit-button');
+    if (!button) return;
+    const round = button.closest('[data-round]');
+    form.action = button.dataset.updateUrl;
+    fields.type.value = round.dataset.roundType;
+    fields.name.value = round.dataset.roundName;
+    fields.date.value = round.dataset.scheduledDate;
+    fields.time.value = round.dataset.scheduledTime;
+    fields.status.value = round.dataset.roundStatus;
+    fields.feedback.value = round.dataset.roundFeedback;
+    error.hidden = true;
+    error.textContent = '';
+    dialog.showModal();
+    fields.type.focus();
+  });
+
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    error.hidden = true;
+    error.textContent = '';
+    const submit = form.querySelector('[type="submit"]');
+    submit.disabled = true;
+    try {
+      const response = await fetch(form.action, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': form.querySelector('[name="csrfmiddlewaretoken"]').value,
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: new FormData(form)
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        error.textContent = Object.values(data.errors || {})
+          .flat()
+          .map(item => item.message)
+          .join(' ') || data.error || 'Unable to save this round. Please check the details.';
+        error.hidden = false;
+        return;
+      }
+      window.location.reload();
+    } catch {
+      error.textContent = 'Could not save this round. Check your connection and try again.';
+      error.hidden = false;
+    } finally {
+      submit.disabled = false;
+    }
+  });
+})();
+</script>
 {% if editable %}
 <script>
 (() => {
@@ -171,6 +259,7 @@
         body.append('scheduled_date', dateInput.value);
         const response = await fetch(dateInput.dataset.url, {method: 'POST', headers: {'X-CSRFToken': csrf}, body});
         if (!response.ok) showError(statusError, 'Enter a valid date.');
+        else dateInput.closest('[data-round]').dataset.scheduledDate = dateInput.value;
       } catch {
         showError(statusError, 'We couldn’t save this date. Try again.');
       }

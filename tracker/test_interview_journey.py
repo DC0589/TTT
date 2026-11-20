@@ -19,7 +19,8 @@ class InterviewJourneyTests(TestCase):
         self.client.force_login(self.student)
         self.data = {
             "group": self.group.pk, "company_name": "Example", "role": "Developer",
-            "date_of_interview": "2026-01-02", "first_round_type": "other",
+            "date_of_interview": "2026-01-02", "hr_name": "Example recruiter",
+            "first_round_type": "other",
             "first_round_description": "Client round", "round_count": "3",
             "round_2_type": "other", "round_2_description": "Casual manager discussion",
             "round_3_type": "",
@@ -63,6 +64,70 @@ class InterviewJourneyTests(TestCase):
         self.assertContains(response, "Casual manager discussion")
         self.assertContains(response, 'data-status="in-progress"')
 
+    def test_setup_defaults_batch_and_requires_hr_name(self):
+        response = self.client.get(reverse("student_interview_add"))
+
+        self.assertEqual(response.context["form"]["group"].value(), self.group.pk)
+        self.assertTrue(response.context["form"].fields["hr_name"].required)
+        self.assertContains(response, 'aria-labelledby="optional-details-title"')
+        self.assertContains(response, 'name="job_posting_url"')
+        self.assertRegex(
+            response.content.decode(),
+            r'<select[^>]*name="round_2_type"[^>]*class="form-control"',
+        )
+
+        data = {**self.data, "hr_name": ""}
+        response = self.client.post(reverse("student_interview_add"), data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("hr_name", response.context["form"].errors)
+        self.assertFalse(Interview.objects.filter(student=self.student).exists())
+
+    def test_round_update_ajax_saves_without_changing_detail_route(self):
+        interview = self.create_interview()
+        rnd = interview.rounds.get(round_number=2)
+        detail = self.client.get(reverse("student_interview_detail", args=[interview.pk]))
+        self.assertContains(detail, '<dialog id="round-edit-dialog"')
+        self.assertContains(detail, 'class="button button-quiet round-edit-button"')
+        self.assertNotContains(detail, f'href="/student/rounds/{rnd.pk}/edit/"')
+        response = self.client.post(
+            reverse("interview_round_edit", args=[rnd.pk]),
+            {
+                "round_type": "other",
+                "description": "Client round",
+                "scheduled_date": "2026-01-02",
+                "scheduled_time": "12:00",
+                "status": "pending",
+                "feedback": "",
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["description"], "Client round")
+        rnd.refresh_from_db()
+        self.assertEqual(rnd.description, "Client round")
+
+    def test_round_update_ajax_returns_validation_errors(self):
+        interview = self.create_interview()
+        rnd = interview.rounds.get(round_number=2)
+        response = self.client.post(
+            reverse("interview_round_edit", args=[rnd.pk]),
+            {
+                "round_type": "other",
+                "description": "",
+                "scheduled_date": "",
+                "scheduled_time": "",
+                "status": "cleared",
+                "feedback": "",
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("description", response.json()["errors"])
+        self.assertIn("feedback", response.json()["errors"])
+
     def test_final_result_from_journey_returns_to_interview(self):
         interview = self.create_interview()
 
@@ -102,7 +167,7 @@ class InterviewJourneyTests(TestCase):
         interview = self.create_interview()
         response = self.client.post(reverse("student_interview_edit", args=[interview.pk]), {
             "group": self.group.pk, "company_name": "Example", "role": "Updated role",
-            "date_of_interview": "2026-01-02",
+            "date_of_interview": "2026-01-02", "hr_name": "Example recruiter",
         })
         self.assertEqual(response.status_code, 302)
         interview.refresh_from_db()

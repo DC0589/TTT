@@ -284,6 +284,11 @@ class InterviewForm(Styled, forms.ModelForm):
         super().__init__(*a, **k)
         self.fields["group"].queryset = Group.objects.filter(memberships__student=student)
         self.fields["group"].empty_label = "Select a batch"
+        if not self.instance.pk:
+            self.fields["group"].initial = (
+                student.memberships.order_by("-joined_at").values_list("group_id", flat=True).first()
+            )
+        self.fields["hr_name"].required = True
         self.student = student
         if not self.instance.pk:
             self.fields["round_count"] = forms.IntegerField(
@@ -301,6 +306,9 @@ class InterviewForm(Styled, forms.ModelForm):
                     choices=[("", "Decide later"), *InterviewRound.TYPE_CHOICES])
                 self.fields[f"round_{number}_description"] = forms.CharField(
                     label=f"Round {number} custom name", required=False, max_length=255)
+        for field in self.fields.values():
+            if not isinstance(field.widget, forms.HiddenInput):
+                field.widget.attrs.setdefault("class", INPUT)
         self.fields["interview_type"].choices = [("", "Select a type")] + list(Interview.TYPE_CHOICES)
         self.fields["confirm_clash"] = forms.BooleanField(
             required=False, widget=forms.HiddenInput(), label="Save anyway")

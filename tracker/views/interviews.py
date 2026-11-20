@@ -193,7 +193,15 @@ def interview_round_edit(request, pk):
                         interview=iv, final_status=InterviewStatus.SELECTED
                     ).delete()
                 messages.success(request, "Round updated.")
+                if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                    return JsonResponse({
+                        "round_number": rnd.round_number,
+                        "description": rnd.description,
+                        "status": rnd.status,
+                    })
                 return redirect("student_interview_detail", pk=iv.pk)
+            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
     else:
         form = RoundDetailsForm(instance=rnd)
     return render(request, "tracker/student/interview_round_edit.html", {"round": rnd, "form": form})

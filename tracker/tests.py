@@ -1827,16 +1827,17 @@ class InterviewTimeAndAdminCalendarTests(TestCase):
         self.group = Group.objects.create(name="B7", admin=self.admin)
         GroupMembership.objects.create(group=self.group, student=self.stu)
 
-    def test_time_and_hr_details_optional_when_adding_interview(self):
+    def test_hr_name_required_and_other_hr_details_optional_when_adding_interview(self):
         self.client.force_login(self.stu)
         response = self.client.post(reverse("student_interview_add"), {
             "group": self.group.pk, "company_name": "Acme", "role": "Dev",
-            "date_of_interview": "2026-01-10"})
+            "date_of_interview": "2026-01-10", "first_round_type": "coding"})
         self.assertEqual(response.status_code, 200)
-        self.assertIn("first_round_type", response.context["form"].errors)
+        self.assertIn("hr_name", response.context["form"].errors)
         response = self.client.post(reverse("student_interview_add"), {
             "group": self.group.pk, "company_name": "Acme", "role": "Dev",
-            "date_of_interview": "2026-01-10", "first_round_type": "coding"})
+            "date_of_interview": "2026-01-10", "first_round_type": "coding",
+            "hr_name": "Acme recruiter"})
         self.assertEqual(response.status_code, 302)
         self.assertTrue(Interview.objects.exists())
 

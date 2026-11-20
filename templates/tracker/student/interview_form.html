@@ -11,18 +11,18 @@
     <div data-journey-step="1">
       <div class="interview-step-heading"><p class="eyebrow">STEP 1 · OPPORTUNITY</p><h2>Tell us about the opportunity</h2><p>Start with the company, role and interview schedule.</p></div>
       <div class="interview-setup-fields">
-      {% for f in form %}{% if f.name == "company_name" or f.name == "role" or f.name == "date_of_interview" or f.name == "time_of_interview" or f.name == "interview_type" or f.name == "group" %}
-      <div class="form-field interview-primary-field"><label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %}<span class="required-mark" aria-hidden="true"> *</span>{% endif %}</label>{{ f }}{% for e in f.errors %}<p class="field-error">{{ e }}</p>{% endfor %}{% if f.help_text %}<p class="field-help">{{ f.help_text }}</p>{% endif %}</div>
+      {% for f in form %}{% if f.name == "company_name" or f.name == "role" or f.name == "date_of_interview" or f.name == "time_of_interview" or f.name == "interview_type" or f.name == "group" or f.name == "hr_name" %}
+      <div class="form-field interview-primary-field{% if f.name == 'hr_name' %} interview-required-hr-field{% endif %}"><label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %}<span class="required-mark" aria-hidden="true"> *</span>{% endif %}</label>{{ f }}{% for e in f.errors %}<p class="field-error">{{ e }}</p>{% endfor %}{% if f.help_text %}<p class="field-help">{{ f.help_text }}</p>{% endif %}</div>
       {% endif %}{% endfor %}
       </div>
-      <details class="interview-optional-details">
-        <summary>Recruiter, job posting and preparation notes <span>Optional</span></summary>
+      <section class="interview-optional-details" aria-labelledby="optional-details-title">
+        <div class="interview-optional-heading"><h3 id="optional-details-title">More details</h3><span>Optional</span></div>
         <div class="interview-setup-fields">
-        {% for f in form %}{% if f.name == "job_posting_url" or f.name == "hr_name" or f.name == "hr_contact_number" or f.name == "hr_email" or f.name == "prep_notes" %}
+        {% for f in form %}{% if f.name == "job_posting_url" or f.name == "hr_contact_number" or f.name == "hr_email" or f.name == "prep_notes" %}
         <div class="form-field interview-secondary-field"><label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %}<span class="required-mark" aria-hidden="true"> *</span>{% endif %}</label>{{ f }}{% for e in f.errors %}<p class="field-error">{{ e }}</p>{% endfor %}{% if f.help_text %}<p class="field-help">{{ f.help_text }}</p>{% endif %}</div>
         {% endif %}{% endfor %}
         </div>
-      </details>
+      </section>
       {% for f in form %}{% if f.is_hidden and f.name != "csrfmiddlewaretoken" %}{{ f }}{% endif %}{% endfor %}
       {% if not iv %}<button type="button" class="button button-primary journey-next-step" hidden>Continue to rounds →</button>{% endif %}
     </div>
