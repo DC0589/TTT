@@ -49,6 +49,33 @@ class InterviewJourneyTests(TestCase):
         staff_response = self.client.get(reverse("admin_interview_detail", args=[interview.pk]))
         self.assertContains(staff_response, "2 of 3 rounds completed")
 
+    def test_interview_list_shows_search_filters_and_round_progress(self):
+        interview = self.create_interview()
+        first_round = interview.rounds.first()
+        first_round.status = InterviewRound.CLEARED
+        first_round.save(update_fields=["status"])
+
+        response = self.client.get(reverse("student_interviews"))
+
+        self.assertContains(response, 'id="interview-search"')
+        self.assertContains(response, 'id="interview-status-filter"')
+        self.assertContains(response, "1 of 3 rounds completed")
+        self.assertContains(response, "Casual manager discussion")
+        self.assertContains(response, 'data-status="in-progress"')
+
+    def test_final_result_from_journey_returns_to_interview(self):
+        interview = self.create_interview()
+
+        response = self.client.post(
+            reverse("interview_status", args=[interview.pk]),
+            {"final_status": "not-selected", "edit_mode": "1"},
+        )
+
+        self.assertRedirects(
+            response, reverse("student_interview_detail", args=[interview.pk])
+        )
+        self.assertEqual(interview.final_status, "not-selected")
+
     def test_missing_custom_name_and_invalid_count_rejected(self):
         for data in (
             {**self.data, "first_round_description": ""},

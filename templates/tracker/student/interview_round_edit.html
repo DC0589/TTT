@@ -2,9 +2,12 @@
 {% block title %}Update interview round{% endblock %}
 {% block content %}
 <div class="breadcrumb"><a href="{% url 'student_interviews' %}">My interviews</a><span aria-hidden="true">/</span><a href="{% url 'student_interview_detail' round.interview_id %}">{{ round.interview.company_name }}</a><span aria-hidden="true">/</span><span>Round {{ round.round_number }}</span></div>
-<section class="page-heading"><div><p class="eyebrow">INTERVIEW JOURNEY</p><h1>Update round {{ round.round_number }}</h1><p>Choose a type or select Other and write your own, such as a client round or casual manager discussion.</p></div></section>
-<section class="panel standalone-form-panel"><form method="post" class="stack-form">{% csrf_token %}
-  {% include "tracker/_form.html" %}
-  <div class="form-page-actions"><button class="button button-primary" type="submit">Save round</button><a class="button button-quiet" href="{% url 'student_interview_detail' round.interview_id %}">Cancel</a></div>
-</form></section>
+<section class="page-heading"><div><p class="eyebrow">INTERVIEW ROUND · {{ round.interview.company_name }}</p><h1>Update round {{ round.round_number }}</h1><p>Adjust the round name, schedule, result and feedback. Choose Other for a custom stage such as a client round or casual manager discussion.</p></div></section>
+<section class="panel standalone-form-panel interview-round-edit-panel">
+  <div class="interview-round-edit-summary"><span class="round-index">{{ round.round_number|stringformat:"02d" }}</span><div><strong>{{ round.description }}</strong><span>{{ round.interview.role }} · {{ round.interview.group.name }}</span></div><span class="status-badge {{ round.badge }}">{{ round.get_status_display }}</span></div>
+  <form method="post" class="stack-form interview-round-edit-form">{% csrf_token %}
+    {% include "tracker/_form.html" %}
+    <div class="form-page-actions"><button class="button button-primary" type="submit">Save round</button><a class="button button-quiet" href="{% url 'student_interview_detail' round.interview_id %}">Cancel</a></div>
+  </form>
+</section>
 {% endblock %}

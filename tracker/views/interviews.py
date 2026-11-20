@@ -91,7 +91,7 @@ def student_interview_add(request):
     return render(request, "tracker/student/interview_form.html", {
         "form": form,
         "page_title": "Add an interview",
-        "submit_label": "Save interview",
+        "submit_label": "Create interview",
     })
 
 
@@ -212,6 +212,8 @@ def interview_status(request, pk):
         obj.interview = iv
         obj.save()
         messages.success(request, "Final result saved.")
+        if request.POST.get("edit_mode") == "1":
+            return redirect("student_interview_detail", pk=iv.pk)
         return redirect("student_interviews")
     else:
         for err in form.errors.values():

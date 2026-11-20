@@ -2,31 +2,66 @@
 {% block title %}{{ page_title }}{% endblock %}
 {% block content %}
 <div class="breadcrumb"><a href="{% url 'student_interviews' %}">My interviews</a>{% if iv %}<span aria-hidden="true">/</span><a href="{% url 'student_interview_detail' iv.pk %}">{{ iv.company_name }}</a>{% endif %}<span aria-hidden="true">/</span><span>{{ page_title }}</span></div>
-<section class="page-heading"><div><p class="eyebrow">YOUR OPPORTUNITY</p><h1>{{ page_title }}</h1><p>Add the role, timeline and recruiter information for this opportunity.</p></div></section>
-<section class="panel standalone-form-panel interview-form-panel">
+<section class="page-heading interview-setup-heading"><div><p class="eyebrow">YOUR OPPORTUNITY</p><h1>{{ page_title }}</h1><p>Set up the opportunity, plan the rounds you know, and review everything before saving.</p></div></section>
+<section class="interview-setup-layout">
+<div class="panel standalone-form-panel interview-form-panel">
   <form method="post" class="stack-form" id="interview-setup" data-has-errors="{% if form.errors %}true{% else %}false{% endif %}">{% csrf_token %}
     {% if form.non_field_errors %}<div class="form-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
-    {% if not iv %}<ol class="journey-steps" aria-label="Interview setup progress"><li data-journey-indicator="1">1. Opportunity</li><li data-journey-indicator="2">2. Interview rounds</li><li data-journey-indicator="3">3. Review</li></ol>{% endif %}
+    {% if not iv %}<ol class="journey-steps interview-wizard-steps" aria-label="Interview setup progress"><li data-journey-indicator="1"><span>01</span> Opportunity</li><li data-journey-indicator="2"><span>02</span> Rounds</li><li data-journey-indicator="3"><span>03</span> Review</li></ol>{% endif %}
     <div data-journey-step="1">
-      <h2>Opportunity details</h2>
-      {% for f in form %}{% if f.name != "first_round_type" and f.name != "first_round_description" and f.name != "round_count" and f.name|slice:":6" != "round_" %}
-      {% if f.is_hidden %}{{ f }}{% else %}
-      <div class="form-field"><label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %}<span class="required-mark" aria-hidden="true"> *</span>{% endif %}</label>{{ f }}{% for e in f.errors %}<p class="field-error">{{ e }}</p>{% endfor %}{% if f.help_text %}<p class="field-help">{{ f.help_text }}</p>{% endif %}</div>
-      {% endif %}{% endif %}{% endfor %}
+      <div class="interview-step-heading"><p class="eyebrow">STEP 1 · OPPORTUNITY</p><h2>Tell us about the opportunity</h2><p>Start with the company, role and interview schedule.</p></div>
+      <div class="interview-setup-fields">
+      {% for f in form %}{% if f.name == "company_name" or f.name == "role" or f.name == "date_of_interview" or f.name == "time_of_interview" or f.name == "interview_type" or f.name == "group" %}
+      <div class="form-field interview-primary-field"><label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %}<span class="required-mark" aria-hidden="true"> *</span>{% endif %}</label>{{ f }}{% for e in f.errors %}<p class="field-error">{{ e }}</p>{% endfor %}{% if f.help_text %}<p class="field-help">{{ f.help_text }}</p>{% endif %}</div>
+      {% endif %}{% endfor %}
+      </div>
+      <details class="interview-optional-details">
+        <summary>Recruiter, job posting and preparation notes <span>Optional</span></summary>
+        <div class="interview-setup-fields">
+        {% for f in form %}{% if f.name == "job_posting_url" or f.name == "hr_name" or f.name == "hr_contact_number" or f.name == "hr_email" or f.name == "prep_notes" %}
+        <div class="form-field interview-secondary-field"><label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %}<span class="required-mark" aria-hidden="true"> *</span>{% endif %}</label>{{ f }}{% for e in f.errors %}<p class="field-error">{{ e }}</p>{% endfor %}{% if f.help_text %}<p class="field-help">{{ f.help_text }}</p>{% endif %}</div>
+        {% endif %}{% endfor %}
+        </div>
+      </details>
+      {% for f in form %}{% if f.is_hidden and f.name != "csrfmiddlewaretoken" %}{{ f }}{% endif %}{% endfor %}
       {% if not iv %}<button type="button" class="button button-primary journey-next-step" hidden>Continue to rounds →</button>{% endif %}
     </div>
     {% if not iv %}
     <div data-journey-step="2">
-      <h2>Plan your interview rounds</h2><p class="field-help">Select the total and choose a type for each round. Select Other to write your own name, such as Client round or Casual manager discussion. Uncertain rounds can be filled in later.</p>
-      {% for f in form %}{% if f.name == "first_round_type" or f.name == "first_round_description" or f.name == "round_count" or f.name|slice:":6" == "round_" %}
-      <div class="form-field" data-round-field="{{ f.name }}"><label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %}<span class="required-mark" aria-hidden="true"> *</span>{% endif %}</label>{{ f }}{% for e in f.errors %}<p class="field-error">{{ e }}</p>{% endfor %}{% if f.help_text %}<p class="field-help">{{ f.help_text }}</p>{% endif %}</div>
+      <div class="interview-step-heading"><p class="eyebrow">STEP 2 · ROUND PLAN</p><h2>Plan your interview rounds</h2><p>Choose how many stages you expect and name any rounds you already know.</p></div>
+      {% for f in form %}{% if f.name == "round_count" %}
+      <div class="form-field interview-round-count"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% for e in f.errors %}<p class="field-error">{{ e }}</p>{% endfor %}{% if f.help_text %}<p class="field-help">{{ f.help_text }}</p>{% endif %}</div>
       {% endif %}{% endfor %}
+      <div class="interview-round-plan">
+      {% for f in form %}{% if f.name == "first_round_type" or f.name == "first_round_description" or f.name|slice:":6" == "round_" and f.name != "round_count" %}
+      <div class="form-field interview-round-field" data-round-field="{{ f.name }}"><label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %}<span class="required-mark" aria-hidden="true"> *</span>{% endif %}</label>{{ f }}{% for e in f.errors %}<p class="field-error">{{ e }}</p>{% endfor %}{% if f.help_text %}<p class="field-help">{{ f.help_text }}</p>{% endif %}</div>
+      {% endif %}{% endfor %}
+      </div>
+      <p class="interview-round-hint">Choose a preset or select “Other” for a custom stage such as Client round or Casual manager discussion. You can update the plan later.</p>
       <div class="form-page-actions"><button type="button" class="button button-quiet journey-back-step" hidden>← Back</button><button type="button" class="button button-primary journey-next-step" hidden>Review choices →</button></div>
     </div>
-    <div data-journey-step="3" hidden><h2>Review your interview</h2><p class="field-help">Confirm the opportunity and planned rounds before saving.</p><dl class="journey-review"><div><dt>Company</dt><dd data-review-company></dd></div><div><dt>Role</dt><dd data-review-role></dd></div><div><dt>Planned rounds</dt><dd data-review-count></dd></div></dl><ol data-review-rounds></ol><button type="button" class="button button-quiet journey-back-step">← Edit choices</button></div>
+    <div data-journey-step="3" hidden>
+      <div class="interview-step-heading"><p class="eyebrow">STEP 3 · REVIEW</p><h2>Review your interview</h2><p>Check the opportunity and planned rounds before creating the interview.</p></div>
+      <dl class="journey-review interview-review">
+        <div><dt>Company</dt><dd data-review-company></dd></div><div><dt>Role</dt><dd data-review-role></dd></div>
+        <div><dt>Interview date</dt><dd data-review-date></dd></div><div><dt>Time</dt><dd data-review-time></dd></div>
+        <div><dt>Interview type</dt><dd data-review-type></dd></div><div><dt>Batch</dt><dd data-review-batch></dd></div>
+        <div><dt>Recruiter</dt><dd data-review-recruiter></dd></div><div><dt>Rounds planned</dt><dd data-review-count></dd></div>
+      </dl>
+      <div class="interview-review-rounds"><p class="eyebrow">ROUND PLAN</p><ol data-review-rounds></ol></div>
+      <div class="form-page-actions"><button type="button" class="button button-quiet journey-back-step">← Edit choices</button></div>
+    </div>
     {% endif %}
     <div class="form-page-actions" data-journey-submit><button class="button button-primary" type="submit">{{ submit_label }}</button><a class="button button-quiet" href="{% if iv %}{% url 'student_interview_detail' iv.pk %}{% else %}{% url 'student_interviews' %}{% endif %}">Cancel</a></div>
   </form>
+</div>
+{% if not iv %}
+<aside class="panel interview-setup-aside">
+  <p class="eyebrow">DESIGNED TO FLEX</p><h2>Your process can change</h2>
+  <p>Start with the stages you know. Rename, reschedule, add or remove empty future rounds later. Completed rounds and their notes are kept.</p>
+  <div class="interview-example-list"><span>Examples</span><strong>Client round</strong><strong>Casual manager discussion</strong><strong>System design</strong><strong>Take-home assignment</strong></div>
+</aside>
+{% endif %}
 </section>
 {% if not iv %}
 <script>
@@ -35,14 +70,23 @@
   const steps = [...form.querySelectorAll('[data-journey-step]')];
   const count = form.elements.round_count;
   const fields = [...form.querySelectorAll('[data-round-field]')];
+  const updateCustomNameRequirements = () => {
+    form.querySelectorAll('select[name$="_type"]').forEach(type => {
+      const descriptionName = type.name.replace(/_type$/, '_description');
+      const description = form.querySelector(`[name="${descriptionName}"]`);
+      if (description) description.required = type.value === 'other' && !description.closest('[hidden]');
+    });
+  };
   const updateRounds = () => {
     const total = Number(count.value) || 1;
     fields.forEach(field => {
       const match = field.dataset.roundField.match(/^round_(\d+)_/);
       if (match) field.hidden = Number(match[1]) > total;
     });
+    updateCustomNameRequirements();
   };
   count.addEventListener('input', updateRounds);
+  form.querySelectorAll('select[name$="_type"]').forEach(type => type.addEventListener('change', updateCustomNameRequirements));
   updateRounds();
   if (form.dataset.hasErrors === 'true') return;
   let step = 1;
@@ -64,6 +108,17 @@
     if (step === 2) {
       form.querySelector('[data-review-company]').textContent = form.elements.company_name.value;
       form.querySelector('[data-review-role]').textContent = form.elements.role.value;
+      const interviewDate = form.elements.date_of_interview.value;
+      form.querySelector('[data-review-date]').textContent = interviewDate
+        ? new Date(`${interviewDate}T12:00:00`).toLocaleDateString(undefined, {day: 'numeric', month: 'short', year: 'numeric'})
+        : 'Not set';
+      form.querySelector('[data-review-time]').textContent = form.elements.time_of_interview.value || 'Not specified';
+      const interviewType = form.elements.interview_type;
+      form.querySelector('[data-review-type]').textContent = interviewType.value
+        ? interviewType.selectedOptions[0].text
+        : 'Not specified';
+      form.querySelector('[data-review-batch]').textContent = form.elements.group.selectedOptions[0].text;
+      form.querySelector('[data-review-recruiter]').textContent = form.elements.hr_name.value.trim() || 'Not added';
       form.querySelector('[data-review-count]').textContent = count.value || '1';
       const list = form.querySelector('[data-review-rounds]');
       list.replaceChildren();

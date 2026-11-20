@@ -1447,7 +1447,7 @@ class ViewTests(Base):
         )
         self.assertEqual(self.client.get(reverse("admin_reports")).status_code, 403)
 
-    def test_final_result_preserves_rounds_and_redirects_to_interview_list(self):
+    def test_final_result_preserves_rounds_and_returns_to_journey_when_editing(self):
         first = InterviewRound.objects.create(
             interview=self.iv, round_number=1, description="Screening",
             status=InterviewRound.CLEARED,
@@ -1472,7 +1472,9 @@ class ViewTests(Base):
             "edit_mode": "1",
         })
 
-        self.assertRedirects(rejected_response, reverse("student_interviews"))
+        self.assertRedirects(
+            rejected_response, reverse("student_interview_detail", args=[self.iv.pk])
+        )
         first.refresh_from_db()
         last.refresh_from_db()
         self.assertEqual(first.status, InterviewRound.CLEARED)
