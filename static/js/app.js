@@ -93,53 +93,62 @@
     if (conn.saveData) { strong = false; parts.push('data saver on'); }
     if (conn.downlink) { parts.push(`${conn.downlink} Mbps`); if (conn.downlink < 1.5) strong = false; }
     if (conn.rtt) { parts.push(`${conn.rtt} ms latency`); if (conn.rtt > 500) strong = false; }
+    let timer;
+    let measured = false;
+    let speed = null;
     try {
       const script = document.querySelector('script[src*="app.js"]');
       const probeUrl = `${script ? script.src.split('?')[0] : '/static/js/app.js'}?probe=${Date.now()}`;
       const started = performance.now();
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 8000);
+      timer = setTimeout(() => controller.abort(), 8000);
       const response = await fetch(probeUrl, { cache: 'no-store', signal: controller.signal });
+      if (!response.ok) throw new Error('Connection test failed');
       const bytes = (await response.arrayBuffer()).byteLength;
-      clearTimeout(timer);
       const seconds = Math.max((performance.now() - started) / 1000, 0.05);
       const mbps = (bytes * 8) / seconds / 1e6;
+      measured = true;
+      speed = mbps.toFixed(1);
       parts.push(`measured ${mbps.toFixed(1)} Mbps`);
       if (mbps < 1.5) strong = false;
     } catch (error) {
       strong = false;
       parts.push('speed test failed');
+    } finally {
+      clearTimeout(timer);
     }
-    return { strong, summary: parts.join(', ') };
+    return { strong, measured, speed, summary: parts.join(', ') };
   };
   const networkStatus = interview.querySelector('[data-network-status]');
   const showNetworkStatus = check => {
     if (!networkStatus) return;
     networkStatus.classList.toggle('is-ok', check.strong);
     networkStatus.classList.toggle('is-degraded', !check.strong);
-    networkStatus.textContent = check.strong
-      ? `Network check: good for video and screen sharing (${check.summary}).`
-      : `Network check: slow (${check.summary}). It may not support video and screen sharing, so Practice mode (typing only) will be offered when you start.`;
+    networkStatus.textContent = check.measured ? `${check.strong ? 'Good' : 'Slow'} · ${check.speed} Mbps` : 'Check failed';
+    interview.querySelector('[data-network-detail]').textContent = check.strong
+      ? `Connection looks suitable for video (${check.summary}); actual quality may vary.`
+      : `Connection may interrupt video (${check.summary}). Practice mode or a full session will be offered.`;
   };
-  let networkCheckStartedAt = Date.now();
+  let networkCheckStartedAt = 0;
   let networkCheckReady = false;
-  let networkCheckPromise = checkConnection().then(check => {
-    networkCheckReady = true;
-    showNetworkStatus(check);
-    return check;
-  });
-  const getNetworkCheck = () => {
-    if (Date.now() - networkCheckStartedAt > 60_000) {
+  let networkCheckPromise;
+  const getNetworkCheck = (force = false) => {
+    if (force || !networkCheckPromise || Date.now() - networkCheckStartedAt > 60_000) {
       networkCheckStartedAt = Date.now();
       networkCheckReady = false;
-      networkCheckPromise = checkConnection().then(check => {
-        networkCheckReady = true;
-        showNetworkStatus(check);
+      networkStatus.textContent = 'Checking...';
+      const current = checkConnection().then(check => {
+        if (networkCheckPromise === current) {
+          networkCheckReady = true;
+          showNetworkStatus(check);
+        }
         return check;
       });
+      networkCheckPromise = current;
     }
     return networkCheckPromise;
   };
+  getNetworkCheck();
   const codeLanguage = interview.querySelector('[data-code-language]');
   const codeEditor = interview.querySelector('[data-code-editor]');
   const codeRunButton = interview.querySelector('[data-code-run]');
@@ -455,8 +464,9 @@
   };
   const syncQuestionStyle = () => {
     interview.querySelector('[data-question-style-field]').hidden = startForm.elements.test_type.value !== 'interview';
+    startForm.elements.question_style.required = startForm.elements.test_type.value === 'interview';
   };
-  startForm.elements.test_type.addEventListener('change', syncQuestionStyle);
+  startForm.querySelectorAll('[name="test_type"]').forEach(input => input.addEventListener('change', syncQuestionStyle));
   syncQuestionStyle();
 
   topicSelect.addEventListener('change', () => {
@@ -466,6 +476,50 @@
     syncFocusOptions();
   });
   syncFocusOptions();
+  const setupSteps = [...startForm.querySelectorAll('[data-setup-step]')];
+  const showSetupStep = number => {
+    setupSteps.forEach(panel => { panel.hidden = Number(panel.dataset.setupStep) !== number; });
+    startForm.querySelectorAll('[data-setup-indicator]').forEach(indicator => {
+      if (Number(indicator.dataset.setupIndicator) === number) indicator.setAttribute('aria-current', 'step');
+      else indicator.removeAttribute('aria-current');
+    });
+  };
+  const validateStep = number => {
+    const panel = setupSteps[number - 1];
+    for (const field of panel.querySelectorAll('input, select')) {
+      if (field.willValidate && !field.reportValidity()) return false;
+    }
+    if (number === 2 && topicSelect.value === '__other__' && !otherTopic.value.trim()) {
+      otherTopic.setCustomValidity('Enter a topic.');
+      otherTopic.reportValidity();
+      otherTopic.setCustomValidity('');
+      return false;
+    }
+    return true;
+  };
+  const updateReview = () => {
+    const type = startForm.elements.test_type.value;
+    const selected = select => select.options[select.selectedIndex].text;
+    interview.querySelector('[data-review-type]').textContent = type === 'coding' ? 'Coding test' : 'Interview';
+    interview.querySelector('[data-review-topic]').textContent = topicSelect.value === '__other__' ? otherTopic.value.trim() : selected(topicSelect);
+    interview.querySelector('[data-review-style-row]').hidden = type === 'coding';
+    interview.querySelector('[data-review-style]').textContent = type === 'interview' ? selected(startForm.elements.question_style) : '';
+    interview.querySelector('[data-review-difficulty]').textContent = selected(startForm.elements.difficulty);
+    interview.querySelector('[data-review-focus]').textContent = startForm.elements.custom_topics.value.trim() || (focusField.hidden ? 'Overall' : selected(focusSelect));
+    startForm.querySelector('button[type="submit"]').textContent = type === 'coding' ? 'Start coding test →' : 'Start interview →';
+  };
+  startForm.querySelectorAll('[data-setup-next]').forEach((button, index) => {
+    button.addEventListener('click', () => {
+      const step = index + 1;
+      if (!validateStep(step)) return;
+      if (step === 2) updateReview();
+      setStatus(setupStatus, '');
+      showSetupStep(step + 1);
+    });
+  });
+  startForm.querySelectorAll('[data-setup-back]').forEach((button, index) => {
+    button.addEventListener('click', () => { setStatus(setupStatus, ''); showSetupStep(index + 1); });
+  });
 
   const wait = milliseconds => new Promise(resolve => window.setTimeout(resolve, milliseconds));
 
@@ -676,11 +730,17 @@
   const healthBox = interview.querySelector('[data-ai-health]');
   const healthRetry = interview.querySelector('[data-ai-health-retry]');
   const startButton = startForm.querySelector('button[type="submit"]');
+  let healthStatus = 'checking';
+  let healthRequest = 0;
+  const updateStartButton = () => { startButton.disabled = busy || healthStatus === 'checking' || healthStatus === 'down'; };
   const checkHealth = async refresh => {
     if (!healthBox || !interview.dataset.healthUrl) return;
-    healthBox.className = 'mock-health';
-    healthBox.firstChild.textContent = 'Checking AI status... ';
-    healthRetry.hidden = true;
+    const requestId = ++healthRequest;
+    healthStatus = 'checking';
+    healthBox.className = 'mock-readiness-value';
+    healthBox.textContent = 'Checking...';
+    interview.querySelector('[data-ai-detail]').textContent = 'Checking AI availability.';
+    updateStartButton();
     let status = 'down';
     let message = 'Could not check AI status. Check your connection.';
     try {
@@ -688,23 +748,38 @@
         credentials: 'same-origin', headers: { 'Accept': 'application/json' },
       });
       const result = await response.json();
-      status = result.status;
-      message = result.message;
-    } catch (error) { /* keep the default down state */ }
-    healthBox.className = `mock-health is-${status}`;
-    healthBox.firstChild.textContent = `${message} `;
-    healthRetry.hidden = status === 'ok';
-    startButton.disabled = status === 'down';
+      status = response.ok ? result.status : 'down';
+      message = result.message || message;
+    } catch (error) {
+      message = 'Could not check AI status. Check your connection and re-check.';
+    }
+    if (requestId !== healthRequest) return;
+    healthStatus = ['ok', 'degraded'].includes(status) ? status : 'down';
+    healthBox.className = `mock-readiness-value is-${healthStatus}`;
+    healthBox.textContent = { ok: 'Working', degraded: 'Using backup', down: 'Unavailable' }[healthStatus];
+    interview.querySelector('[data-ai-detail]').textContent = message;
+    updateStartButton();
   };
-  if (healthRetry) healthRetry.addEventListener('click', () => checkHealth(true));
+  if (healthRetry) healthRetry.addEventListener('click', () => { checkHealth(true); getNetworkCheck(true); });
   checkHealth(false);
   startForm.addEventListener('submit', async event => {
     event.preventDefault();
     if (busy) return;
+    if (healthStatus === 'checking' || healthStatus === 'down') {
+      setStatus(setupStatus, 'AI is unavailable. Re-check the service before starting.', true);
+      return;
+    }
+    if (!validateStep(1)) { showSetupStep(1); return; }
+    if (!validateStep(2)) { showSetupStep(2); return; }
+    busy = true;
     startForm.querySelector('button[type="submit"]').disabled = true;
-    const pendingNetworkCheck = getNetworkCheck();
+    let pendingNetworkCheck = getNetworkCheck();
     if (!networkCheckReady) setStatus(setupStatus, 'Checking your connection...');
-    const check = await pendingNetworkCheck;
+    let check = await pendingNetworkCheck;
+    while (pendingNetworkCheck !== networkCheckPromise) {
+      pendingNetworkCheck = networkCheckPromise;
+      check = await pendingNetworkCheck;
+    }
     liteMode = false;
     showNetworkStatus(check);
     if (!check.strong) {
@@ -715,13 +790,14 @@
       );
     }
     modeReason = liteMode ? `practice mode; ${check.summary}` : check.summary;
-    startForm.querySelector('button[type="submit"]').disabled = false;
     if (modeNote) {
       modeNote.hidden = !liteMode;
       modeNote.textContent = liteMode ? `Practice mode is on${check.strong ? '' : ` because your connection looks slow (${check.summary})`}. You will answer by typing or coding, with your camera and screen sharing off.` : '';
     }
     if (!liteMode && (!navigator.mediaDevices?.getUserMedia || !navigator.mediaDevices?.getDisplayMedia || !window.MediaRecorder)) {
       setStatus(setupStatus, 'This browser does not support camera, screen sharing, and audio recording.', true);
+      busy = false;
+      updateStartButton();
       return;
     }
     role = (topicSelect.value === '__other__' ? otherTopic.value : topicSelect.value).trim();
@@ -730,8 +806,12 @@
     difficulty = startForm.elements.difficulty ? startForm.elements.difficulty.value : 'medium';
     testType = startForm.elements.test_type.value;
     questionStyle = testType === 'interview' ? startForm.elements.question_style.value : '';
-    if (!role || !startForm.elements.consent.checked) return;
-    busy = true;
+    if (!role || !startForm.elements.consent.checked || healthStatus === 'down' || healthStatus === 'checking') {
+      setStatus(setupStatus, 'Please check your selections and AI availability before starting.', true);
+      busy = false;
+      updateStartButton();
+      return;
+    }
     startForm.querySelector('button[type="submit"]').disabled = true;
     setStatus(setupStatus, liteMode ? 'Starting practice mode...' : 'Requesting camera, microphone, and screen access...');
     try {
@@ -753,6 +833,9 @@
         }
         screenPreview.srcObject = screenStream;
         await screenPreview.play();
+      }
+      if (healthStatus === 'checking' || healthStatus === 'down') {
+        throw new Error('AI availability changed. Re-check the service before starting.');
       }
       setup.hidden = true;
       session.hidden = false;
@@ -779,10 +862,10 @@
       stopCapture();
       session.hidden = true;
       setup.hidden = false;
-      startForm.querySelector('button[type="submit"]').disabled = false;
       setStatus(setupStatus, error.message || 'Camera and screen access are required to start.', true);
     } finally {
       busy = false;
+      updateStartButton();
     }
   });
 
@@ -905,7 +988,8 @@
     interview.querySelector('[data-capture-grid]').hidden = false;
     session.hidden = true;
     setup.hidden = false;
-    startForm.querySelector('button[type="submit"]').disabled = false;
+    showSetupStep(1);
+    updateStartButton();
     setStatus(setupStatus, '');
   });
 

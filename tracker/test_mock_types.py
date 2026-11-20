@@ -129,11 +129,13 @@ class MockTypeTests(TestCase):
     def test_setup_shows_both_choices_and_default(self):
         response = student_mock_interview(self.request("get", "student_mock_interview"))
         content = response.content.decode()
-        self.assertIn('value="interview">Interview - spoken questions, no coding', content)
-        self.assertIn('value="coding">Coding test - hands-on coding questions', content)
+        self.assertIn('name="test_type" value="interview" required', content)
+        self.assertIn('name="test_type" value="coding"', content)
         self.assertIn('value="scenario">Scenario-based questions', content)
         self.assertIn('value="definition">Definition and concept questions', content)
         self.assertLess(content.index('value="interview"'), content.index('value="coding"'))
+        self.assertIn("Session readiness", content)
+        self.assertIn("data-setup-step=\"3\"", content)
         self.assertIn("Example input", content)
         self.assertIn("Expected output", content)
 
