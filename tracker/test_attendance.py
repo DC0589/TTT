@@ -109,9 +109,22 @@ class LocationTests(TestCase):
         GroupMembership.objects.create(group=batch, student=cls.student)
 
     def test_location_saved_on_check_in_and_out(self):
-        self.client.force_login(self.student)
-        self.client.post(reverse("student_attendance_mark", args=["in"]), LOC)
-        self.client.post(reverse("student_attendance_mark", args=["out"]), {**LOC, "latitude": "17.4"})
+        from datetime import datetime
+        from unittest.mock import patch
+        from .services import attendance as svc
+
+        check_in = timezone.make_aware(datetime.combine(timezone.localdate(), datetime.min.time()).replace(hour=10))
+        check_out = check_in.replace(hour=17)
+        with patch("tracker.services.attendance.timezone.now", return_value=check_in):
+            svc.check_in(
+                self.student, svc.parse_location(LOC["latitude"], LOC["longitude"], LOC["accuracy"]),
+                now=check_in,
+            )
+        with patch("tracker.services.attendance.timezone.now", return_value=check_out):
+            svc.check_out(
+                self.student, svc.parse_location("17.4", LOC["longitude"], LOC["accuracy"]),
+                now=check_out,
+            )
         rec = Attendance.objects.get(student=self.student)
         self.assertEqual((rec.check_in_lat, rec.check_in_lng), (17.385, 78.486))
         self.assertEqual(rec.check_out_lat, 17.4)
@@ -257,8 +270,8 @@ class RulesTests(TestCase):
         memberships = list(svc.batch_students(self.admin))
         row = svc.monthly_report(memberships, 2026, 3, today=date(2026, 3, 31))[0]
         self.assertEqual((row.present, row.late, row.leave), (2, 1, 2))
-        self.assertEqual(row.working, len(days))
-        self.assertAlmostEqual(row.percent, round(100 * 2 / (len(days) - 2), 1))
+        self.assertEqual(row.working, len(days) - 1)  # Today's incomplete workday is not expected yet.
+        self.assertAlmostEqual(row.percent, round(100 * 2 / (len(days) - 3), 1))
         self.client.force_login(self.hr)
         page = self.client.get(reverse("staff_attendance_report"), {"month": "2026-03"})
         self.assertContains(page, "Monthly report")

@@ -757,7 +757,10 @@ class MockInterviewTests(Base):
             def read(self):
                 return json.dumps({
                     "candidates": [{"content": {"parts": [{"text": json.dumps({
-                        "questions": [f"Question {number}?" for number in range(1, 11)],
+                        "questions": [
+                            {"text": f"Question {number}?", "type": "concept"}
+                            for number in range(1, 11)
+                        ],
                     })}]}}]
                 }).encode()
 
