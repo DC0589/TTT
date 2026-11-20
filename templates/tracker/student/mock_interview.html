@@ -5,33 +5,60 @@
   <div><p class="eyebrow">PRACTICE SESSION</p><h1>AI Mock Interview</h1><p>Choose an interview or a coding test and answer ten questions on your selected topic. Your results load when you finish.</p></div>
 </section>
 <div class="mock-interview" data-mock-interview data-ai-url="{{ ai_url }}" data-health-url="{{ health_url }}">
-  <p class="mock-privacy-note"><strong>Privacy:</strong> Your recorded answer and one camera and screen snapshot are sent to Google Gemini for feedback. Your rating, per-question scores, written feedback, and transcripts of recorded answers are saved and visible to your administrator. Audio and images are not saved. Detailed activity logs are deleted after 30 days; your scores and transcripts are kept. Do not show private information on your screen.</p>
   <section class="panel mock-setup" data-interview-setup>
-    <div class="panel-heading"><div><p class="eyebrow">GET READY</p><h2>Set up your session</h2><p>Choose a role, then allow camera and screen sharing when prompted.</p></div></div>
-    <p class="mock-health" data-ai-health role="status">Checking AI status... <button class="button button-secondary" type="button" data-ai-health-retry hidden>Re-check</button></p>
-    <p class="mock-health" data-network-status role="status">Checking your network...</p>
+    <div class="mock-readiness" aria-label="Session readiness">
+      <div class="mock-readiness-top">
+        <strong>SESSION READINESS</strong>
+        <div class="mock-readiness-item"><span>AI</span><span class="mock-readiness-value" data-ai-health role="status">Checking...</span></div>
+        <div class="mock-readiness-item"><span>Internet</span><span class="mock-readiness-value" data-network-status role="status">Checking...</span></div>
+        <button class="button button-quiet" type="button" data-ai-health-retry>Re-check</button>
+      </div>
+      <p class="mock-readiness-detail"><span data-ai-detail>Checking AI availability.</span> <span data-network-detail>Checking your connection.</span> Camera, microphone and screen permissions are requested when you start a full session.</p>
+    </div>
     <form class="stack-form" data-interview-start method="post">{% csrf_token %}
-      <div class="form-field"><label for="mock-test-type">Session type</label>
-        <select class="form-control" id="mock-test-type" name="test_type">
-          <option value="interview">Interview - spoken questions, no coding</option>
-          <option value="coding">Coding test - hands-on coding questions</option>
-        </select>
+      <ol class="mock-setup-steps" aria-label="Session setup progress">
+        <li data-setup-indicator="1" aria-current="step"><span>1</span> Session type</li>
+        <li data-setup-indicator="2"><span>2</span> Your preferences</li>
+        <li data-setup-indicator="3"><span>3</span> Review &amp; start</li>
+      </ol>
+      <div class="mock-setup-content">
+      <div data-setup-step="1">
+        <p class="eyebrow">STEP 1 OF 3</p><h2>How would you like to practise?</h2><p class="mock-setup-intro">Choose a session type to get started.</p>
+        <fieldset class="mock-session-choices"><legend class="sr-only">Session type</legend>
+          <label class="mock-session-choice"><input type="radio" name="test_type" value="interview" required><span><span class="mock-choice-icon" aria-hidden="true">◉</span><strong>Interview</strong><small>Spoken questions about definitions or real-world scenarios.</small></span></label>
+          <label class="mock-session-choice"><input type="radio" name="test_type" value="coding"><span><span class="mock-choice-icon" aria-hidden="true">&lt;/&gt;</span><strong>Coding test</strong><small>Hands-on problems using the built-in code editor.</small></span></label>
+        </fieldset>
+        <p class="mock-setup-note">Each session has 10 questions. You can review your choices before you begin.</p>
+        <div class="mock-setup-actions"><span>You can change this later.</span><button class="button button-primary" type="button" data-setup-next>Continue &rarr;</button></div>
       </div>
-      <div class="form-field" data-question-style-field><label for="mock-question-style">Interview question style</label>
-        <select class="form-control" id="mock-question-style" name="question_style">
-          <option value="scenario">Scenario-based questions</option>
-          <option value="definition">Definition and concept questions</option>
-        </select>
-        <p class="field-help">Choose the type of spoken questions for this interview.</p>
-      </div>
+      <div data-setup-step="2" hidden>
+      <p class="eyebrow">STEP 2 OF 3</p><h2>Make it yours</h2><p class="mock-setup-intro">Choose what you would like to practise and how challenging it should be.</p>
+      <div class="mock-setup-fields">
       <div class="form-field"><label for="mock-topic">Topic to practise</label>
         <select class="form-control" id="mock-topic" name="topic" data-topic-select required>
+          <option value="">Choose a topic</option>
           {% for topic in topics %}<option value="{{ topic }}">{{ topic }}</option>{% endfor %}
           <option value="__other__">Other (type your own)</option>
         </select>
-        <input class="form-control mock-other-topic" name="other_topic" maxlength="120" placeholder="For example, Data Analyst" data-other-topic hidden>
-        <p class="field-help">Questions vary by session and aim to avoid ones you have already been asked. Coding tests use the built-in editor.</p>
+        <label class="sr-only" for="mock-other-topic">Your topic</label><input class="form-control mock-other-topic" id="mock-other-topic" name="other_topic" maxlength="120" placeholder="For example, Data Analyst" data-other-topic hidden>
       </div>
+      <div class="form-field" data-question-style-field><label for="mock-question-style">Interview question style</label>
+        <select class="form-control" id="mock-question-style" name="question_style">
+          <option value="">Choose a style</option>
+          <option value="scenario">Scenario-based questions</option>
+          <option value="definition">Definition and concept questions</option>
+        </select>
+      </div>
+      <div class="form-field"><label for="mock-difficulty">Difficulty</label>
+        <select class="form-control" id="mock-difficulty" name="difficulty" required>
+          <option value="">Choose a difficulty</option>
+          <option value="easy">Easy - fundamentals</option>
+          <option value="medium">Medium - typical interview round</option>
+          <option value="hard">Hard - senior-level, in depth</option>
+        </select>
+      </div></div>
+      <div class="mock-setup-optional"><h3>Fine-tune your session <span>Optional</span></h3><p>Leave these as they are for an overall topic session.</p>
+      <div class="mock-setup-fields">
       <div class="form-field" data-focus-field hidden><label for="mock-focus">Focus area</label>
         <select class="form-control" id="mock-focus" name="focus" data-focus-select>
           <option value="">Overall (all topics)</option>
@@ -41,18 +68,25 @@
         <input class="form-control" id="mock-custom-topics" name="custom_topics" maxlength="200" placeholder="For example: looping, conditions, data types" data-custom-topics>
         <p class="field-help">Separate topics with commas. When filled in, questions cover only these topics and the focus area above is ignored.</p>
       </div>
-      <div class="form-field"><label for="mock-difficulty">Difficulty</label>
-        <select class="form-control" id="mock-difficulty" name="difficulty">
-          <option value="easy">Easy - fundamentals</option>
-          <option value="medium" selected>Medium - typical interview round</option>
-          <option value="hard">Hard - senior-level, in depth</option>
-        </select>
+      </div></div>
+      <div class="mock-setup-actions"><button class="button button-quiet" type="button" data-setup-back>&larr; Back</button><button class="button button-primary" type="button" data-setup-next>Review choices &rarr;</button></div>
       </div>
+      <div data-setup-step="3" hidden>
+      <p class="eyebrow">STEP 3 OF 3</p><h2>Ready to begin?</h2><p class="mock-setup-intro">Check your selections before starting.</p>
+      <dl class="mock-setup-review">
+        <div><dt>Session</dt><dd data-review-type></dd></div><div><dt>Topic</dt><dd data-review-topic></dd></div>
+        <div data-review-style-row><dt>Question style</dt><dd data-review-style></dd></div><div><dt>Difficulty</dt><dd data-review-difficulty></dd></div>
+        <div><dt>Focus</dt><dd data-review-focus></dd></div>
+      </dl>
+      <p class="mock-setup-note"><strong>Before you start</strong><br>Full sessions require camera, microphone and screen sharing. If your connection is slow, you can choose practice mode without camera and screen sharing, or continue with a full session. Permissions are confirmed only when requested.</p>
+      <p class="mock-privacy-note"><strong>Privacy:</strong> Your recorded answer and one camera and screen snapshot are sent to Google Gemini for feedback. Your rating, per-question scores, written feedback, and transcripts of recorded answers are saved and visible to your administrator. Audio and images are not saved. Detailed activity logs are deleted after 30 days; your scores and transcripts are kept. Do not show private information on your screen.</p>
       <p class="mock-lite" data-mode-note hidden></p>
       <label class="mock-consent"><input type="checkbox" name="consent" required><span>I agree to send recorded answers and camera and screen snapshots to Google Gemini. My ratings, written feedback, and transcripts of recorded answers will be saved and shared with my administrator. Recordings and images will not be saved.</span></label>
-      <button class="button button-primary" type="submit">Start interview</button>
+      <div class="mock-setup-actions"><button class="button button-quiet" type="button" data-setup-back>&larr; Edit choices</button><button class="button button-primary" type="submit" disabled>Start interview &rarr;</button></div>
+      </div>
+      </div>
     </form>
-    <p class="mock-status" data-interview-status role="status" aria-live="polite"></p>
+    <p class="mock-status mock-setup-status" data-interview-status role="status" aria-live="polite"></p>
   </section>
   <section class="mock-session" data-interview-session hidden>
     <div class="mock-session-main">
