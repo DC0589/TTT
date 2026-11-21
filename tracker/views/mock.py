@@ -213,6 +213,7 @@ def _mock_progress(user):
             "sessions": len(values), "average": round(sum(values) / len(values), 2),
             "best": max(values), "first": values[0], "latest": values[-1],
             "change": round(values[-1] - values[0], 2),
+            "percent": round(sum(values) / len(values) / 5 * 100),
         }
     return {"topics": rows, "levels": levels, "trend": trend, "suggestion": suggestion, "overall": overall}
 

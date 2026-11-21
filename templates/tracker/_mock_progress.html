@@ -1,14 +1,35 @@
   {% if progress.trend %}
   <section class="panel mock-progress">
-    <div class="section-heading"><div><p class="eyebrow">{{ eyebrow|default:"YOUR PROGRESS" }}</p><h2>Scores over time</h2></div></div>
-    {% if progress.overall %}<p class="progress-suggest">All-time: <strong>{{ progress.overall.sessions }}</strong> session{{ progress.overall.sessions|pluralize }} · average <strong>{{ progress.overall.average }}/5</strong> · best <strong>{{ progress.overall.best }}/5</strong> · first {{ progress.overall.first }} → latest {{ progress.overall.latest }}.</p>{% endif %}
-    {% if progress.suggestion %}<p class="progress-suggest">{{ suggest_label|default:"Suggested next topic" }}: <strong>{{ progress.suggestion.topic }}</strong> ({{ progress.suggestion.reason }}).</p>{% endif %}
-    <div class="progress-trend">
-      {% for point in progress.trend %}<div class="trend-col" title="{{ point.topic }} · {{ point.rating }}/5"><span class="trend-val">{{ point.rating }}</span><div class="trend-bar" style="height: {{ point.percent }}%"></div><span class="trend-label">{{ point.label }}</span></div>{% endfor %}
+    <div class="section-heading"><div><p class="eyebrow">{{ eyebrow|default:"YOUR PROGRESS" }}</p><h2>Practice overview</h2></div></div>
+    {% if progress.overall %}
+    <div class="mock-progress-visual">
+      <div class="mock-score-ring" style="background: conic-gradient(#4f46e5 {{ progress.overall.percent }}%, #edf1f4 0);">
+        <div><strong>{{ progress.overall.average }}</strong><span>Average / 5</span></div>
+      </div>
+      <div class="mock-trend-visual">
+        <div class="mock-trend-heading"><strong>Scores trend</strong><span>{{ progress.overall.sessions }} session{{ progress.overall.sessions|pluralize }} · best {{ progress.overall.best }}</span></div>
+        <div class="mock-trend-bars" aria-label="Scores over recent sessions">
+          {% for point in progress.trend %}<div class="mock-trend-point" title="{{ point.topic }} · {{ point.rating }}/5"><span>{{ point.rating }}</span><i style="height: {{ point.percent }}%"></i><small>{{ point.label }}</small></div>{% endfor %}
+        </div>
+      </div>
     </div>
-    <h3>By topic</h3>
-    {% for row in progress.topics %}<div class="progress-row{% if row.weak %} weak{% endif %}"><span class="progress-name">{{ row.topic }}{% if row.weak %} <em>needs work</em>{% endif %}</span><div class="progress-track"><div class="progress-fill" style="width: {{ row.percent }}%"></div></div><span class="progress-num">{{ row.average }}/5 · {{ row.count }}</span></div>{% endfor %}
-    {% if progress.levels %}<h3>By difficulty</h3>
-    {% for row in progress.levels %}<div class="progress-row"><span class="progress-name">{{ row.level }}</span><div class="progress-track"><div class="progress-fill" style="width: {{ row.percent }}%"></div></div><span class="progress-num">{{ row.average }}/5 · {{ row.count }}</span></div>{% endfor %}{% endif %}
+    {% endif %}
+    {% if progress.suggestion %}
+    <div class="mock-next-topic"><span>{{ suggest_label|default:"Recommended next" }}</span><strong>{{ progress.suggestion.topic }}</strong></div>
+    {% endif %}
+    <div class="mock-breakdown">
+      <div class="mock-breakdown-tabs" role="tablist" aria-label="Score breakdown">
+        <button class="mock-breakdown-tab is-active" type="button" role="tab" aria-selected="true" data-progress-tab="topic">By topic</button>
+        {% if progress.levels %}<button class="mock-breakdown-tab" type="button" role="tab" aria-selected="false" data-progress-tab="difficulty">By difficulty</button>{% endif %}
+      </div>
+      <div class="mock-breakdown-panel is-active" data-progress-panel="topic" role="tabpanel">
+        {% for row in progress.topics %}<div class="progress-row{% if row.weak %} weak{% endif %}"><span class="progress-name">{{ row.topic }}{% if row.weak %} <em>needs work</em>{% endif %}</span><div class="progress-track"><div class="progress-fill" style="width: {{ row.percent }}%"></div></div><span class="progress-num">{{ row.average }}/5 · {{ row.count }}</span></div>{% endfor %}
+      </div>
+      {% if progress.levels %}
+      <div class="mock-breakdown-panel" data-progress-panel="difficulty" role="tabpanel">
+        {% for row in progress.levels %}<div class="progress-row"><span class="progress-name">{{ row.level }}</span><div class="progress-track"><div class="progress-fill" style="width: {{ row.percent }}%"></div></div><span class="progress-num">{{ row.average }}/5 · {{ row.count }}</span></div>{% endfor %}
+      </div>
+      {% endif %}
+    </div>
   </section>
   {% endif %}

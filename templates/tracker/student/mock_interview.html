@@ -173,14 +173,24 @@
       </div>
     </form>
   </dialog>
+  <div class="mock-progress-grid">
   {% include "tracker/_mock_progress.html" %}
   <section class="panel mock-rating-history">
-    <div class="section-heading"><div><p class="eyebrow">PAST PRACTICE</p><h2>Recent interview ratings</h2></div></div>
+    <div class="section-heading"><div><p class="eyebrow">PAST PRACTICE</p><h2>Recent ratings</h2></div></div>
     {% if recent_sessions %}
       <div class="mock-rating-list">
         {% for saved_session in recent_sessions %}
           <div class="mock-rating-row">
-            <div><strong>{{ saved_session.role }}{% if saved_session.focus %} · {{ saved_session.focus }}{% endif %}</strong><span>{{ saved_session.get_test_type_display }}{% if saved_session.question_style %} · {{ saved_session.get_question_style_display }}{% endif %} · {{ saved_session.created_at|date:"M j, Y" }} · {{ saved_session.scores.all|length }} answers</span></div>
+            <div class="mock-rating-copy">
+              <strong>
+                {{ saved_session.role }} ·
+                {% if saved_session.test_type == "coding" %}Coding
+                {% elif saved_session.test_type == "interview" and saved_session.question_style %}{{ saved_session.get_question_style_display }}
+                {% else %}Interview{% endif %}
+                {% if saved_session.difficulty %} · {{ saved_session.difficulty|title }}{% endif %}
+              </strong>
+              <span>{{ saved_session.created_at|date:"M j, Y" }} · {{ saved_session.scores.all|length }} answer{{ saved_session.scores.all|length|pluralize }}</span>
+            </div>
             {% if saved_session.rating is not None %}<span class="mock-score">{{ saved_session.rating|floatformat:1 }}/5</span>{% else %}<span class="mock-rating-pending"{% if saved_session.completed_at %} data-pending-session="{{ saved_session.pk }}"{% endif %}>{% if saved_session.completed_at %}Feedback being prepared{% else %}No score yet{% endif %}</span>{% endif %}
           </div>
         {% endfor %}
@@ -189,6 +199,20 @@
       <p class="mock-feedback-empty">Completed interview ratings will appear here.</p>
     {% endif %}
   </section>
+  </div>
 </div>
 {{ topic_areas|json_script:"mock-topic-areas" }}
+<script>
+  document.querySelectorAll("[data-progress-tab]").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll("[data-progress-tab]").forEach((item) => {
+        item.classList.toggle("is-active", item === tab);
+        item.setAttribute("aria-selected", item === tab ? "true" : "false");
+      });
+      document.querySelectorAll("[data-progress-panel]").forEach((panel) => {
+        panel.classList.toggle("is-active", panel.dataset.progressPanel === tab.dataset.progressTab);
+      });
+    });
+  });
+</script>
 {% endblock %}
